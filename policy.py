@@ -300,10 +300,15 @@ class Policy(object):
                 # supervised learning
                 self.optimize()
 
-    def add_image(self, name, values, x, y, width, height):
+    def get_viewer_size(self):
         if self.viewer is not None:
-            self.viewer.images[name] = (values, x, y, width, height)
+            return (self.viewer.width, self.viewer.height)
+        return (0, 0)
+
+    def add_image(self, name, values, **kwargs):
+        if self.viewer is not None:
+            self.viewer.add_image(name, values, **kwargs)
 
     def remove_image(self, name):
         if self.viewer is not None:
-            self.viewer.images.pop(name, None)
+            self.viewer.remove_image(name)

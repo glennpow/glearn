@@ -38,6 +38,13 @@ class AdvancedViewer(object):
             self.close()
             exit(0)
 
+    def add_image(self, name, values, x=0, y=0, width=None, height=None):
+        # TODO - could cache/reuse image objects and call set_data on them...
+        self.images[name] = (values, x, y, width, height)
+
+    def remove_image(self, name):
+        self.images.pop(name, None)
+
     def imshow(self, arr):
         height, width, chans = arr.shape
         self.window.set_size(4 * width, 4 * height)
@@ -78,6 +85,10 @@ class AdvancedViewer(object):
             # get image data
             values, x, y, width, height = image_data
             rows, cols, chans = values.shape
+            if width is None:
+                width = cols
+            if height is None:
+                height = rows
 
             # convert data to image format (TODO - should be more careful with types here)
             values = np.array(values).ravel().astype(int).tolist()

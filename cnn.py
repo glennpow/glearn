@@ -126,7 +126,7 @@ class CNN(Policy):
         if embedding is not None:
             # build image for selected embedding
             assert embedding < embeddings
-            image = np.zeros((rows, cols, 3))
+            image = np.zeros((rows, cols, 1))
             flat_values = values.ravel()
             value_min = min(flat_values)
             value_max = max(flat_values)
@@ -137,7 +137,8 @@ class CNN(Policy):
                     image[y][x][0] = int((value - value_min) / value_range * 255)
 
             # render image
-            self.add_image("embedding", image, 10, 10, 100, 150)
+            width, height = self.get_viewer_size()
+            self.add_image("embedding", image, x=10, y=10, width=width, height=height)
 
         return transition
     # ---------------------------------------------------------------------
