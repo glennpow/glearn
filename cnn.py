@@ -7,9 +7,9 @@ from layers import add_fc, add_conv2d
 
 class CNN(Policy):
     # filters: [height, width, chan_in, chan_out]
-    def __init__(self, env=None, dataset=None, batch_size=128, seed=0, learning_rate=0.001,
+    def __init__(self, env=None, dataset=None, batch_size=128, seed=0, learning_rate=1e-5,
                  filters=[(5, 5, 32), (5, 5, 64)], strides=1, padding="SAME", max_pool_k=2,
-                 fc_layers=[7 * 7 * 64, 1024], dropout_rate=0.8, load_path=None, save_path=None,
+                 fc_layers=[7 * 7 * 64, 1024], dropout_rate=0.4, load_path=None, save_path=None,
                  tensorboard_path=None):
         self.learning_rate = learning_rate  # lamdba λ
         # self.discount_factor = discount_factor  # gamma γ
@@ -68,12 +68,34 @@ class CNN(Policy):
         # calculate loss
         with tf.name_scope('loss'):
             neg_log_p = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
-            # loss = tf.reduce_mean(neg_log_p * self.discounted_rewards)  # TODO?
-            loss = tf.reduce_mean(neg_log_p)
+            # self.loss_op = tf.reduce_mean(neg_log_p * self.discounted_rewards)  # TODO?
+            self.loss_op = tf.reduce_mean(neg_log_p)
+            # tf.losses.sparse_softmax_cross_entropy(logits=logits, labels=labels)
 
         # minimize loss
         with tf.name_scope('optimize'):
-            self.optimize_op = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
+            self.optimize_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss_op)
+
+        # evaluate accuracy
+        with tf.name_scope('evaluate'):
+            if self.output.discrete:
+                # TODO - stochastic discrete also
+                evaluate = tf.equal(tf.argmax(self.act_op, 1), tf.argmax(self.outputs, 1))
+                self.evaluate_op = tf.reduce_mean(tf.cast(evaluate, tf.float32))
+            else:
+                # TODO - continuous evaluate
+                pass
+
+    def act_inputs(self, observation, feed_dict):
+        # no dropout for inference
+        feed_dict[self.dropout] = 1
+
+        return feed_dict
+
+    def optimize_inputs(self, batch, feed_dict):
+        feed_dict[self.dropout] = self.dropout_rate
+
+        return feed_dict
 
     # HACKs - to view embeddings
     # ---------------------------------------------------------------------
@@ -142,14 +164,3 @@ class CNN(Policy):
 
         return transition
     # ---------------------------------------------------------------------
-
-    def act_inputs(self, observation, feed_dict):
-        # no dropout for inference
-        feed_dict[self.dropout] = 1
-
-        return feed_dict
-
-    def optimize_inputs(self, batch, feed_dict):
-        feed_dict[self.dropout] = self.dropout_rate
-
-        return feed_dict

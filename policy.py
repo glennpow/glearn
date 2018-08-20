@@ -2,64 +2,39 @@ import os
 import time
 import numpy as np
 import tensorflow as tf
-from gym import Space
-from gym.spaces import Discrete
-from rapid.utils.printing import colorize
+from printing import colorize, print_tabular
+from interface import Interface
+from dataset import Transition, transition_batch
 from viewer import AdvancedViewer
-from dashboard import Dashboard
-
-
-class Interface(object):
-    def __init__(self, shape, size, discrete):
-        self.shape = shape
-        self.size = size
-        self.discrete = discrete
-
-
-class Transition(object):
-    def __init__(self, observation, action, reward, new_observation, done, info):
-        self.observation = observation
-        self.action = action
-        self.reward = reward
-        self.new_observation = new_observation
-        self.done = done
-        self.info = info
-
-
-class Batch(object):
-    def __init__(self, data):
-        if isinstance(data[0], Transition):
-            self.observations = [e.observation for e in data]
-            self.actions = [e.action for e in data]
-            self.rewards = [e.reward for e in data]
-            self.new_observations = [e.new_observation for e in data]
-            self.done = [e.done for e in data]
-            self.info = [e.info for e in data]
-        else:
-            self.observations = [d[0] for d in data]
-            self.actions = [d[1] for d in data]
 
 
 class Policy(object):
-    def __init__(self, env=None, dataset=None, batch_size=128, seed=0,
+    def __init__(self, env=None, dataset=None, batch_size=None, seed=0, deterministic=None,
                  load_path=None, save_path=None, tensorboard_path=None):
         self.env = env
         self.dataset = dataset
         self.batch_size = batch_size
         self.seed = seed
+        self.deterministic = deterministic
         if self.env is not None:
             self.env.seed(self.seed)
 
             self.viewer = AdvancedViewer()
             self.env.unwrapped.viewer = self.viewer
 
-            self.input = self.parse_space(env.observation_space)
-            self.output = self.parse_space(env.action_space)
+            self.input = Interface(env.observation_space)
+            self.output = Interface(env.action_space)
+
+            if self.deterministic is None:
+                self.deterministic = False  # TODO - can we infer this from env?
         elif self.dataset is not None:
-            self.input = self.parse_space(dataset.input_space)
-            self.output = self.parse_space(dataset.output_space)
+            self.input = dataset.input
+            self.output = dataset.output
 
             self.viewer = None  # TODO dataset viewer?
+
+            if self.deterministic is None:
+                self.deterministic = self.dataset.deterministic
 
         self.load_path = load_path
         self.save_path = save_path
@@ -86,16 +61,7 @@ class Policy(object):
         print(*args)
 
     def error(self, message):
-        self.log(colorize(message))
-
-    def parse_space(self, space):
-        # get shape and discreteness of interface
-        if isinstance(space, Discrete):
-            return Interface((space.n, ), space.n, True)
-        elif isinstance(space, Space):
-            return Interface(space.shape, np.prod(space.shape), False)
-        self.error(f"Invalid interface space: {space}")
-        return None
+        self.log(colorize(message, "red"))
 
     def init_model(self):
         pass
@@ -109,9 +75,12 @@ class Policy(object):
             self.saver = tf.train.Saver()
 
         if self.load_path is not None:
-            if os.path.exists(self.load_path):
-                self.log(f"Loading model: {self.load_path}")
-                self.saver.restore(self.sess, self.load_path)
+            if os.path.exists(f"{self.load_path}.index"):
+                try:
+                    self.log(f"Loading model: {self.load_path}")
+                    self.saver.restore(self.sess, self.load_path)
+                except Exception as e:
+                    self.error(str(e))
 
         if self.save_path is not None:
             self.log(f"Preparing to save model: {self.save_path}")
@@ -173,7 +142,7 @@ class Policy(object):
         action = self.act(self.observation)
 
         # perform action
-        new_observation, reward, done, info = self.env.step(self.decode_action(action))
+        new_observation, reward, done, info = self.env.step(self.output.decode(action))
 
         # record transition
         transition = Transition(self.observation, action, reward, new_observation, done, info)
@@ -186,68 +155,68 @@ class Policy(object):
 
     def act(self, observation):
         if self.act_op is not None:
+            ops = self.act_ops([self.act_op])
+
             # prepare parameters
             feed_dict = self.act_inputs(observation, {self.inputs: [observation]})
 
             # evaluate act graph
-            return self.sess.run(self.act_op, feed_dict=feed_dict).ravel()
+            return self.sess.run(ops, feed_dict=feed_dict).ravel()
         return np.zeros(self.output.shape)
+
+    def act_ops(self, ops):
+        return ops
 
     def act_inputs(self, observation, feed_dict):
         return feed_dict
 
-    def encode_action(self, action):
-        # handle discrete actions
-        if self.output.discrete:
-            action_index = action
-            action = np.zeros(self.output.shape)
-            action[action_index] = 1
-        return action
-
-    def decode_action(self, action):
-        # handle discrete actions
-        if self.output.discrete:
-            action = np.random.choice(range(len(action)), p=action)
-        return action
-
-    def get_batch(self, size=None):
+    def get_batch(self):
         if self.reinforcement:
-            return Batch(self.transitions[:size])
+            return transition_batch(self.transitions[:self.batch_size])
         else:
-            return Batch(self.dataset.batch(self.batch_size))
+            return self.dataset.batch(self.batch_size)
 
-    def optimize(self):
+    def optimize(self, evaluating=False, saving=True):
         # get batch
         batch = self.get_batch()
 
-        # prepare parameters
+        ops = self.optimize_ops([self.optimize_op])
+
+        # prepare optimization parameters
         feed_dict = {
-            self.inputs: batch.observations,
-            self.outputs: batch.actions,
+            self.inputs: batch.inputs,
+            self.outputs: batch.outputs,
         }
         feed_dict = self.optimize_inputs(batch, feed_dict)
 
         # evaluate optimize graph on batch
-        self.sess.run(self.optimize_op, feed_dict=feed_dict)
+        self.sess.run(ops, feed_dict=feed_dict)
+
+        if evaluating and self.evaluate_op is not None and self.loss_op is not None:
+            # prepare evaluation parameters
+            feed_dict = self.act_inputs(batch, feed_dict)
+
+            # run evaluate graph
+            loss, acc = self.sess.run([self.loss_op, self.evaluate_op], feed_dict=feed_dict)
+
+            print_tabular({
+                "loss": loss,
+                "accuracy": acc,
+            })
 
         # save model
-        if self.save_path is not None:
+        if saving and self.save_path is not None:
             save_path = self.saver.save(self.sess, self.save_path)
             self.log(f"Saved model: {save_path}")
+
+    def optimize_ops(self, ops):
+        return ops
 
     def optimize_inputs(self, batch, feed_dict):
         return feed_dict
 
-    def evaluate(self, Y):
-        # TODO - use?
-        if self.act_op is not None:
-            correct_act = tf.equal(tf.argmax(self.act_op, 1), tf.argmax(Y, 1))
-            accuracy = tf.reduce_mean(tf.cast(correct_act, tf.float32))
-            return accuracy
-        return 0
-
     def train(self, episodes, max_episode_time=None, min_episode_reward=None,
-              render=False):
+              render=False, evaluate_interval=5):
         episode_rewards = []
 
         for episode in range(episodes):
@@ -287,18 +256,26 @@ class Policy(object):
                         # optimize after episode
                         self.optimize()
 
-                        self.log("==========================================")
-                        self.log("Episode: ", episode)
-                        self.log("Seconds: ", elapsed_sec)
-                        self.log("Reward: ", episode_reward)
-                        self.log("Max reward so far: ", max_reward_so_far)
+                        # self.log("==========================================")
+                        # self.log("Episode: ", episode)
+                        # self.log("Seconds: ", elapsed_sec)
+                        # self.log("Reward: ", episode_reward)
+                        # self.log("Max reward so far: ", max_reward_so_far)
+                        print_tabular({
+                            "episode": episode,
+                            "time": elapsed_sec,
+                            "reward": episode_reward,
+                            "max_reward": max_reward_so_far,
+                        })
 
                         # if max_reward_so_far > render_reward_min:
                         #     render = True
                         break
             else:
                 # supervised learning
-                self.optimize()
+                evaluating = episode % evaluate_interval == 0
+                saving = evaluating
+                self.optimize(evaluating=evaluating, saving=saving)
 
     def get_viewer_size(self):
         if self.viewer is not None:

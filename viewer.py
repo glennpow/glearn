@@ -51,6 +51,7 @@ class AdvancedViewer(object):
         # self.width = width
         # self.height = height
         self.window.set_visible(True)
+        self.window.activate()
         # if self.window is None:
         #     self.window = pyglet.window.Window(width=4 * width, height=4 * height,
         #                                        display=self.display, vsync=False, resizable=True)

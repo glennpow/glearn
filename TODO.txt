@@ -1,0 +1,5 @@
+SpaceInvaders CNN:
+python train.py --env=SpaceInvaders-v0 --policy=cnn --version=1 --render
+
+MNIST:
+python train.py --dataset=mnist --policy=cnn --version=0 --batch=128 --evaluate=20

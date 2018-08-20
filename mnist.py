@@ -44,11 +44,11 @@ def check_image_file_header(filename):
         cols = read32(f)
         if magic != 2051:
             raise ValueError('Invalid magic number %d in MNIST file %s' % (magic,
-                                                                                                                                         f.name))
+                                                                           f.name))
         if rows != 28 or cols != 28:
             raise ValueError(
-                    'Invalid MNIST file %s: Expected 28x28 images, found %dx%d' %
-                    (f.name, rows, cols))
+                             'Invalid MNIST file %s: Expected 28x28 images, found %dx%d' %
+                             (f.name, rows, cols))
 
 
 def check_labels_file_header(filename):
@@ -58,7 +58,7 @@ def check_labels_file_header(filename):
         read32(f)  # num_items, unused
         if magic != 2049:
             raise ValueError('Invalid magic number %d in MNIST file %s' % (magic,
-                                                                                                                                         f.name))
+                                                                           f.name))
 
 
 def download(directory, filename):
@@ -101,23 +101,20 @@ def dataset(directory, images_file, labels_file, max_count=None):
     check_labels_file_header(labels_file)
 
     def decode_image(image):
-        # Normalize from [0, 255] to [0.0, 1.0]
-        image = tf.decode_raw(image, tf.uint8)
-        image = tf.cast(image, tf.float32)
-        image = tf.reshape(image, [784])
-        return image / 255.0
+        image = np.frombuffer(image, dtype=np.uint8)
+        image = image.astype(float)
+        image = image.reshape((28, 28, 1))
+        image = image / 255.0
+        return image
 
     def decode_label(label):
-        label = tf.decode_raw(label, tf.uint8)  # tf.string -> [tf.uint8]
-        label = tf.reshape(label, [])  # label is a scalar
-        return tf.to_int32(label)
+        label = np.frombuffer(label, dtype=np.uint8)
+        label = label.astype(int)
+        label = label.flatten()
+        return label
 
-    # images = tf.data.FixedLengthRecordDataset(
-    #         images_file, 28 * 28, header_bytes=16).map(decode_image)
     images = load_data(images_file, 28 * 28, max_count=max_count, header_bytes=16,
                        mapping=decode_image)
-    # labels = tf.data.FixedLengthRecordDataset(
-    #         labels_file, 1, header_bytes=8).map(decode_label)
     labels = load_data(labels_file, 1, max_count=max_count, header_bytes=8, mapping=decode_label)
     return Dataset(inputs=images, outputs=labels,
                    input_space=gym.spaces.Box(low=-np.inf, high=np.inf, shape=(28, 28, 1)),
