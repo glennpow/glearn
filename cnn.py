@@ -6,7 +6,6 @@ from layers import add_fc, add_conv2d
 
 
 class CNN(Policy):
-    # filters: [height, width, chan_in, chan_out]
     def __init__(self, env=None, dataset=None, batch_size=128, seed=0, learning_rate=2e-4,
                  filters=[(5, 5, 32), (5, 5, 64)], strides=1, padding="SAME", max_pool_k=2,
                  fc_layers=[7 * 7 * 64, 1024], dropout_rate=0.8, load_path=None, save_path=None,
@@ -21,6 +20,9 @@ class CNN(Policy):
 
         self.fc_layers = fc_layers
         self.dropout_rate = dropout_rate
+
+        self.visualize_layer = None
+        self.visualize_feature = None
 
         super().__init__(env=env, dataset=dataset, batch_size=batch_size, seed=seed,
                          load_path=load_path, save_path=save_path,
@@ -102,44 +104,36 @@ class CNN(Policy):
 
         return feed_dict
 
-    # HACKs - to visualize embeddings
-    # ---------------------------------------------------------------------
-    visualize_layer = None
-    visualize_embedding = None
-
-    def init_viewer(self):
-        super().init_viewer()
-
-        if self.viewer is not None:
-            self.viewer.window.push_handlers(self)
-
     def on_key_press(self, key, modifiers):
+        super().on_key_press(key, modifiers)
+
+        # feature visualization keys
         if key == pyglet.window.key._0:
             self.clear_visualize()
         elif key == pyglet.window.key.EQUAL:
             if self.visualize_layer is None:
                 self.visualize_layer = 0
-                self.visualize_embedding = 0
+                self.visualize_feature = 0
             else:
                 max_layers = len(self.filters)
                 self.visualize_layer = min(self.visualize_layer + 1, max_layers - 1)
-            max_embeddings = self.filters[self.visualize_layer][2]
-            self.visualize_embedding = min(self.visualize_embedding, max_embeddings - 1)
+            max_features = self.filters[self.visualize_layer][2]
+            self.visualize_feature = min(self.visualize_feature, max_features - 1)
         elif key == pyglet.window.key.MINUS:
             if self.visualize_layer is not None:
                 self.visualize_layer -= 1
                 if self.visualize_layer < 0:
                     self.clear_visualize()
                 else:
-                    max_embeddings = self.filters[self.visualize_layer][2]
-                    self.visualize_embedding = min(self.visualize_embedding, max_embeddings - 1)
+                    max_features = self.filters[self.visualize_layer][2]
+                    self.visualize_feature = min(self.visualize_feature, max_features - 1)
         elif key == pyglet.window.key.BRACKETRIGHT:
             if self.visualize_layer is not None:
-                max_embeddings = self.filters[self.visualize_layer][2]
-                self.visualize_embedding = min(self.visualize_embedding + 1, max_embeddings - 1)
+                max_features = self.filters[self.visualize_layer][2]
+                self.visualize_feature = min(self.visualize_feature + 1, max_features - 1)
         elif key == pyglet.window.key.BRACKETLEFT:
             if self.visualize_layer is not None:
-                self.visualize_embedding = max(self.visualize_embedding - 1, 0)
+                self.visualize_feature = max(self.visualize_feature - 1, 0)
 
     def init_visualize(self):
         for i in range(len(self.filters)):
@@ -147,7 +141,7 @@ class CNN(Policy):
 
     def clear_visualize(self):
         self.visualize_layer = None
-        self.remove_image("embedding")
+        self.remove_image("features")
 
     def rollout(self):
         # do standard rollout
@@ -157,7 +151,7 @@ class CNN(Policy):
             # get layer values to visualize
             values = self.act_result[f"conv2d_{self.visualize_layer}"]
 
-            # build image for selected embedding
+            # build image for selected feature
             _, rows, cols, _ = values.shape
             image = np.zeros((rows, cols, 1))
             flat_values = values.ravel()
@@ -166,12 +160,11 @@ class CNN(Policy):
             value_range = max([0.1, value_max - value_min])
             for y, row in enumerate(values[0]):
                 for x, col in enumerate(row):
-                    value = col[self.visualize_embedding]
+                    value = col[self.visualize_feature]
                     image[y][x][0] = int((value - value_min) / value_range * 255)
 
             # render image
             width, height = self.get_viewer_size()
-            self.add_image("embedding", image, x=10, y=10, width=width, height=height)
+            self.add_image("features", image, x=0, y=0, width=width, height=height)
 
         return transition
-    # ---------------------------------------------------------------------

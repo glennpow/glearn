@@ -4,7 +4,6 @@ import pyglet
 
 class AdvancedViewer(object):
     def __init__(self, display=None, width=None, height=None):
-        # self.window = None
         self.isopen = False
         self.display = display
         self.images = {}
@@ -33,11 +32,6 @@ class AdvancedViewer(object):
     def on_close(self):
         self.isopen = False
 
-    def on_key_press(self, key, modifiers):
-        if key == pyglet.window.key.ESCAPE:
-            self.close()
-            exit(0)
-
     def add_image(self, name, values, x=0, y=0, width=None, height=None):
         # TODO - could cache/reuse image objects and call set_data on them...
         self.images[name] = (values, x, y, width, height)
@@ -46,41 +40,28 @@ class AdvancedViewer(object):
         self.images.pop(name, None)
 
     def imshow(self, arr):
+        assert len(arr.shape) == 3, "You passed in an image with the wrong number shape"
         height, width, chans = arr.shape
-        self.window.set_size(4 * width, 4 * height)
-        # self.width = width
-        # self.height = height
+        zoom = 4
+        width *= zoom
+        height *= zoom
+        self.window.set_size(width, height)
+        self.add_image("*", arr, x=0, y=0, width=width, height=height)
+
+    def render(self):
+        if len(self.images) == 0:
+            return
+
         if not self.window.visible:
             self.window.set_visible(True)
             self.window.activate()
-        # if self.window is None:
-        #     self.window = pyglet.window.Window(width=4 * width, height=4 * height,
-        #                                        display=self.display, vsync=False, resizable=True)
-        #     self.width = width
-        #     self.height = height
-        #     self.isopen = True
-
-        #     @self.window.event
-        #     def on_resize(width, height):
-        #         self.width = width
-        #         self.height = height
-
-        #     @self.window.event
-        #     def on_close():
-        #         self.isopen = False
-
-        #     @self.window.event
-        #     def on_key_press(key, modifiers):
-        #         self.on_key_press(key, modifiers)
-
-        assert len(arr.shape) == 3, "You passed in an image with the wrong number shape"
 
         self.window.clear()
         self.window.switch_to()
         self.window.dispatch_events()
 
-        image = pyglet.image.ImageData(width, height, 'RGB', arr.tobytes(), pitch=width * -chans)
-        image.blit(0, 0, width=self.window.width, height=self.window.height)
+        # image = pyglet.image.ImageData(width, height, 'RGB', arr.tobytes(), pitch=width * -chans)
+        # image.blit(0, 0, width=self.window.width, height=self.window.height)
 
         # draw custom images (such advanced!)
         for image_data in self.images.values():
@@ -92,7 +73,7 @@ class AdvancedViewer(object):
             if height is None:
                 height = rows
 
-            # convert data to image format (TODO - should be more careful with types here)
+            # convert data to image format (TODO - cache & be more careful with types here)
             values = np.array(values).ravel().astype(int).tolist()
             bytes_conv = bytes(values)
 
@@ -107,7 +88,7 @@ class AdvancedViewer(object):
             # could cache/reuse image objects and call set_data on them...
             image = pyglet.image.ImageData(cols, rows, fmt, bytes_conv, pitch=cols * -chans)
 
-            # TODO... interpolation
+            # TODO... pixel interpolation
             # from pyglet.gl import *
             # gl.EnableTex2d(...)
             # gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)

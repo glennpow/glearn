@@ -2,6 +2,7 @@ import os
 import time
 import numpy as np
 import tensorflow as tf
+import pyglet
 from printing import colorize, print_tabular
 from interface import Interface
 from dataset import Transition, transition_batch
@@ -53,8 +54,7 @@ class Policy(object):
         self.episode_reward = 0
 
         self.layers = {}
-
-        self.dashboard = None
+        self.training = False
 
         self.init_viewer()
         self.init_model()
@@ -99,7 +99,9 @@ class Policy(object):
             tf.summary.FileWriter(self.tensorboard_path, self.sess.graph)
 
     def init_viewer(self):
-        pass
+        # register for events from viewer
+        if self.viewer is not None:
+            self.viewer.window.push_handlers(self)
 
     @property
     def reinforcement(self):
@@ -141,6 +143,8 @@ class Policy(object):
     def render(self, mode="human"):
         if self.env is not None:
             self.env.render(mode=mode)
+        if self.viewer is not None:
+            self.viewer.render()
 
     def get_batch(self):
         if self.reinforcement:
@@ -211,58 +215,68 @@ class Policy(object):
         return feed_dict
 
     def train(self, episodes, max_episode_time=None, min_episode_reward=None,
-              render=False, evaluate_interval=5):
+              render=False, evaluate_interval=5, profile_path=None):
         episode_rewards = []
+        self.training = True
 
-        for episode in range(episodes):
-            self.reset()
-            tic = time.time()
+        def train_loop():
+            for episode in range(episodes):
+                self.reset()
+                tic = time.time()
 
-            if self.reinforcement:
-                # reinforcement learning
-                while True:
-                    if render:
-                        self.render()
+                if self.reinforcement:
+                    # reinforcement learning
+                    while True:
+                        if not self.training:
+                            return
 
-                    # rollout
-                    transition = self.rollout()
-                    done = transition.done
+                        if render:
+                            self.render()
 
-                    # episode time
-                    toc = time.time()
-                    elapsed_sec = toc - tic
-                    if max_episode_time is not None:
-                        # episode timeout
-                        if elapsed_sec > max_episode_time:
-                            done = True
+                        # rollout
+                        transition = self.rollout()
+                        done = transition.done
 
-                    # episode performance
-                    episode_reward = self.episode_reward
-                    if min_episode_reward is not None:
-                        # episode poor performance
-                        if episode_reward < min_episode_reward:
-                            done = True
+                        # episode time
+                        toc = time.time()
+                        elapsed_sec = toc - tic
+                        if max_episode_time is not None:
+                            # episode timeout
+                            if elapsed_sec > max_episode_time:
+                                done = True
 
-                    if done:
-                        episode_rewards.append(self.episode_reward)
-                        # self.dashboard_plot("Reward", episode_rewards)
-                        max_reward_so_far = np.amax(episode_rewards)
+                        # episode performance
+                        episode_reward = self.episode_reward
+                        if min_episode_reward is not None:
+                            # episode poor performance
+                            if episode_reward < min_episode_reward:
+                                done = True
 
-                        # optimize after episode
-                        self.optimize()
+                        if done:
+                            episode_rewards.append(self.episode_reward)
+                            max_reward_so_far = np.amax(episode_rewards)
 
-                        print_tabular({
-                            "episode": episode,
-                            "time": elapsed_sec,
-                            "reward": episode_reward,
-                            "max_reward": max_reward_so_far,
-                        })
-                        break
-            else:
-                # supervised learning
-                evaluating = episode % evaluate_interval == 0
-                saving = evaluating
-                self.optimize(evaluating=evaluating, saving=saving)
+                            # optimize after episode
+                            self.optimize()
+
+                            print_tabular({
+                                "episode": episode,
+                                "time": elapsed_sec,
+                                "reward": episode_reward,
+                                "max_reward": max_reward_so_far,
+                            })
+                            break
+                else:
+                    # supervised learning
+                    evaluating = episode % evaluate_interval == 0
+                    saving = evaluating
+                    self.optimize(evaluating=evaluating, saving=saving)
+
+        if profile_path is not None:
+            with tf.contrib.tfprof.ProfileContext(profile_path) as pctx:  # noqa
+                train_loop()
+        else:
+            train_loop()
 
     def get_viewer_size(self):
         if self.viewer is not None:
@@ -276,3 +290,9 @@ class Policy(object):
     def remove_image(self, name):
         if self.viewer is not None:
             self.viewer.remove_image(name)
+
+    def on_key_press(self, key, modifiers):
+        # feature visualization keys
+        if key == pyglet.window.key.ESCAPE:
+            self.viewer.close()
+            self.training = False

@@ -5,6 +5,7 @@ import gym
 from policy_gradient import PolicyGradient
 from cnn import CNN
 from mnist import train as mnist_dataset
+from profile import open_profile
 
 
 TEMP_DIR = "/tmp/learning"
@@ -21,8 +22,9 @@ TEMP_DIR = "/tmp/learning"
 @click.option("--evaluate", "evaluate_interval", type=int, default=5)
 @click.option("--version", "-v", type=int, default=0)
 @click.option("--render/--no-render", default=False)
+@click.option("--profile/--no-profile", default=False)
 def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_interval,
-         version, render):
+         version, render, profile):
     # get env or dataset
     env = None
     dataset = None
@@ -44,6 +46,7 @@ def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_i
     load_path = f"{TEMP_DIR}/{project}/{load_version}/model.ckpt"
     save_path = f"{current_tmp_dir}/model.ckpt"
     tensorboard_path = f"{current_tmp_dir}/tensorboard/"
+    profile_path = f"{current_tmp_dir}/profile" if profile else None
 
     # create policy
     if policy == "cnn":
@@ -68,7 +71,11 @@ def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_i
                                 tensorboard_path=tensorboard_path)
 
     # train policy
-    policy.train(episodes=episodes, evaluate_interval=evaluate_interval, render=render)
+    policy.train(episodes=episodes, evaluate_interval=evaluate_interval, render=render,
+                 profile_path=profile_path)
+
+    if profile_path is not None:
+        open_profile(profile_path)
 
 
 if __name__ == "__main__":
