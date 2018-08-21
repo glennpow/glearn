@@ -60,9 +60,6 @@ class AdvancedViewer(object):
         self.window.switch_to()
         self.window.dispatch_events()
 
-        # image = pyglet.image.ImageData(width, height, 'RGB', arr.tobytes(), pitch=width * -chans)
-        # image.blit(0, 0, width=self.window.width, height=self.window.height)
-
         # draw custom images (such advanced!)
         for image_data in self.images.values():
             # get image data
