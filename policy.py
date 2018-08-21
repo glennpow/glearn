@@ -40,8 +40,13 @@ class Policy(object):
         self.save_path = save_path
         self.tensorboard_path = tensorboard_path
 
-        self.act_op = None
-        self.optimize_op = None
+        self.act_graph = {}
+        self.optimize_graph = {}
+        self.evaluate_graph = {}
+
+        self.act_result = {}
+        self.optimize_result = {}
+        self.evaluate_result = {}
 
         self.observation = None
         self.transitions = []
@@ -137,6 +142,12 @@ class Policy(object):
         if self.env is not None:
             self.env.render(mode=mode)
 
+    def get_batch(self):
+        if self.reinforcement:
+            return transition_batch(self.transitions[:self.batch_size])
+        else:
+            return self.dataset.batch(self.batch_size)
+
     def rollout(self):
         # get action
         action = self.act(self.observation)
@@ -154,65 +165,49 @@ class Policy(object):
         return transition
 
     def act(self, observation):
-        if self.act_op is not None:
-            ops = self.act_ops([self.act_op])
-
+        if "act" in self.act_graph:
             # prepare parameters
-            feed_dict = self.act_inputs(observation, {self.inputs: [observation]})
+            feed_dict = self.act_feed(observation, {self.inputs: [observation]})
 
             # evaluate act graph
-            return self.sess.run(ops, feed_dict=feed_dict).ravel()
+            self.act_result = self.sess.run(self.act_graph, feed_dict=feed_dict)
+            action = self.act_result["act"]
+            return action.ravel()
         return np.zeros(self.output.shape)
 
-    def act_ops(self, ops):
-        return ops
-
-    def act_inputs(self, observation, feed_dict):
+    def act_feed(self, observation, feed_dict):
         return feed_dict
 
-    def get_batch(self):
-        if self.reinforcement:
-            return transition_batch(self.transitions[:self.batch_size])
-        else:
-            return self.dataset.batch(self.batch_size)
-
     def optimize(self, evaluating=False, saving=True):
-        # get batch
-        batch = self.get_batch()
+        if "optimize" in self.optimize_graph:
+            # get batch
+            batch = self.get_batch()
 
-        ops = self.optimize_ops([self.optimize_op])
+            # prepare optimization parameters
+            feed_dict = {
+                self.inputs: batch.inputs,
+                self.outputs: batch.outputs,
+            }
+            feed_dict = self.optimize_feed(batch, feed_dict)
 
-        # prepare optimization parameters
-        feed_dict = {
-            self.inputs: batch.inputs,
-            self.outputs: batch.outputs,
-        }
-        feed_dict = self.optimize_inputs(batch, feed_dict)
+            # evaluate optimize graph on batch
+            self.optimize_result = self.sess.run(self.optimize_graph, feed_dict=feed_dict)
 
-        # evaluate optimize graph on batch
-        self.sess.run(ops, feed_dict=feed_dict)
+            if evaluating and len(self.evaluate_graph) > 0:
+                # prepare evaluation parameters
+                feed_dict = self.act_feed(batch, feed_dict)
 
-        if evaluating and self.evaluate_op is not None and self.loss_op is not None:
-            # prepare evaluation parameters
-            feed_dict = self.act_inputs(batch, feed_dict)
+                # run evaluate graph
+                self.evaluate_result = self.sess.run(self.evaluate_graph, feed_dict=feed_dict)
 
-            # run evaluate graph
-            loss, acc = self.sess.run([self.loss_op, self.evaluate_op], feed_dict=feed_dict)
+                print_tabular(self.evaluate_result)
 
-            print_tabular({
-                "loss": loss,
-                "accuracy": acc,
-            })
+            # save model
+            if saving and self.save_path is not None:
+                save_path = self.saver.save(self.sess, self.save_path)
+                self.log(f"Saved model: {save_path}")
 
-        # save model
-        if saving and self.save_path is not None:
-            save_path = self.saver.save(self.sess, self.save_path)
-            self.log(f"Saved model: {save_path}")
-
-    def optimize_ops(self, ops):
-        return ops
-
-    def optimize_inputs(self, batch, feed_dict):
+    def optimize_feed(self, batch, feed_dict):
         return feed_dict
 
     def train(self, episodes, max_episode_time=None, min_episode_reward=None,
@@ -256,20 +251,12 @@ class Policy(object):
                         # optimize after episode
                         self.optimize()
 
-                        # self.log("==========================================")
-                        # self.log("Episode: ", episode)
-                        # self.log("Seconds: ", elapsed_sec)
-                        # self.log("Reward: ", episode_reward)
-                        # self.log("Max reward so far: ", max_reward_so_far)
                         print_tabular({
                             "episode": episode,
                             "time": elapsed_sec,
                             "reward": episode_reward,
                             "max_reward": max_reward_so_far,
                         })
-
-                        # if max_reward_so_far > render_reward_min:
-                        #     render = True
                         break
             else:
                 # supervised learning

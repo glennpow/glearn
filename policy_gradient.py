@@ -41,18 +41,20 @@ class PolicyGradient(Policy):
         # softmax
         logits = layer[1]["Z"]
         labels = self.outputs
-        self.act_op = tf.nn.softmax(logits, name='act')
+        self.act_graph["act"] = tf.nn.softmax(logits, name='act')
 
         # calculate loss
         with tf.name_scope('loss'):
             neg_log_p = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
             loss = tf.reduce_mean(neg_log_p * self.discounted_rewards)
+            self.evaluate_graph["loss"] = loss
 
         # minimize loss
         with tf.name_scope('optimize'):
-            self.optimize_op = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
+            optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
+            self.optimize_graph["optimize"] = optimize
 
-    def optimize_inputs(self, batch, feed_dict):
+    def optimize_feed(self, batch, feed_dict):
         # normalized discount rewards
         discounted_rewards = np.zeros_like(batch.rewards)
         accum = 0

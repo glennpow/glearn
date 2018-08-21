@@ -7,9 +7,9 @@ from layers import add_fc, add_conv2d
 
 class CNN(Policy):
     # filters: [height, width, chan_in, chan_out]
-    def __init__(self, env=None, dataset=None, batch_size=128, seed=0, learning_rate=1e-5,
+    def __init__(self, env=None, dataset=None, batch_size=128, seed=0, learning_rate=2e-4,
                  filters=[(5, 5, 32), (5, 5, 64)], strides=1, padding="SAME", max_pool_k=2,
-                 fc_layers=[7 * 7 * 64, 1024], dropout_rate=0.4, load_path=None, save_path=None,
+                 fc_layers=[7 * 7 * 64, 1024], dropout_rate=0.8, load_path=None, save_path=None,
                  tensorboard_path=None):
         self.learning_rate = learning_rate  # lamdba λ
         # self.discount_factor = discount_factor  # gamma γ
@@ -63,43 +63,49 @@ class CNN(Policy):
         # softmax
         logits = layer[1]["Z"]
         labels = self.outputs
-        self.act_op = tf.nn.softmax(logits, name='act')
+        act = tf.nn.softmax(logits, name='act')
+        self.act_graph["act"] = act
+
+        self.init_visualize()
 
         # calculate loss
         with tf.name_scope('loss'):
             neg_log_p = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
-            # self.loss_op = tf.reduce_mean(neg_log_p * self.discounted_rewards)  # TODO?
-            self.loss_op = tf.reduce_mean(neg_log_p)
-            # tf.losses.sparse_softmax_cross_entropy(logits=logits, labels=labels)
+            # loss = tf.reduce_mean(neg_log_p * self.discounted_rewards)  # TODO?
+            loss = tf.reduce_mean(neg_log_p)
+            self.evaluate_graph["loss"] = loss
 
         # minimize loss
         with tf.name_scope('optimize'):
-            self.optimize_op = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss_op)
+            optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
+            self.optimize_graph["optimize"] = optimize
 
         # evaluate accuracy
         with tf.name_scope('evaluate'):
             if self.output.discrete:
                 # TODO - stochastic discrete also
-                evaluate = tf.equal(tf.argmax(self.act_op, 1), tf.argmax(self.outputs, 1))
-                self.evaluate_op = tf.reduce_mean(tf.cast(evaluate, tf.float32))
+                evaluate = tf.equal(tf.argmax(act, 1), tf.argmax(labels, 1))
+                accuracy = tf.reduce_mean(tf.cast(evaluate, tf.float32))
+                self.evaluate_graph["accuracy"] = accuracy
             else:
                 # TODO - continuous evaluate
                 pass
 
-    def act_inputs(self, observation, feed_dict):
+    def act_feed(self, observation, feed_dict):
         # no dropout for inference
         feed_dict[self.dropout] = 1
 
         return feed_dict
 
-    def optimize_inputs(self, batch, feed_dict):
+    def optimize_feed(self, batch, feed_dict):
         feed_dict[self.dropout] = self.dropout_rate
 
         return feed_dict
 
-    # HACKs - to view embeddings
+    # HACKs - to visualize embeddings
     # ---------------------------------------------------------------------
-    embedding = None
+    visualize_layer = None
+    visualize_embedding = None
 
     def init_viewer(self):
         super().init_viewer()
@@ -109,45 +115,50 @@ class CNN(Policy):
 
     def on_key_press(self, key, modifiers):
         if key == pyglet.window.key._0:
-            self.embedding = None
-            self.remove_image("embedding")
-        elif key == pyglet.window.key._1:
-            self.embedding = 1
-        elif key == pyglet.window.key._2:
-            self.embedding = 2
-        elif key == pyglet.window.key._3:
-            self.embedding = 3
-        elif key == pyglet.window.key._4:
-            self.embedding = 4
-        elif key == pyglet.window.key._5:
-            self.embedding = 5
-        elif key == pyglet.window.key._6:
-            self.embedding = 6
-        elif key == pyglet.window.key._7:
-            self.embedding = 7
-        elif key == pyglet.window.key._8:
-            self.embedding = 8
-        elif key == pyglet.window.key._9:
-            self.embedding = 9
+            self.clear_visualize()
+        elif key == pyglet.window.key.EQUAL:
+            if self.visualize_layer is None:
+                self.visualize_layer = 0
+                self.visualize_embedding = 0
+            else:
+                max_layers = len(self.filters)
+                self.visualize_layer = min(self.visualize_layer + 1, max_layers - 1)
+            max_embeddings = self.filters[self.visualize_layer][2]
+            self.visualize_embedding = min(self.visualize_embedding, max_embeddings - 1)
+        elif key == pyglet.window.key.MINUS:
+            if self.visualize_layer is not None:
+                self.visualize_layer -= 1
+                if self.visualize_layer < 0:
+                    self.clear_visualize()
+                else:
+                    max_embeddings = self.filters[self.visualize_layer][2]
+                    self.visualize_embedding = min(self.visualize_embedding, max_embeddings - 1)
+        elif key == pyglet.window.key.BRACKETRIGHT:
+            if self.visualize_layer is not None:
+                max_embeddings = self.filters[self.visualize_layer][2]
+                self.visualize_embedding = min(self.visualize_embedding + 1, max_embeddings - 1)
+        elif key == pyglet.window.key.BRACKETLEFT:
+            if self.visualize_layer is not None:
+                self.visualize_embedding = max(self.visualize_embedding - 1, 0)
+
+    def init_visualize(self):
+        for i in range(len(self.filters)):
+            self.act_graph[f"conv2d_{i}"] = self.get_layer("conv2d", i)
+
+    def clear_visualize(self):
+        self.visualize_layer = None
+        self.remove_image("embedding")
 
     def rollout(self):
         # do standard rollout
         transition = super().rollout()
 
-        # get layer to view embeddings
-        layer_index = 0
-        layer = self.get_layer("conv2d", layer_index)
+        if self.visualize_layer is not None:
+            # get layer values to visualize
+            values = self.act_result[f"conv2d_{self.visualize_layer}"]
 
-        # get layer embedding values
-        observation = transition.observation
-        feed_dict = self.act_inputs(observation, {self.inputs: [observation]})
-        values = self.sess.run(layer, feed_dict=feed_dict)
-
-        _, rows, cols, embeddings = values.shape
-        embedding = self.embedding
-        if embedding is not None:
             # build image for selected embedding
-            assert embedding < embeddings
+            _, rows, cols, _ = values.shape
             image = np.zeros((rows, cols, 1))
             flat_values = values.ravel()
             value_min = min(flat_values)
@@ -155,7 +166,7 @@ class CNN(Policy):
             value_range = max([0.1, value_max - value_min])
             for y, row in enumerate(values[0]):
                 for x, col in enumerate(row):
-                    value = col[embedding]
+                    value = col[self.visualize_embedding]
                     image[y][x][0] = int((value - value_min) / value_range * 255)
 
             # render image
