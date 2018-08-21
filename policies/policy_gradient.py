@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
-from policy import Policy
-from layers import add_fc
+from policies.policy import Policy
+from policies.layers import add_fc
 
 
 class PolicyGradient(Policy):

@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 import pyglet
-from policy import Policy
-from layers import add_fc, add_conv2d
+from policies.policy import Policy
+from policies.layers import add_fc, add_conv2d
 
 
 class CNN(Policy):

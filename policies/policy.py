@@ -3,10 +3,10 @@ import time
 import numpy as np
 import tensorflow as tf
 import pyglet
-from printing import colorize, print_tabular
-from interface import Interface
-from dataset import Transition, transition_batch
-from viewer import AdvancedViewer
+from policies.interface import Interface
+from datasets.dataset import Transition, transition_batch
+from utils.viewer import AdvancedViewer
+from utils.printing import colorize, print_tabular
 
 
 class Policy(object):

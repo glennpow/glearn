@@ -1,4 +1,4 @@
-from interface import Interface
+from policies.interface import Interface
 
 
 class Transition(object):

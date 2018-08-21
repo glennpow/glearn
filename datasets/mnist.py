@@ -26,7 +26,7 @@ import numpy as np
 from six.moves import urllib
 import tensorflow as tf
 import gym
-from dataset import Dataset
+from datasets.dataset import Dataset
 
 
 def read32(bytestream):

@@ -2,10 +2,10 @@
 
 import click
 import gym
-from policy_gradient import PolicyGradient
-from cnn import CNN
-from mnist import train as mnist_dataset
-from profile import open_profile
+from policies.policy_gradient import PolicyGradient
+from policies.cnn import CNN
+from datasets.mnist import train as mnist_dataset
+from utils.profile import open_profile
 
 
 TEMP_DIR = "/tmp/learning"
