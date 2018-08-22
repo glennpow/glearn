@@ -6,10 +6,9 @@ from policies.layers import add_fc, add_conv2d
 
 
 class CNN(Policy):
-    def __init__(self, env=None, dataset=None, batch_size=128, seed=0, learning_rate=2e-4,
-                 filters=[(5, 5, 32), (5, 5, 64)], strides=1, padding="SAME", max_pool_k=2,
-                 fc_layers=[7 * 7 * 64, 1024], dropout_rate=0.8, load_path=None, save_path=None,
-                 tensorboard_path=None):
+    def __init__(self, learning_rate=2e-4, filters=[(5, 5, 32), (5, 5, 64)], strides=1,
+                 padding="SAME", max_pool_k=2, fc_layers=[7 * 7 * 64, 1024], dropout_rate=0.8,
+                 **kwargs):
         self.learning_rate = learning_rate  # lamdba λ
         # self.discount_factor = discount_factor  # gamma γ
 
@@ -24,9 +23,7 @@ class CNN(Policy):
         self.visualize_layer = None
         self.visualize_feature = None
 
-        super().__init__(env=env, dataset=dataset, batch_size=batch_size, seed=seed,
-                         load_path=load_path, save_path=save_path,
-                         tensorboard_path=tensorboard_path)
+        super().__init__(**kwargs)
 
     def init_model(self):
         # create input placeholders
@@ -65,7 +62,7 @@ class CNN(Policy):
         # softmax
         logits = layer[1]["Z"]
         labels = self.outputs
-        act = tf.nn.softmax(logits, name='act')
+        act = layer[0]
         self.act_graph["act"] = act
 
         self.init_visualize()

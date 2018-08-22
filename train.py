@@ -4,7 +4,9 @@ import click
 import gym
 from policies.policy_gradient import PolicyGradient
 from policies.cnn import CNN
+from policies.rnn import RNN
 from datasets.mnist import train as mnist_dataset
+from datasets.ptb import train as ptb_dataset
 from utils.profile import open_profile
 
 
@@ -34,6 +36,8 @@ def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_i
     elif dataset_name is not None:
         if dataset_name == "mnist":
             dataset = mnist_dataset(f"{TEMP_DIR}/data/mnist", max_count=1000)
+        if dataset_name == "ptb":
+            dataset = ptb_dataset(f"{TEMP_DIR}/data/ptb")
     if env is None and dataset is None:
         print("Failed to find env or dataset to train with")
         return
@@ -65,7 +69,17 @@ def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_i
                      dataset=dataset,
                      batch_size=batch,
                      seed=seed,
-                     learning_rate=0.02,
+                     # learning_rate=0.02,
+                     # discount_factor=0.99,
+                     load_path=load_path,
+                     save_path=save_path,
+                     tensorboard_path=tensorboard_path)
+    elif policy == "rnn":
+        policy = RNN(env=env,
+                     dataset=dataset,
+                     batch_size=batch,
+                     seed=seed,
+                     # learning_rate=0.02,
                      # discount_factor=0.99,
                      load_path=load_path,
                      save_path=save_path,
@@ -75,7 +89,7 @@ def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_i
                                 dataset=dataset,
                                 batch_size=batch,
                                 seed=seed,
-                                learning_rate=0.02,
+                                # learning_rate=0.02,
                                 discount_factor=0.99,
                                 load_path=load_path,
                                 save_path=save_path,

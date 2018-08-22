@@ -5,17 +5,14 @@ from policies.layers import add_fc
 
 
 class PolicyGradient(Policy):
-    def __init__(self, env=None, dataset=None, batch_size=128, seed=0, learning_rate=0.01,
-                 discount_factor=0.95, hidden_depth=2, hidden_size=10,
-                 load_path=None, save_path=None, tensorboard_path=None):
+    def __init__(self, learning_rate=2e-4, discount_factor=0.95, hidden_depth=2, hidden_size=10,
+                 **kwargs):
         self.learning_rate = learning_rate  # lamdba λ
         self.discount_factor = discount_factor  # gamma γ
         self.hidden_depth = hidden_depth
         self.hidden_size = hidden_size
 
-        super().__init__(env=env, dataset=dataset, batch_size=batch_size, seed=seed,
-                         load_path=load_path, save_path=save_path,
-                         tensorboard_path=tensorboard_path)
+        super().__init__(**kwargs)
 
     def init_model(self):
         # create placeholders
@@ -41,7 +38,8 @@ class PolicyGradient(Policy):
         # softmax
         logits = layer[1]["Z"]
         labels = self.outputs
-        self.act_graph["act"] = tf.nn.softmax(logits, name='act')
+        act = layer[0]
+        self.act_graph["act"] = act
 
         # calculate loss
         with tf.name_scope('loss'):
