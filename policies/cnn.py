@@ -81,6 +81,7 @@ class CNN(Policy):
 
         # evaluate accuracy
         with tf.name_scope('evaluate'):
+            self.evaluate_graph["act"] = act
             if self.output.discrete:
                 # TODO - stochastic discrete also
                 evaluate = tf.equal(tf.argmax(act, 1), tf.argmax(labels, 1))
@@ -165,3 +166,16 @@ class CNN(Policy):
             self.add_image("features", image, x=0, y=0, width=width, height=height)
 
         return transition
+
+    def optimize(self, evaluating=False, saving=True):
+        batch = super().optimize(evaluating=evaluating, saving=saving)
+
+        # visualize evaluated dataset results
+        if self.supervised and evaluating:
+            index = 0
+            image = batch.inputs[index] * 255
+            self.set_main_image(image)
+
+            action = self.output.decode(self.evaluate_result["act"][index])
+            action_message = f"{action}"
+            self.add_label("action", action_message)

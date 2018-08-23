@@ -32,7 +32,7 @@ class Policy(object):
             self.input = dataset.input
             self.output = dataset.output
 
-            self.viewer = None  # TODO dataset viewer?
+            self.viewer = AdvancedViewer()
 
             if self.deterministic is None:
                 self.deterministic = self.dataset.deterministic
@@ -210,6 +210,8 @@ class Policy(object):
             if saving and self.save_path is not None:
                 save_path = self.saver.save(self.sess, self.save_path)
                 self.log(f"Saved model: {save_path}")
+            return batch
+        return None
 
     def optimize_feed(self, batch, feed_dict):
         return feed_dict
@@ -267,10 +269,16 @@ class Policy(object):
                             })
                             break
                 else:
+                    if not self.training:
+                        return
+
                     # supervised learning
                     evaluating = episode % evaluate_interval == 0
                     saving = evaluating
                     self.optimize(evaluating=evaluating, saving=saving)
+
+                    if render:
+                        self.render()
 
         if profile_path is not None:
             with tf.contrib.tfprof.ProfileContext(profile_path) as pctx:  # noqa
@@ -283,6 +291,10 @@ class Policy(object):
             return (self.viewer.width, self.viewer.height)
         return (0, 0)
 
+    def set_main_image(self, values):
+        if self.viewer is not None:
+            self.viewer.set_main_image(values)
+
     def add_image(self, name, values, **kwargs):
         if self.viewer is not None:
             self.viewer.add_image(name, values, **kwargs)
@@ -290,6 +302,14 @@ class Policy(object):
     def remove_image(self, name):
         if self.viewer is not None:
             self.viewer.remove_image(name)
+
+    def add_label(self, name, values, **kwargs):
+        if self.viewer is not None:
+            self.viewer.add_label(name, values, **kwargs)
+
+    def remove_label(self, name):
+        if self.viewer is not None:
+            self.viewer.remove_label(name)
 
     def on_key_press(self, key, modifiers):
         # feature visualization keys

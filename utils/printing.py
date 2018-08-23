@@ -1,3 +1,4 @@
+import numpy as np
 from collections import OrderedDict
 
 
@@ -25,15 +26,19 @@ def colorize(string, color, bold=False, highlight=False):
     return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
 
 
-def print_tabular(values, color=None, bold=False):
-    def _truncate(s):
-        return s
+def format_value(value):
+    if np.isscalar(value):
+        return f"{value:.5g}"
+    else:
+        return f"{value}".split('\n')[0]
 
+
+def print_tabular(values, color=None, bold=False):
     # Create strings for printing
     key2str = OrderedDict()
     for (key, val) in values.items():
-        valstr = '%-8.5g' % (val,) if hasattr(val, '__float__') else val
-        key2str[_truncate(key)] = _truncate(valstr)
+        formatted = format_value(val)
+        key2str[key] = formatted
 
     # Find max widths
     keywidth = max(map(len, key2str.keys()))
