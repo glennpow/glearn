@@ -111,18 +111,20 @@ class RNN(Policy):
             optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
             self.optimize_graph["optimize"] = optimize
 
+    def init_viewer(self):
+        super().init_viewer()
+
+        self.viewer.set_zoom(1)
+
     def init_visualize(self):
         # TODO cache the desired dims here
         pass
 
     def update_visualize(self, data):
         # TODO cache the desired dims above
-        # 1024x1250
         size = self.vocabulary * self.hidden_size
-        cols = (math.ceil(math.sqrt(size)) // 128) * 128
+        cols = math.ceil(math.sqrt(size) / 128.0) * 128
         rows = math.ceil(size / cols)
-
-        # image = data.inputs[index] * 255
 
         values = self.process_image(self.evaluate_result["embedding"], rows=rows, cols=cols)
         self.viewer.set_main_image(values)

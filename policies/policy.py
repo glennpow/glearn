@@ -52,7 +52,8 @@ class Policy(object):
         self.layers = {}
         self.training = False
 
-        self.init_viewer()
+        if self.viewer is not None:
+            self.init_viewer()
         self.init_model()
         self.init_session()
         self.init_persistence()
@@ -98,8 +99,7 @@ class Policy(object):
 
     def init_viewer(self):
         # register for events from viewer
-        if self.viewer is not None:
-            self.viewer.window.push_handlers(self)
+        self.viewer.window.push_handlers(self)
 
     def init_threading(self):
         if self.multithreaded:
@@ -368,8 +368,6 @@ class Policy(object):
             rows = vrows
         if cols is None:
             cols = vcols
-        mrows = min(rows, vrows)
-        mcols = min(cols, vcols)
 
         # init channel mapping
         if isinstance(chans, int):
@@ -385,16 +383,26 @@ class Policy(object):
 
         # calculate value ranges, extract channels and normalize
         flat_values = values.ravel()
+        size = len(flat_values)
         value_min = min(flat_values)
         value_max = max(flat_values)
         value_range = max([0.1, value_max - value_min])
-        for y in range(mrows):
-            for x in range(mcols):
+        flat_values = [int((v - value_min) / value_range * 255) for v in flat_values]
+        done = False
+        for y in range(rows):
+            if done:
+                break
+            for x in range(cols):
+                if done:
+                    break
                 for c in range(nchans):
                     idx = y * vcols + x + chans[c]
+                    if idx >= size:
+                        done = True
+                        break
                     value = flat_values[idx]
-                    norm = int((value - value_min) / value_range * 255)
-                    processed[y][x][c] = norm
+                    # norm = int((value - value_min) / value_range * 255)
+                    processed[y][x][c] = value
         return processed
 
     def set_main_image(self, values):

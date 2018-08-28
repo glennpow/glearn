@@ -1,5 +1,6 @@
 import numpy as np
 import pyglet
+from pyglet.gl import *
 
 
 class AdvancedViewer(object):
@@ -28,6 +29,24 @@ class AdvancedViewer(object):
 
     def __del__(self):
         self.close()
+
+    def initialize_gl(self):
+        # Set clear color
+        glClearColor(0, 0, 0, 0)
+
+        # Set antialiasing
+        glEnable(gl.GL_LINE_SMOOTH)
+        glEnable(gl.GL_POLYGON_SMOOTH)
+        glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
+
+        # Set alpha blending
+        glEnable(gl.GL_BLEND)
+        glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+
+        # gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
+
+        # Set viewport
+        # glViewport(0, 0, width, height)
 
     def set_zoom(self, zoom):
         self.zoom = zoom
@@ -103,12 +122,28 @@ class AdvancedViewer(object):
         self.window.switch_to()
         self.window.dispatch_events()
 
+        # TODO - HANDLE ZOOM
+        # # Initialize Projection matrix
+        # glMatrixMode( GL_PROJECTION )
+        # glLoadIdentity()
+
+        # # Initialize Modelview matrix
+        # glMatrixMode( GL_MODELVIEW )
+        # glLoadIdentity()
+        # # Save the default modelview matrix
+        # glPushMatrix()
+
+        # # Clear window with ClearColor
+        # glClear( GL_COLOR_BUFFER_BIT )
+
+        # # Set orthographic projection matrix
+        # glOrtho( self.left, self.right, self.bottom, self.top, 1, -1 )
+
         # draw custom images
         for image_data in self.images.values():
             image, x, y, width, height = image_data
 
             # TODO... pixel interpolation
-            # from pyglet.gl import *
             # gl.EnableTex2d(image.tex_id) ?
             # gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
 
@@ -116,7 +151,7 @@ class AdvancedViewer(object):
             image.blit(x, y, width=width, height=height)
 
         # draw custom labels (such advanced viewing!)
-        for label  in self.labels.values():
+        for label in self.labels.values():
             label.draw()
 
         self.window.flip()
