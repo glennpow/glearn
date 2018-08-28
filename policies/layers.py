@@ -38,7 +38,7 @@ def add_conv2d(policy, inputs, input_size, input_channels, filter, strides=1, ma
     return (A, info)
 
 
-def add_fc(policy, inputs, input_size, output_size, reshape=False, dropout=None,
+def add_fc(policy, inputs, input_size, output_size, reshape=False, keep_prob=None,
            initializer=None, activation=tf.nn.relu):
     # initializer
     initializer_seed = 1
@@ -64,13 +64,16 @@ def add_fc(policy, inputs, input_size, output_size, reshape=False, dropout=None,
         Z = tf.matmul(x, W)
         Z = tf.add(Z, b)
 
-        info["Z"] = Z
-        A = activation(Z)
+        if activation is not None:
+            info["Z"] = Z
+            A = activation(Z)
+        else:
+            A = Z
 
         # dropout
-        if dropout is not None:
+        if keep_prob is not None:
             info["undropped"] = A
-            A = tf.nn.dropout(A, dropout)
+            A = tf.nn.dropout(A, keep_prob)
 
         policy.add_layer("fc", A)
         return (A, info)

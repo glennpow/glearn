@@ -72,7 +72,7 @@ def load_data(path, element_size, max_count=None, header_bytes=0, mapping=None):
         return data
 
 
-def dataset(directory, images_file, labels_file, max_count=None):
+def dataset(directory, images_file, labels_file, batch_size, max_count=None):
     """Download and parse MNIST dataset."""
 
     images_file = download(directory, images_file)
@@ -97,17 +97,22 @@ def dataset(directory, images_file, labels_file, max_count=None):
     images = load_data(images_file, 28 * 28, max_count=max_count, header_bytes=16,
                        mapping=decode_image)
     labels = load_data(labels_file, 1, max_count=max_count, header_bytes=8, mapping=decode_label)
-    return Dataset(inputs=images, outputs=labels,
+
+    # TODO fix HACK - Producer like PTB, which iterates all batches in an epoch...
+
+    return Dataset("MNIST", inputs=images, outputs=labels,
+                   optimize_batch=True,  # HACK fix above
                    input_space=gym.spaces.Box(low=-np.inf, high=np.inf, shape=(28, 28, 1)),
-                   output_space=gym.spaces.Discrete(10))
+                   output_space=gym.spaces.Discrete(10), batch_size=batch_size)
 
 
-def train(directory, max_count=None):
+def train(directory, batch_size, max_count=None):
     """tf.data.Dataset object for MNIST training data."""
     return dataset(directory, 'train-images-idx3-ubyte', 'train-labels-idx1-ubyte',
-                   max_count=max_count)
+                   batch_size, max_count=max_count)
 
 
-def test(directory):
+def test(directory, batch_size):
     """tf.data.Dataset object for MNIST test data."""
-    return dataset(directory, 't10k-images-idx3-ubyte', 't10k-labels-idx1-ubyte')
+    return dataset(directory, 't10k-images-idx3-ubyte', 't10k-labels-idx1-ubyte',
+                   batch_size)

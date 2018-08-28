@@ -1,5 +1,6 @@
 import os
 import time
+from collections import abc
 import numpy as np
 import tensorflow as tf
 import pyglet
@@ -10,14 +11,19 @@ from utils.printing import colorize, print_tabular
 
 
 class Policy(object):
-    def __init__(self, env=None, dataset=None, batch_size=None, seed=0, deterministic=None,
-                 load_path=None, save_path=None, tensorboard_path=None):
+    def __init__(self, env=None, dataset=None, batch_size=None, seed=0,
+                 load_path=None, save_path=None, tensorboard_path=None,
+                 multithreaded=False):
         self.env = env
         self.dataset = dataset
         self.batch_size = batch_size
         self.seed = seed
-        self.deterministic = deterministic
-        if self.env is not None:
+        if self.supervised:
+            self.input = dataset.input
+            self.output = dataset.output
+
+            self.viewer = AdvancedViewer()
+        elif self.reinforcement:
             self.env.seed(self.seed)
 
             self.viewer = AdvancedViewer()
@@ -26,20 +32,10 @@ class Policy(object):
             self.input = Interface(env.observation_space)
             self.output = Interface(env.action_space)
 
-            if self.deterministic is None:
-                self.deterministic = False  # TODO - can we infer this from env?
-        elif self.dataset is not None:
-            self.input = dataset.input
-            self.output = dataset.output
-
-            self.viewer = AdvancedViewer()
-
-            if self.deterministic is None:
-                self.deterministic = self.dataset.deterministic
-
         self.load_path = load_path
         self.save_path = save_path
         self.tensorboard_path = tensorboard_path
+        self.multithreaded = multithreaded
 
         self.act_graph = {}
         self.optimize_graph = {}
@@ -75,6 +71,8 @@ class Policy(object):
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
 
+        self.init_threading()
+
     def init_persistence(self):
         if self.save_path is not None or self.load_path is not None:
             self.saver = tf.train.Saver()
@@ -102,6 +100,18 @@ class Policy(object):
         # register for events from viewer
         if self.viewer is not None:
             self.viewer.window.push_handlers(self)
+
+    def init_threading(self):
+        if self.multithreaded:
+            # start thread queue
+            self.coord = tf.train.Coordinator()
+            self.threads = tf.train.start_queue_runners(coord=self.coord, sess=self.sess)
+
+    def update_threading(self):
+        if self.multithreaded:
+            # join all threads
+            self.coord.request_stop()
+            self.coord.join(self.threads)
 
     @property
     def reinforcement(self):
@@ -146,11 +156,27 @@ class Policy(object):
         if self.viewer is not None:
             self.viewer.render()
 
-    def get_batch(self):
-        if self.reinforcement:
-            return transition_batch(self.transitions[:self.batch_size])
+    def create_inputs(self):
+        if self.supervised:
+            self.inputs = self.dataset.get_inputs()
+            self.outputs = self.dataset.get_outputs()
         else:
-            return self.dataset.batch(self.batch_size)
+            self.inputs = tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
+            self.outputs = tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
+        return self.inputs, self.outputs
+
+    def get_epoch(self):
+        if self.supervised:
+            # supervised epoch of samples
+            return self.dataset.get_epoch()
+        else:
+            # unsupervised replay batch samples
+            batch = transition_batch(self.transitions[:self.batch_size])
+            feed_dict = {
+                self.inputs: batch.inputs,
+                self.outputs: batch.outputs,
+            }
+            return batch, feed_dict
 
     def rollout(self):
         # get action
@@ -168,6 +194,9 @@ class Policy(object):
         self.episode_reward += transition.reward
         return transition
 
+    def act_feed(self, observation, feed_dict):
+        return feed_dict
+
     def act(self, observation):
         if "act" in self.act_graph:
             # prepare parameters
@@ -176,58 +205,80 @@ class Policy(object):
             # evaluate act graph
             self.act_result = self.sess.run(self.act_graph, feed_dict=feed_dict)
             action = self.act_result["act"]
+
+            # join threads
+            self.update_threading()
+
             return action.ravel()
         return np.zeros(self.output.shape)
 
-    def act_feed(self, observation, feed_dict):
+    def optimize_feed(self, data, feed_dict):
         return feed_dict
 
     def optimize(self, evaluating=False, saving=True):
+        """
+        Run an entire supervised epoch, or batch of unsupervised episodes.
+        """
         if "optimize" in self.optimize_graph:
-            # get batch
-            batch = self.get_batch()
+            # get data for epoch
+            data, feed_dict = self.get_epoch()
+            feed_dict = self.optimize_feed(data, feed_dict)
 
-            # prepare optimization parameters
-            feed_dict = {
-                self.inputs: batch.inputs,
-                self.outputs: batch.outputs,
-            }
-            feed_dict = self.optimize_feed(batch, feed_dict)
-
-            # evaluate optimize graph on batch
+            # evaluate optimize graph
             self.optimize_result = self.sess.run(self.optimize_graph, feed_dict=feed_dict)
 
+            # save model
+            if saving and self.save_path is not None:
+                save_path = self.saver.save(self.sess, self.save_path)
+                self.log(f"Saved model: {save_path}")
+
+            # join threads
+            self.update_threading()
+
+            # evaluate periodically
             if evaluating and len(self.evaluate_graph) > 0:
                 # prepare evaluation parameters
-                feed_dict = self.act_feed(batch, feed_dict)
+                feed_dict = self.act_feed(data, feed_dict)
 
                 # run evaluate graph
                 self.evaluate_result = self.sess.run(self.evaluate_graph, feed_dict=feed_dict)
 
                 print_tabular(self.evaluate_result)
 
-            # save model
-            if saving and self.save_path is not None:
-                save_path = self.saver.save(self.sess, self.save_path)
-                self.log(f"Saved model: {save_path}")
-            return batch
+                # join threads
+                self.update_threading()
+            return data
         return None
 
-    def optimize_feed(self, batch, feed_dict):
-        return feed_dict
-
-    def train(self, episodes, max_episode_time=None, min_episode_reward=None,
-              render=False, evaluate_interval=5, profile_path=None):
+    def train(self, episodes, epochs=1, max_episode_time=None, min_episode_reward=None,
+              render=False, evaluate_interval=20, profile_path=None):
         episode_rewards = []
         self.training = True
 
-        def train_loop():
-            for episode in range(episodes):
-                self.reset()
-                tic = time.time()
+        # print training info
+        self.print_info()
 
-                if self.reinforcement:
-                    # reinforcement learning
+        def train_loop():
+            if self.supervised:
+                # supervised learning
+                for epoch in range(epochs):
+                    if not self.training:
+                        return
+
+                    self.dataset.reset()
+
+                    evaluating = epoch % evaluate_interval == 0
+                    saving = evaluating
+                    self.optimize(evaluating=evaluating, saving=saving)
+
+                    if render:
+                        self.render()
+            else:
+                # reinforcement learning
+                for episode in range(episodes):
+                    self.reset()
+                    tic = time.time()
+
                     while True:
                         if not self.training:
                             return
@@ -268,17 +319,6 @@ class Policy(object):
                                 "max_reward": max_reward_so_far,
                             })
                             break
-                else:
-                    if not self.training:
-                        return
-
-                    # supervised learning
-                    evaluating = episode % evaluate_interval == 0
-                    saving = evaluating
-                    self.optimize(evaluating=evaluating, saving=saving)
-
-                    if render:
-                        self.render()
 
         if profile_path is not None:
             with tf.contrib.tfprof.ProfileContext(profile_path) as pctx:  # noqa
@@ -286,10 +326,76 @@ class Policy(object):
         else:
             train_loop()
 
+    def print_info(self):
+        if self.supervised:
+            training_info = {
+                "Training Method": "Supervised",
+                "Dataset": self.dataset.name,
+                "Input": self.dataset.input,
+                "Output": self.dataset.output,
+                "Batch Size": self.dataset.batch_size,
+            }
+        else:
+            training_info = {
+                "Training Method": "Reinforcement",
+                # TODO...
+            }
+        print_tabular(training_info)
+
     def get_viewer_size(self):
         if self.viewer is not None:
             return (self.viewer.width, self.viewer.height)
         return (0, 0)
+
+    def process_image(self, values, rows=None, cols=None, chans=None):
+        # get image dimensions
+        values_dims = len(values.shape)
+        if values_dims == 1:
+            vrows = 1
+            vcols = values.shape[0]
+            vchans = 1
+        elif values_dims == 2:
+            vrows, vcols = values.shape
+            vchans = 1
+        elif values_dims == 3:
+            vrows, vcols, vchans = values.shape
+        else:
+            self.error(f"Too many dimensions ({values_dims} > 3) on passed image data")
+            return values
+
+        # get final rows/cols
+        if rows is None:
+            rows = vrows
+        if cols is None:
+            cols = vcols
+        mrows = min(rows, vrows)
+        mcols = min(cols, vcols)
+
+        # init channel mapping
+        if isinstance(chans, int):
+            chans = range(chans)
+        elif isinstance(chans, abc.Iterable):
+            pass
+        else:
+            chans = range(vchans)
+        nchans = len(chans)
+
+        # create processed image
+        processed = np.zeros((rows, cols, nchans))
+
+        # calculate value ranges, extract channels and normalize
+        flat_values = values.ravel()
+        value_min = min(flat_values)
+        value_max = max(flat_values)
+        value_range = max([0.1, value_max - value_min])
+        for y in range(mrows):
+            for x in range(mcols):
+                for c in range(nchans):
+                    idx = y * vcols + x + chans[c]
+                    value = flat_values[idx]
+                    norm = int((value - value_min) / value_range * 255)
+                    processed[y][x][c] = norm
+        return processed
 
     def set_main_image(self, values):
         if self.viewer is not None:

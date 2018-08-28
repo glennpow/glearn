@@ -19,14 +19,16 @@ TEMP_DIR = "/tmp/learning"
 @click.option("--dataset", "-d", "dataset_name", default=None)
 @click.option("--policy", "-p", default="policy_gradient")
 @click.option("--episodes", type=int, default=5000)
+@click.option("--epochs", type=int, default=1)
 @click.option("--seed", "-s", type=int, default=1)
-@click.option("--batch", type=int, default=128)
+@click.option("--batch", "batch_size", type=int, default=128)
 @click.option("--evaluate", "evaluate_interval", type=int, default=5)
+@click.option("--timesteps", type=int, default=35)
 @click.option("--version", "-v", default=None)
 @click.option("--render/--no-render", default=False)
 @click.option("--profile/--no-profile", default=False)
-def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_interval,
-         version, render, profile):
+def main(mode, env_name, dataset_name, policy, episodes, epochs, seed, batch_size,
+         evaluate_interval, timesteps, version, render, profile):
     # get env or dataset
     env = None
     dataset = None
@@ -35,9 +37,9 @@ def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_i
         env = gym.make(env_name)
     elif dataset_name is not None:
         if dataset_name == "mnist":
-            dataset = mnist_dataset(f"{TEMP_DIR}/data/mnist", max_count=1000)
+            dataset = mnist_dataset(f"{TEMP_DIR}/data/mnist", batch_size, max_count=1000)
         if dataset_name == "ptb":
-            dataset = ptb_dataset(f"{TEMP_DIR}/data/ptb")
+            dataset = ptb_dataset(f"{TEMP_DIR}/data/ptb", batch_size, timesteps)
     if env is None and dataset is None:
         print("Failed to find env or dataset to train with")
         return
@@ -67,7 +69,7 @@ def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_i
     if policy == "cnn":
         policy = CNN(env=env,
                      dataset=dataset,
-                     batch_size=batch,
+                     batch_size=batch_size,
                      seed=seed,
                      # learning_rate=0.02,
                      # discount_factor=0.99,
@@ -77,7 +79,7 @@ def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_i
     elif policy == "rnn":
         policy = RNN(env=env,
                      dataset=dataset,
-                     batch_size=batch,
+                     batch_size=batch_size,
                      seed=seed,
                      # learning_rate=0.02,
                      # discount_factor=0.99,
@@ -87,7 +89,7 @@ def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_i
     else:
         policy = PolicyGradient(env=env,
                                 dataset=dataset,
-                                batch_size=batch,
+                                batch_size=batch_size,
                                 seed=seed,
                                 # learning_rate=0.02,
                                 discount_factor=0.99,
@@ -96,8 +98,8 @@ def main(mode, env_name, dataset_name, policy, episodes, seed, batch, evaluate_i
                                 tensorboard_path=tensorboard_path)
 
     # train policy
-    policy.train(episodes=episodes, evaluate_interval=evaluate_interval, render=render,
-                 profile_path=profile_path)
+    policy.train(episodes=episodes, epochs=epochs, evaluate_interval=evaluate_interval,
+                 render=render, profile_path=profile_path)
 
     if profile_path is not None:
         open_profile(profile_path)

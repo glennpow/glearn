@@ -13,7 +13,13 @@ class Interface(object):
                 self.shape, self.size, self.discrete = space.shape, np.prod(space.shape), False
             else:
                 print(f"Invalid interface space: {space}")
+            self.dtype = space.dtype
         self.deterministic = deterministic
+
+    def __str__(self):
+        discreteness = "discrete" if self.discrete else "continuous"
+        deterministicness = "deterministic" if self.deterministic else "stochastic"
+        return f"Interface({self.shape} [{self.size}], {discreteness}, {deterministicness})"
 
     def encode(self, value):
         # handle discrete values

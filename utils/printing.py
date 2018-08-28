@@ -27,7 +27,7 @@ def colorize(string, color, bold=False, highlight=False):
 
 
 def format_value(value):
-    if np.isscalar(value):
+    if np.isscalar(value) and not isinstance(value, str):
         return f"{value:.5g}"
     else:
         return f"{value}".split('\n')[0]

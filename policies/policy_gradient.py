@@ -17,47 +17,46 @@ class PolicyGradient(Policy):
     def init_model(self):
         # create placeholders
         with tf.name_scope('inputs'):
-            self.inputs = tf.placeholder(tf.float32, (None,) + self.input.shape, name="X")
-            self.outputs = tf.placeholder(tf.float32, (None,) + self.output.shape, name="Y")
+            self.inputs = tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
+            self.outputs = tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
             self.discounted_rewards = tf.placeholder(tf.float32, (None, ), name="V")
 
         # prepare inputs
         input_size = self.input.size  # FIXME - can we infer this from inputs?
         inputs = tf.reshape(self.inputs, (-1, input_size))
-        layer = (inputs, None)
+        layer = inputs
 
         # create hidden layers
         for i in range(self.hidden_depth):
-            layer = add_fc(self, layer[0], input_size, self.hidden_size)
-            input_size = layer[0].shape[1]
+            layer, info = add_fc(self, layer, input_size, self.hidden_size)
+            input_size = layer.shape[1]
 
         # create output layer
-        layer = add_fc(self, layer[0], input_size, self.output.size,
-                       activation=tf.nn.softmax)
+        layer, info = add_fc(self, layer, input_size, self.output.size, activation=tf.nn.softmax)
 
-        # softmax
-        logits = layer[1]["Z"]
-        labels = self.outputs
-        act = layer[0]
+        # store action
+        act = layer
         self.act_graph["act"] = act
 
         # calculate loss
         with tf.name_scope('loss'):
+            logits = info["Z"]
+            labels = self.outputs
             neg_log_p = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
             loss = tf.reduce_mean(neg_log_p * self.discounted_rewards)
             self.evaluate_graph["loss"] = loss
 
         # minimize loss
         with tf.name_scope('optimize'):
-            optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
-            self.optimize_graph["optimize"] = optimize
+            optimizer = tf.train.AdamOptimizer(self.learning_rate)
+            self.optimize_graph["optimize"] = optimizer.minimize(loss)
 
-    def optimize_feed(self, batch, feed_dict):
+    def optimize_feed(self, data, feed_dict):
         # normalized discount rewards
-        discounted_rewards = np.zeros_like(batch.rewards)
+        discounted_rewards = np.zeros_like(data.rewards)  # FIXME - I think this will be broken!
         accum = 0
-        for t in reversed(range(len(batch.rewards))):
-            accum = accum * self.discount_factor + batch.rewards[t]
+        for t in reversed(range(len(data.rewards))):
+            accum = accum * self.discount_factor + data.rewards[t]
             discounted_rewards[t] = accum
         discounted_rewards -= np.mean(discounted_rewards)
         discounted_rewards /= np.std(discounted_rewards)

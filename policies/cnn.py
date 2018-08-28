@@ -7,7 +7,7 @@ from policies.layers import add_fc, add_conv2d
 
 class CNN(Policy):
     def __init__(self, learning_rate=2e-4, filters=[(5, 5, 32), (5, 5, 64)], strides=1,
-                 padding="SAME", max_pool_k=2, fc_layers=[7 * 7 * 64, 1024], dropout_rate=0.8,
+                 padding="SAME", max_pool_k=2, fc_layers=[7 * 7 * 64, 1024], keep_prob=0.8,
                  **kwargs):
         self.learning_rate = learning_rate  # lamdba λ
         # self.discount_factor = discount_factor  # gamma γ
@@ -18,73 +18,69 @@ class CNN(Policy):
         self.max_pool_k = max_pool_k
 
         self.fc_layers = fc_layers
-        self.dropout_rate = dropout_rate
+        self.keep_prob = keep_prob
 
         self.visualize_layer = None
         self.visualize_feature = None
 
         super().__init__(**kwargs)
 
+        self.init_visualize()
+
     def init_model(self):
         # create input placeholders
         with tf.name_scope('inputs'):
-            self.inputs = tf.placeholder(tf.float32, (None,) + self.input.shape, name="X")
-            self.outputs = tf.placeholder(tf.float32, (None,) + self.output.shape, name="Y")
+            inputs, outputs = self.create_inputs()
             self.dropout = tf.placeholder(tf.float32, (), name="dropout")
             # self.discounted_rewards = tf.placeholder(tf.float32, (None, ), name="V")
 
         # prepare inputs
-        inputs = self.inputs
         # inputs = tf.reshape(inputs, shape=[-1, 28, 28, 1])  # TODO - pass/infer dimensions arg?
-        layer = (inputs, None)
+        layer = tf.cast(inputs, tf.float32)
         input_size = self.input.size  # FIXME - can we always infer this from inputs?
         input_channels = self.input.shape[2]
 
         # create conv layers
         for i, filter in enumerate(self.filters):
-            layer = add_conv2d(self, layer[0], input_size, input_channels, filter,
-                               strides=self.strides, max_pool_k=self.max_pool_k,
-                               padding=self.padding)
-            input_size = layer[0].shape[1]
+            layer, info = add_conv2d(self, layer, input_size, input_channels, filter,
+                                     strides=self.strides, max_pool_k=self.max_pool_k,
+                                     padding=self.padding)
+            input_size = layer.shape[1]
             input_channels = filter[2]
 
         # create fully connected layers
-        input_size = np.prod(layer[0].shape[1:])
+        input_size = np.prod(layer.shape[1:])
         for i, fc_size in enumerate(self.fc_layers):
-            layer = add_fc(self, layer[0], input_size, fc_size, reshape=i == 0,
-                           dropout=self.dropout)
-            input_size = layer[0].shape[1]
+            layer, info = add_fc(self, layer, input_size, fc_size, reshape=i == 0,
+                                 keep_prob=self.dropout)
+            input_size = layer.shape[1]
 
         # create output layer
-        layer = add_fc(self, layer[0], input_size, self.output.size,
-                       activation=tf.nn.softmax)
+        layer, info = add_fc(self, layer, input_size, self.output.size, activation=tf.nn.softmax)
 
-        # softmax
-        logits = layer[1]["Z"]
-        labels = self.outputs
-        act = layer[0]
+        # store action
+        act = layer
         self.act_graph["act"] = act
-
-        self.init_visualize()
 
         # calculate loss
         with tf.name_scope('loss'):
-            neg_log_p = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
+            logits = info["Z"]
+            neg_log_p = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=outputs)
             # loss = tf.reduce_mean(neg_log_p * self.discounted_rewards)  # TODO?
             loss = tf.reduce_mean(neg_log_p)
             self.evaluate_graph["loss"] = loss
 
         # minimize loss
         with tf.name_scope('optimize'):
-            optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
-            self.optimize_graph["optimize"] = optimize
+            optimizer = tf.train.AdamOptimizer(self.learning_rate)
+            self.optimize_graph["optimize"] = optimizer.minimize(loss)
 
         # evaluate accuracy
-        with tf.name_scope('evaluate'):
+        with tf.name_scope('predict'):
             self.evaluate_graph["act"] = act
             if self.output.discrete:
                 # TODO - stochastic discrete also
-                evaluate = tf.equal(tf.argmax(act, 1), tf.argmax(labels, 1))
+                evaluate = tf.equal(tf.argmax(act, 1), tf.argmax(outputs, 1))
                 accuracy = tf.reduce_mean(tf.cast(evaluate, tf.float32))
                 self.evaluate_graph["accuracy"] = accuracy
             else:
@@ -97,8 +93,8 @@ class CNN(Policy):
 
         return feed_dict
 
-    def optimize_feed(self, batch, feed_dict):
-        feed_dict[self.dropout] = self.dropout_rate
+    def optimize_feed(self, data, feed_dict):
+        feed_dict[self.dropout] = self.keep_prob
 
         return feed_dict
 
@@ -137,6 +133,15 @@ class CNN(Policy):
         for i in range(len(self.filters)):
             self.act_graph[f"conv2d_{i}"] = self.get_layer("conv2d", i)
 
+    def update_visualize(self, data):
+        index = 0
+        image = data.inputs[index] * 255
+        self.set_main_image(image)
+
+        action = self.output.decode(self.evaluate_result["act"][index])
+        action_message = f"{action}"
+        self.add_label("action", action_message)
+
     def clear_visualize(self):
         self.visualize_layer = None
         self.remove_image("features")
@@ -168,14 +173,8 @@ class CNN(Policy):
         return transition
 
     def optimize(self, evaluating=False, saving=True):
-        batch = super().optimize(evaluating=evaluating, saving=saving)
+        data = super().optimize(evaluating=evaluating, saving=saving)
 
         # visualize evaluated dataset results
         if self.supervised and evaluating:
-            index = 0
-            image = batch.inputs[index] * 255
-            self.set_main_image(image)
-
-            action = self.output.decode(self.evaluate_result["act"][index])
-            action_message = f"{action}"
-            self.add_label("action", action_message)
+            self.update_visualize(data)
