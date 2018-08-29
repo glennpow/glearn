@@ -231,20 +231,24 @@ class Policy(object):
             # evaluate optimize graph
             self.optimize_result = self.sess.run(self.optimize_graph, feed_dict=feed_dict)
 
-            # save model
-            if saving and self.save_path is not None:
-                save_path = self.saver.save(self.sess, self.save_path)
-                self.log(f"Saved model: {save_path}")
+            if evaluating or saving:
+                print(f"\n------------------------------------\n  Epoch: {epoch}")
 
-            # evaluate periodically
-            if evaluating and len(self.evaluate_graph) > 0:
-                # prepare evaluation parameters
-                feed_dict = self.act_feed(data, feed_dict)
+                # evaluate periodically
+                if evaluating and len(self.evaluate_graph) > 0:
+                    # prepare evaluation parameters
+                    feed_dict = self.act_feed(data, feed_dict)
 
-                # run evaluate graph
-                self.evaluate_result = self.sess.run(self.evaluate_graph, feed_dict=feed_dict)
+                    # run evaluate graph
+                    self.evaluate_result = self.sess.run(self.evaluate_graph, feed_dict=feed_dict)
 
-                print_tabular(self.evaluate_result)
+                    print_tabular(self.evaluate_result)
+
+                # save model
+                if saving and self.save_path is not None:
+                    save_path = self.saver.save(self.sess, self.save_path)
+                    self.log(f"Saved model: {save_path}")
+
             return data
         return None
 
@@ -337,13 +341,16 @@ class Policy(object):
                 "Input": self.dataset.input,
                 "Output": self.dataset.output,
                 "Batch Size": self.dataset.batch_size,
+                # TODO - get extra subclass stats
             }
         else:
             training_info = {
                 "Training Method": "Reinforcement",
                 # TODO...
             }
+        print()
         print_tabular(training_info, show_type=False)
+        print()
 
     def get_viewer_size(self):
         if self.viewer is not None:
@@ -404,7 +411,6 @@ class Policy(object):
                         done = True
                         break
                     value = flat_values[idx]
-                    # norm = int((value - value_min) / value_range * 255)
                     processed[y][x][c] = value
         return processed
 

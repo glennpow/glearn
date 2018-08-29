@@ -6,7 +6,7 @@ python train.py --dataset=mnist --policy=cnn --version=X --epochs=40 --batch=128
 python train.py --dataset=mnist --policy=cnn --version=X --epochs=40 --batch=128 --evaluate=2 --render
 
 ## PTB
-python train.py --dataset=ptb --policy=rnn --epochs=60 --evaluate=5 --render
+python train.py --dataset=ptb --policy=rnn --epochs=60 --evaluate=5 --batch=20 --render
 
 ## PROFILE
 python train.py ... --profile

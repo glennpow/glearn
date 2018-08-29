@@ -63,7 +63,7 @@ def print_tabular(values, color=None, bold=False, show_type=True):
         cols = [(" " * padding + f[i]).ljust(widths[i]) for i in range(len(f))]
         lines.append("|".join(cols))
     lines.append(dashes)
-    message = '\n' + '\n'.join(lines) + '\n'
+    message = '\n'.join(lines)
     if color is not None:
         message = colorize(message, color, bold=bold)
     print(message)

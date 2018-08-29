@@ -14,7 +14,6 @@ TEMP_DIR = "/tmp/learning"
 
 
 @click.command()
-@click.option("--mode", "-m", default="rl")
 @click.option("--env", "-e", "env_name", default=None)
 @click.option("--dataset", "-d", "dataset_name", default=None)
 @click.option("--policy", "-p", default="policy_gradient")
@@ -27,7 +26,7 @@ TEMP_DIR = "/tmp/learning"
 @click.option("--version", "-v", default=None)
 @click.option("--render/--no-render", default=False)
 @click.option("--profile/--no-profile", default=False)
-def main(mode, env_name, dataset_name, policy, episodes, epochs, seed, batch_size,
+def main(env_name, dataset_name, policy, episodes, epochs, seed, batch_size,
          evaluate_interval, timesteps, version, render, profile):
     # get env or dataset
     env = None
@@ -81,6 +80,7 @@ def main(mode, env_name, dataset_name, policy, episodes, epochs, seed, batch_siz
                      dataset=dataset,
                      batch_size=batch_size,
                      seed=seed,
+                     hidden_depth=2,  # FIXME
                      # learning_rate=0.02,
                      # discount_factor=0.99,
                      load_path=load_path,

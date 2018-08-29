@@ -1,4 +1,4 @@
-* decrease zoom for RNN embedding image
+* refactor everything to use config files!  too many goddamn args!
 * refactor "act" to "predict" in all policies
 
 

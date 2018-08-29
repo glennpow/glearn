@@ -11,6 +11,7 @@ class AdvancedViewer(object):
 
         self.images = {}
         self.labels = {}
+        self.label_spacing = 0
 
         if width is None:
             width = 100
@@ -110,6 +111,9 @@ class AdvancedViewer(object):
     def remove_label(self, name):
         self.labels.pop(name, None)
 
+    def set_label_spacing(self, spacing):
+        self.label_spacing = spacing
+
     def imshow(self, arr):
         # backwards compatibility with Atari envs
         self.set_main_image(arr)
@@ -162,6 +166,6 @@ class AdvancedViewer(object):
             label.draw()
             label.y = origin_y
 
-            offset += label.content_height  # HACK - calc this better
+            offset += label.content_height + self.label_spacing  # HACK - calc this better
 
         self.window.flip()

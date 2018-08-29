@@ -11,8 +11,8 @@ DEFAULT_LSTM_CELL_ARGS = {
 
 
 class RNN(Policy):
-    def __init__(self, data_type=tf.float32, keep_prob=0.8, max_grad_norm=5,
-                 learning_rate=1, lr_decay=0.93, hidden_size=128, hidden_depth=1, cell_args=None,
+    def __init__(self, data_type=tf.float32, keep_prob=0.5, max_grad_norm=5,
+                 learning_rate=1, lr_decay=0.93, hidden_size=650, hidden_depth=1, cell_args=None,
                  **kwargs):
         self.data_type = data_type
         self.keep_prob = keep_prob
@@ -36,6 +36,10 @@ class RNN(Policy):
         self.timesteps = self.input.shape[0]  # sequence_length
         self.vocabulary = self.dataset.info["vocabulary"]
 
+        # default initializer
+        init_scale = 0.05  # TODO - expose
+        scaled_init = tf.random_uniform_initializer(-init_scale, init_scale)
+
         # create placeholders
         with tf.name_scope('inputs'):
             inputs, outputs = self.create_inputs()
@@ -47,7 +51,8 @@ class RNN(Policy):
         # process inputs into embeddings
         with tf.device("/cpu:0"):
             embedding = tf.get_variable("embedding", [self.vocabulary.size, self.hidden_size],
-                                        dtype=self.data_type)
+                                        dtype=self.data_type,
+                                        initializer=scaled_init)
             inputs = tf.nn.embedding_lookup(embedding, inputs)
             self.evaluate_graph["embedding"] = embedding
 
@@ -85,7 +90,7 @@ class RNN(Policy):
         # create output layer
         layer = tf.reshape(tf.concat(layer, 1), [-1, self.hidden_size])
         layer, info = add_fc(self, layer, self.hidden_size, self.vocabulary.size,
-                             activation=tf.nn.softmax)
+                             activation=tf.nn.softmax, initializer=scaled_init)
 
         # calculate prediction and accuracy
         with tf.name_scope('predict'):
@@ -128,6 +133,7 @@ class RNN(Policy):
         super().init_viewer()
 
         self.viewer.set_zoom(1)
+        self.viewer.set_label_spacing(20)
 
     def init_visualize(self):
         if self.viewer is not None:
@@ -155,9 +161,9 @@ class RNN(Policy):
         for i in range(num_labels):
             target_seq = " ".join(target_batch[i])
             predict_seq = " ".join(predict_batch[i])
-            prediction_message = f"TARGET:  {target_seq}\nPREDICT: {predict_seq}"
-            print(prediction_message)
-            self.add_label(f"prediction_{i}", prediction_message, width=cols, multiline=True)
+            prediction_message = f"TARGET:  {target_seq}\n\nPREDICT: {predict_seq}"
+            self.add_label(f"prediction_{i}", prediction_message, width=cols, multiline=True,
+                           font_name="Courier New", font_size=12)
 
     def act_feed(self, observation, feed_dict):
         # no dropout for inference
