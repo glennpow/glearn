@@ -86,6 +86,7 @@ class RNN(Policy):
         #         tf.get_variable_scope().reuse_variables()
         #     (layer, state) = cell(inputs[:, time_step, :], state)
         #     outputs.append(layer)
+        # layer = outputs
 
         # create output layer
         layer = tf.reshape(tf.concat(layer, 1), [-1, self.hidden_size])
