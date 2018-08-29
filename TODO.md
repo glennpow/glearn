@@ -1,5 +1,8 @@
-* refactor everything to use config files!  too many goddamn args!
-* refactor "act" to "predict" in all policies
+# refactor everything to use config files!  too many goddamn args!
+# refactor "act" to "predict" in all policies
+# Feed API should really be more like:
+#     self.set_feed(graph="render", name="embedding", value=inputs)
+# &   self.get_feed("render", "embedding")
 
 
 

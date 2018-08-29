@@ -54,6 +54,12 @@ class RNN(Policy):
                                         dtype=self.data_type,
                                         initializer=scaled_init)
             inputs = tf.nn.embedding_lookup(embedding, inputs)
+
+            # TODO - feeds like this could be in a new self.render_feeds or something
+            # Feed API should really be more like:
+            #     self.set_feed(graph="render", name="embedding", value=inputs)
+            # &   self.get_feed("render", "embedding")
+            self.evaluate_graph["embedded"] = inputs
             self.evaluate_graph["embedding"] = embedding
 
         # first dropout here
@@ -139,8 +145,14 @@ class RNN(Policy):
     def init_visualize(self):
         if self.viewer is not None:
             # cache the desired dims here
-            size = self.vocabulary.size * self.hidden_size
-            cols = math.ceil(math.sqrt(size) / 128.0) * 128
+            if self.visualize_embeddings:
+                size = self.vocabulary.size * self.hidden_size
+                stride = self.hidden_size
+            else:
+                num_embeds = 5
+                size = self.hidden_size * self.timesteps * num_embeds
+                stride = self.timesteps
+            cols = math.ceil(math.sqrt(size) / stride) * stride
             rows = math.ceil(size / cols)
             self.viewer.set_size(cols, rows)
 
@@ -151,6 +163,9 @@ class RNN(Policy):
         if self.visualize_embeddings:
             values = self.process_image(self.evaluate_result["embedding"], rows=rows, cols=cols)
             self.viewer.set_main_image(values)
+        # else:
+        #     values = self.process_image(self.evaluate_result["embedded"], rows=rows, cols=cols)
+        #     self.viewer.set_main_image(values)
 
         # show labels with targets/predictions
         num_labels = 5
