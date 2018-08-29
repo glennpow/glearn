@@ -2,8 +2,9 @@ import collections
 import os
 import numpy as np
 import tensorflow as tf
-from gym.spaces import Box, Discrete
+from gym.spaces import Box
 from datasets.dataset import Dataset
+from datasets.vocabulary import Vocabulary
 
 
 raw_data = None
@@ -21,14 +22,13 @@ def _build_vocab(filename):
     count_pairs = sorted(counter.items(), key=lambda x: (-x[1], x[0]))
 
     words, _ = list(zip(*count_pairs))
-    word_to_id = dict(zip(words, range(len(words))))
-
-    return word_to_id
+    return Vocabulary(words)
 
 
-def _file_to_word_ids(filename, word_to_id):
+def _file_to_word_ids(filename, vocabulary):
     data = _read_words(filename)
-    return [word_to_id[word] for word in data if word in word_to_id]
+    # return [vocabulary.get_word_id(word) for word in data if word in vocabulary.words]
+    return vocabulary.encode(data)
 
 
 def ptb_raw_data(data_path):
@@ -36,11 +36,10 @@ def ptb_raw_data(data_path):
     valid_path = os.path.join(data_path, "ptb.valid.txt")
     test_path = os.path.join(data_path, "ptb.test.txt")
 
-    word_to_id = _build_vocab(train_path)
-    train_data = _file_to_word_ids(train_path, word_to_id)
-    valid_data = _file_to_word_ids(valid_path, word_to_id)
-    test_data = _file_to_word_ids(test_path, word_to_id)
-    vocabulary = len(word_to_id)
+    vocabulary = _build_vocab(train_path)
+    train_data = _file_to_word_ids(train_path, vocabulary)
+    valid_data = _file_to_word_ids(valid_path, vocabulary)
+    test_data = _file_to_word_ids(test_path, vocabulary)
     return train_data, valid_data, test_data, vocabulary
 
 
@@ -51,11 +50,8 @@ def build_dataset(data_path, index, batch_size, timesteps):
 
     inputs, outputs = ptb_producer(raw_data[index], batch_size, timesteps)
     vocabulary = raw_data[3]
-    input_space = Box(low=0, high=vocabulary, shape=(timesteps, ), dtype=np.int32)
-    output_space = Box(low=0, high=vocabulary, shape=(timesteps, ), dtype=np.int32)
-    # input_space = Discrete(inputs.shape[1])
-    # output_space = Discrete(vocabulary)
-    # output_space = Box(shape=inputs.shape[1:], low=0, high=vocabulary, dtype=np.int32)
+    input_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=np.int32)
+    output_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=np.int32)
     info = {"vocabulary": vocabulary}
 
     return Dataset("PTB", inputs=inputs, outputs=outputs, input_space=input_space,

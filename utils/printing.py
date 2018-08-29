@@ -1,3 +1,4 @@
+from collections import abc
 import numpy as np
 from collections import OrderedDict
 
@@ -26,34 +27,41 @@ def colorize(string, color, bold=False, highlight=False):
     return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
 
 
-def format_value(value):
-    if np.isscalar(value) and not isinstance(value, str):
-        return f"{value:.5g}"
+def _format_type(value):
+    typename = type(value).__name__
+    if isinstance(value, str):
+        pass
+    elif np.isscalar(value):
+        value = f"{value:.5g}"
     else:
-        return f"{value}".split('\n')[0]
+        if isinstance(value, abc.Iterable):
+            typename = f"{typename}{np.shape(value)}"
+        value = f"{value}".split('\n')[0]
+    return typename, value
 
 
-def print_tabular(values, color=None, bold=False):
+def print_tabular(values, color=None, bold=False, show_type=True):
     # Create strings for printing
-    key2str = OrderedDict()
+    formatted = []
     for (key, val) in values.items():
-        formatted = format_value(val)
-        key2str[key] = formatted
+        ftype, fval = _format_type(val)
+        if show_type:
+            formatted.append([key, ftype, fval])
+        else:
+            formatted.append([key, fval])
 
     # Find max widths
-    keywidth = max(map(len, key2str.keys()))
-    valwidth = max(map(len, key2str.values()))
+    padding = 2
+    lcols = [[len(v) for v in f] for f in np.transpose(formatted)]
+    widths = np.array([np.max(f) for f in lcols]) + (2 * padding)
 
     # Write out the data
-    dashes = '-' * (keywidth + valwidth + 7)
+    dashes = '-' * np.sum(widths)
     lines = [dashes]
-    for (key, val) in key2str.items():
-        lines.append('| %s%s | %s%s |' % (
-            key,
-            ' ' * (keywidth - len(key)),
-            val,
-            ' ' * (valwidth - len(val)),
-        ))
+    for f in formatted:
+        # import ipdb; ipdb.set_trace()  # HACK DEBUGGING !!!
+        cols = [(" " * padding + f[i]).ljust(widths[i]) for i in range(len(f))]
+        lines.append("|".join(cols))
     lines.append(dashes)
     message = '\n' + '\n'.join(lines) + '\n'
     if color is not None:

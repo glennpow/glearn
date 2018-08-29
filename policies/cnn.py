@@ -93,7 +93,7 @@ class CNN(Policy):
 
         return feed_dict
 
-    def optimize_feed(self, data, feed_dict):
+    def optimize_feed(self, epoch, data, feed_dict):
         feed_dict[self.dropout] = self.keep_prob
 
         return feed_dict
@@ -172,8 +172,8 @@ class CNN(Policy):
 
         return transition
 
-    def optimize(self, evaluating=False, saving=True):
-        data = super().optimize(evaluating=evaluating, saving=saving)
+    def optimize(self, epoch, evaluating=False, saving=True):
+        data = super().optimize(epoch, evaluating=evaluating, saving=saving)
 
         # visualize evaluated dataset results
         if self.supervised and evaluating:

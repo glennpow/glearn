@@ -8,6 +8,7 @@ class AdvancedViewer(object):
         self.isopen = False
         self.display = display
         self.zoom = zoom
+
         self.images = {}
         self.labels = {}
 
@@ -56,6 +57,9 @@ class AdvancedViewer(object):
         # self.window.set_size(self.width * zoom, self.height * zoom)
         pass
 
+    def set_size(self, width, height):
+        self.window.set_size(width, height)
+
     def on_resize(self, width, height):
         self.width = width
         self.height = height
@@ -98,9 +102,9 @@ class AdvancedViewer(object):
         self.images.pop(name, None)
 
     def add_label(self, name, message, x=0, y=0, anchor_x='left', anchor_y='bottom',
-                  font_name='Times New Roman', font_size=16):
+                  font_name='Times New Roman', font_size=16, **kwargs):
         label = pyglet.text.Label(message, x=x, y=y, anchor_x=anchor_x, anchor_y=anchor_y,
-                                  font_name=font_name, font_size=font_size)
+                                  font_name=font_name, font_size=font_size, **kwargs)
         self.labels[name] = label
 
     def remove_label(self, name):
@@ -111,7 +115,7 @@ class AdvancedViewer(object):
         self.set_main_image(arr)
 
     def render(self):
-        if len(self.images) == 0:
+        if len(self.images) + len(self.labels) == 0:
             return
 
         if not self.window.visible:
@@ -151,7 +155,13 @@ class AdvancedViewer(object):
             image.blit(x, y, width=width, height=height)
 
         # draw custom labels (such advanced viewing!)
+        offset = 0
         for label in self.labels.values():
+            origin_y = label.y
+            label.y += offset
             label.draw()
+            label.y = origin_y
+
+            offset += label.content_height  # HACK - calc this better
 
         self.window.flip()

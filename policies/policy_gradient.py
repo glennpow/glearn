@@ -51,7 +51,7 @@ class PolicyGradient(Policy):
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
             self.optimize_graph["optimize"] = optimizer.minimize(loss)
 
-    def optimize_feed(self, data, feed_dict):
+    def optimize_feed(self, epoch, data, feed_dict):
         # normalized discount rewards
         discounted_rewards = np.zeros_like(data.rewards)  # FIXME - I think this will be broken!
         accum = 0

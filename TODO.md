@@ -1,4 +1,5 @@
 * decrease zoom for RNN embedding image
+* refactor "act" to "predict" in all policies
 
 
 

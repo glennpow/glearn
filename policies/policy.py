@@ -50,14 +50,12 @@ class Policy(object):
         self.episode_reward = 0
 
         self.layers = {}
+        self.feeds = {}
         self.training = False
 
         if self.viewer is not None:
             self.init_viewer()
         self.init_model()
-        self.init_session()
-        self.init_persistence()
-        self.init_tensorboard()
 
     def log(self, *args):
         print(*args)
@@ -65,16 +63,29 @@ class Policy(object):
     def error(self, message):
         self.log(colorize(message, "red"))
 
+    def init_viewer(self):
+        # register for events from viewer
+        self.viewer.window.push_handlers(self)
+
     def init_model(self):
+        # override
         pass
 
-    def init_session(self):
+    def start_session(self):
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
 
-        self.init_threading()
+        self.start_persistence()
+        self.start_tensorboard()
+        self.start_threading()
 
-    def init_persistence(self):
+    def stop_session(self):
+        self.stop_threading()
+
+        self.sess.close()
+
+    def start_persistence(self):
+        # TODO - only do all this the first time...
         if self.save_path is not None or self.load_path is not None:
             self.saver = tf.train.Saver()
 
@@ -92,22 +103,18 @@ class Policy(object):
             os.makedirs(save_dir, exist_ok=True)
             # TODO - clear old dir?
 
-    def init_tensorboard(self):
+    def start_tensorboard(self):
         if self.tensorboard_path is not None:
             self.log(f"Tensorboard log directory: {self.tensorboard_path}")
             tf.summary.FileWriter(self.tensorboard_path, self.sess.graph)
 
-    def init_viewer(self):
-        # register for events from viewer
-        self.viewer.window.push_handlers(self)
-
-    def init_threading(self):
+    def start_threading(self):
         if self.multithreaded:
             # start thread queue
             self.coord = tf.train.Coordinator()
             self.threads = tf.train.start_queue_runners(coord=self.coord, sess=self.sess)
 
-    def update_threading(self):
+    def stop_threading(self):
         if self.multithreaded:
             # join all threads
             self.coord.request_stop()
@@ -206,23 +213,20 @@ class Policy(object):
             self.act_result = self.sess.run(self.act_graph, feed_dict=feed_dict)
             action = self.act_result["act"]
 
-            # join threads
-            self.update_threading()
-
             return action.ravel()
         return np.zeros(self.output.shape)
 
     def optimize_feed(self, data, feed_dict):
         return feed_dict
 
-    def optimize(self, evaluating=False, saving=True):
+    def optimize(self, epoch, evaluating=False, saving=True):
         """
         Run an entire supervised epoch, or batch of unsupervised episodes.
         """
         if "optimize" in self.optimize_graph:
             # get data for epoch
             data, feed_dict = self.get_epoch()
-            feed_dict = self.optimize_feed(data, feed_dict)
+            feed_dict = self.optimize_feed(epoch, data, feed_dict)
 
             # evaluate optimize graph
             self.optimize_result = self.sess.run(self.optimize_graph, feed_dict=feed_dict)
@@ -231,9 +235,6 @@ class Policy(object):
             if saving and self.save_path is not None:
                 save_path = self.saver.save(self.sess, self.save_path)
                 self.log(f"Saved model: {save_path}")
-
-            # join threads
-            self.update_threading()
 
             # evaluate periodically
             if evaluating and len(self.evaluate_graph) > 0:
@@ -244,9 +245,6 @@ class Policy(object):
                 self.evaluate_result = self.sess.run(self.evaluate_graph, feed_dict=feed_dict)
 
                 print_tabular(self.evaluate_result)
-
-                # join threads
-                self.update_threading()
             return data
         return None
 
@@ -259,6 +257,9 @@ class Policy(object):
         self.print_info()
 
         def train_loop():
+            # start TF session
+            self.start_session()
+
             if self.supervised:
                 # supervised learning
                 for epoch in range(epochs):
@@ -269,7 +270,7 @@ class Policy(object):
 
                     evaluating = epoch % evaluate_interval == 0
                     saving = evaluating
-                    self.optimize(evaluating=evaluating, saving=saving)
+                    self.optimize(epoch, evaluating=evaluating, saving=saving)
 
                     if render:
                         self.render()
@@ -310,7 +311,7 @@ class Policy(object):
                             max_reward_so_far = np.amax(episode_rewards)
 
                             # optimize after episode
-                            self.optimize()
+                            self.optimize(episode)
 
                             print_tabular({
                                 "episode": episode,
@@ -319,6 +320,8 @@ class Policy(object):
                                 "max_reward": max_reward_so_far,
                             })
                             break
+            # stop TF session
+            self.stop_session()
 
         if profile_path is not None:
             with tf.contrib.tfprof.ProfileContext(profile_path) as pctx:  # noqa
@@ -340,7 +343,7 @@ class Policy(object):
                 "Training Method": "Reinforcement",
                 # TODO...
             }
-        print_tabular(training_info)
+        print_tabular(training_info, show_type=False)
 
     def get_viewer_size(self):
         if self.viewer is not None:
