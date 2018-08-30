@@ -419,11 +419,6 @@ class Policy(object):
         print_tabular(training_info, show_type=False)
         print()
 
-    def get_viewer_size(self):
-        if self.viewer is not None:
-            return (self.viewer.width, self.viewer.height)
-        return (0, 0)
-
     def process_image(self, values, rows=None, cols=None, chans=None):
         # get image dimensions
         values_dims = len(values.shape)
@@ -480,6 +475,11 @@ class Policy(object):
                     value = flat_values[idx]
                     processed[y][x][c] = value
         return processed
+
+    def get_viewer_size(self):
+        if self.viewer is not None:
+            return (int(self.viewer.width), int(self.viewer.height))
+        return (0, 0)
 
     def set_main_image(self, values):
         if self.viewer is not None:

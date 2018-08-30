@@ -4,10 +4,9 @@ from pyglet.gl import *
 
 
 class AdvancedViewer(object):
-    def __init__(self, display=None, width=None, height=None, zoom=4):
+    def __init__(self, display=None, width=None, height=None, zoom=1):
         self.isopen = False
         self.display = display
-        self.zoom = zoom
 
         self.images = {}
         self.labels = {}
@@ -19,7 +18,9 @@ class AdvancedViewer(object):
             height = 100
         self.width = width
         self.height = height
-        self.window = pyglet.window.Window(width=width, height=height, visible=False,
+        self.zoom = zoom
+
+        self.window = pyglet.window.Window(width=width * zoom, height=height * zoom, visible=False,
                                            display=self.display, vsync=False, resizable=True)
         self.window.push_handlers(self)
         self.isopen = True
@@ -53,26 +54,25 @@ class AdvancedViewer(object):
     def set_zoom(self, zoom):
         self.zoom = zoom
 
-        # TODO? - should set zoom, and adjust window size immediately
-        #   need to store (width, height, zoom) tuple, and resize using the products
-        # self.window.set_size(self.width * zoom, self.height * zoom)
+        self.window.set_size(self.width * self.zoom, self.height * self.zoom)
         pass
 
     def set_size(self, width, height):
-        self.window.set_size(width, height)
-
-    def on_resize(self, width, height):
         self.width = width
         self.height = height
+
+        self.window.set_size(self.width * self.zoom, self.height * self.zoom)
+
+    def on_resize(self, width, height):
+        self.width = width / self.zoom
+        self.height = height / self.zoom
 
     def on_close(self):
         self.isopen = False
 
     def set_main_image(self, values):
         height, width, chans = values.shape
-        width *= self.zoom  # TODO - better handling of zoom
-        height *= self.zoom
-        self.window.set_size(width, height)
+        self.set_size(width, height)
         self.add_image("*", values, x=0, y=0, width=width, height=height)
 
     def add_image(self, name, values, x=0, y=0, width=None, height=None):
@@ -97,6 +97,7 @@ class AdvancedViewer(object):
 
         # TODO - could cache/reuse image objects and call set_data on them?
         image = pyglet.image.ImageData(cols, rows, fmt, bytes_conv, pitch=cols * -chans)
+
         self.images[name] = (image, x, y, width, height)
 
     def remove_image(self, name):
@@ -150,6 +151,11 @@ class AdvancedViewer(object):
         # draw custom images
         for image_data in self.images.values():
             image, x, y, width, height = image_data
+
+            x *= self.zoom
+            y *= self.zoom
+            width *= self.zoom
+            height *= self.zoom
 
             # TODO... pixel interpolation
             # gl.EnableTex2d(image.tex_id) ?

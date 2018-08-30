@@ -29,11 +29,12 @@ class CNN(Policy):
 
     def init_model(self):
         # create input placeholders
-        with tf.name_scope('inputs'):
+        with tf.name_scope('feeds'):
             inputs, outputs = self.create_default_feeds()
 
             dropout = tf.placeholder(tf.float32, (), name="dropout")
             self.set_feed("dropout", dropout)
+
             # gamma = tf.placeholder(tf.float32, (None, ), name="gamma")
             # self.set_feed("gamma", gamma, ["optimize", "evaluate"])
 

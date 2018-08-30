@@ -23,7 +23,8 @@ class RNN(Policy):
         self.hidden_depth = hidden_depth
         self.cell_args = cell_args
 
-        self.visualize_embeddings = False  # HACK - expose this?
+        self.visualize_embeddings = False  # HACK - expose these?
+        self.visualize_embedded = False  # HACK
 
         kwargs["multithreaded"] = True  # TODO - figure this out from the dataset
 
@@ -41,11 +42,12 @@ class RNN(Policy):
         scaled_init = tf.random_uniform_initializer(-init_scale, init_scale)
 
         # create placeholders
-        with tf.name_scope('inputs'):
+        with tf.name_scope('feeds'):
             inputs, outputs = self.create_default_feeds()
 
             learning_rate = tf.placeholder(tf.float32, (), name="lambda")
             self.set_feed("lambda", learning_rate, ["optimize", "evaluate"])
+
             dropout = tf.placeholder(tf.float32, (), name="dropout")
             self.set_feed("dropout", dropout)
 
@@ -56,10 +58,8 @@ class RNN(Policy):
                                         initializer=scaled_init)
             inputs = tf.nn.embedding_lookup(embedding, inputs)
 
-            # TODO - feeds like this could be in a new self.render_feeds or something
-            # Feed API should really be more like:
-            #     self.set_feed(graph="render", name="embedding", value=inputs)
-            # &   self.get_feed("render", "embedding")
+            # TODO - feeds like this could be in a new render graphs or something
+            # self.set_feed("embedding", embedding, render")
             self.set_fetch("embedded", inputs, "evaluate")
             self.set_fetch("embedding", embedding, "evaluate")
 
@@ -128,12 +128,12 @@ class RNN(Policy):
         # minimize loss
         with tf.name_scope('optimize'):
             optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-            # self.optimize_graph["optimize"] = optimizer.minimize(loss)
+            optimize = optimizer.minimize(loss)
 
-            tvars = tf.trainable_variables()
-            grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars), self.max_grad_norm)
-            global_step = tf.train.get_or_create_global_step()
-            optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
+            # tvars = tf.trainable_variables()
+            # grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars), self.max_grad_norm)
+            # global_step = tf.train.get_or_create_global_step()
+            # optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
             self.set_fetch("optimize", optimize, "optimize")
 
     def prepare_feed_map(self, graph, data, feed_map):
@@ -157,19 +157,24 @@ class RNN(Policy):
     def init_viewer(self):
         super().init_viewer()
 
-        self.viewer.set_zoom(1)
         self.viewer.set_label_spacing(20)
 
     def init_visualize(self):
         if self.viewer is not None:
             # cache the desired dims here
             if self.visualize_embeddings:
-                size = self.vocabulary.size * self.hidden_size
+                # size = self.vocabulary.size * self.hidden_size
+                self.max_embeddings = 40
+                size = self.max_embeddings * self.hidden_size
                 stride = self.hidden_size
-            else:
-                num_embeds = 5
-                size = self.hidden_size * self.timesteps * num_embeds
+                self.viewer.set_zoom(2)
+            elif self.visualize_embedded:
+                size = self.hidden_size * self.timesteps
                 stride = self.timesteps
+                self.viewer.set_zoom(3)
+            else:
+                self.viewer.set_size(512, 512)
+                return
             cols = math.ceil(math.sqrt(size) / stride) * stride
             rows = math.ceil(size / cols)
             self.viewer.set_size(cols, rows)
@@ -177,15 +182,18 @@ class RNN(Policy):
     def update_visualize(self, data):
         cols, rows = self.get_viewer_size()
 
-        # render embeddings
         if self.visualize_embeddings:
-            values = self.results["evaluate"]["embedding"]
+            # render embeddings params
+            values = self.results["evaluate"]["embedding"][:self.max_embeddings]
             values = self.process_image(values, rows=rows, cols=cols)
             self.viewer.set_main_image(values)
-        # else:
-        #     values = self.results["evaluate"]["embedded"]
-        #     values = self.process_image(, rows=rows, cols=cols)
-        #     self.viewer.set_main_image(values)
+        elif self.visualize_embedded:
+            # render embedded representation of input
+            values = self.results["evaluate"]["embedded"]
+            batch = 0
+            values = values[batch]
+            values = self.process_image(values, rows=rows, cols=cols)
+            self.viewer.set_main_image(values)
 
         # show labels with targets/predictions
         num_labels = 5
