@@ -31,7 +31,6 @@ def transition_batch(transitions):
 class Dataset(object):
     def __init__(self, name, inputs, outputs, input_space, output_space, batch_size,
                  optimize_batch=False, info={}):
-        # self.epoch_size = len(inputs) // batch_size  # this is dependent on algorithm?
         self.name = name
         self.inputs = inputs
         self.outputs = outputs
@@ -48,19 +47,13 @@ class Dataset(object):
 
     def get_inputs(self):
         if self.optimize_batch:
-            # have to store this for later (HACK)
-            self.inputs_feed = tf.placeholder(self.input.dtype, (None,) + self.input.shape,
-                                              name="X")
-            return self.inputs_feed
+            return tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
         else:
             return self.inputs
 
     def get_outputs(self):
         if self.optimize_batch:
-            # have to store this for later (HACK)
-            self.outputs_feed = tf.placeholder(self.output.dtype, (None,) + self.output.shape,
-                                               name="Y")
-            return self.outputs_feed
+            return tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
         else:
             return self.outputs
 
@@ -69,12 +62,12 @@ class Dataset(object):
             # return individual batches instead (HACK)
             # should iterate over batch count here, but rather just remove this param entirely.
             batch = self.get_batch()
-            feed_dict = {
-                self.inputs_feed: batch.inputs,
-                self.outputs_feed: batch.outputs,
+            feed_map = {
+                "X": batch.inputs,
+                "Y": batch.outputs,
             }
             # dataset = tf.data.Dataset.from_tensor_slices(batch)
-            return batch, feed_dict
+            return batch, feed_map
         else:
             # optimize on entire epoch
             return self, {}

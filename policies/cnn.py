@@ -30,9 +30,12 @@ class CNN(Policy):
     def init_model(self):
         # create input placeholders
         with tf.name_scope('inputs'):
-            inputs, outputs = self.create_inputs()
-            self.dropout = tf.placeholder(tf.float32, (), name="dropout")
-            # self.discounted_rewards = tf.placeholder(tf.float32, (None, ), name="V")
+            inputs, outputs = self.create_default_feeds()
+
+            dropout = tf.placeholder(tf.float32, (), name="dropout")
+            self.set_feed("dropout", dropout)
+            # gamma = tf.placeholder(tf.float32, (None, ), name="gamma")
+            # self.set_feed("gamma", gamma, ["optimize", "evaluate"])
 
         # prepare inputs
         # inputs = tf.reshape(inputs, shape=[-1, 28, 28, 1])  # TODO - pass/infer dimensions arg?
@@ -52,15 +55,15 @@ class CNN(Policy):
         input_size = np.prod(layer.shape[1:])
         for i, fc_size in enumerate(self.fc_layers):
             layer, info = add_fc(self, layer, input_size, fc_size, reshape=i == 0,
-                                 keep_prob=self.dropout)
+                                 keep_prob=dropout)
             input_size = layer.shape[1]
 
         # create output layer
         layer, info = add_fc(self, layer, input_size, self.output.size, activation=tf.nn.softmax)
 
-        # store action
-        act = layer
-        self.act_graph["act"] = act
+        # store prediction
+        predict = layer
+        self.set_fetch("predict", predict, ["predict", "evaluate"])
 
         # calculate loss
         with tf.name_scope('loss'):
@@ -68,35 +71,63 @@ class CNN(Policy):
             neg_log_p = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=outputs)
             # loss = tf.reduce_mean(neg_log_p * self.discounted_rewards)  # TODO?
             loss = tf.reduce_mean(neg_log_p)
-            self.evaluate_graph["loss"] = loss
+            self.set_fetch("loss", loss, "evaluate")
 
         # minimize loss
         with tf.name_scope('optimize'):
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
-            self.optimize_graph["optimize"] = optimizer.minimize(loss)
+            self.set_fetch("optimize", optimizer.minimize(loss), "optimize")
 
         # evaluate accuracy
-        with tf.name_scope('predict'):
-            self.evaluate_graph["act"] = act
+        with tf.name_scope('accuracy'):
             if self.output.discrete:
                 # TODO - stochastic discrete also
-                evaluate = tf.equal(tf.argmax(act, 1), tf.argmax(outputs, 1))
+                evaluate = tf.equal(tf.argmax(predict, 1), tf.argmax(outputs, 1))
                 accuracy = tf.reduce_mean(tf.cast(evaluate, tf.float32))
-                self.evaluate_graph["accuracy"] = accuracy
+                self.set_fetch("accuracy", accuracy, "evaluate")
             else:
                 # TODO - continuous evaluate
                 pass
 
-    def act_feed(self, observation, feed_dict):
-        # no dropout for inference
-        feed_dict[self.dropout] = 1
+    def prepare_feed_map(self, graph, data, feed_map):
+        if graph == "optimize":
+            feed_map["dropout"] = self.keep_prob
+        else:
+            feed_map["dropout"] = 1
+        return feed_map
 
-        return feed_dict
+    def rollout(self):
+        # do standard rollout
+        transition = super().rollout()
 
-    def optimize_feed(self, epoch, data, feed_dict):
-        feed_dict[self.dropout] = self.keep_prob
+        if self.visualize_layer is not None:
+            # get layer values to visualize
+            values = self.results["predict"][f"conv2d_{self.visualize_layer}"]
 
-        return feed_dict
+            # build image for selected feature
+            _, rows, cols, _ = values.shape
+            image = np.zeros((rows, cols, 1))
+            flat_values = values.ravel()
+            value_min = min(flat_values)
+            value_max = max(flat_values)
+            value_range = max([0.1, value_max - value_min])
+            for y, row in enumerate(values[0]):
+                for x, col in enumerate(row):
+                    value = col[self.visualize_feature]
+                    image[y][x][0] = int((value - value_min) / value_range * 255)
+
+            # render image
+            width, height = self.get_viewer_size()
+            self.add_image("features", image, x=0, y=0, width=width, height=height)
+
+        return transition
+
+    def optimize(self, epoch, evaluating=False, saving=True):
+        data, results = super().optimize(epoch, evaluating=evaluating, saving=saving)
+
+        # visualize evaluated dataset results
+        if self.supervised and evaluating:
+            self.update_visualize(data)
 
     def on_key_press(self, key, modifiers):
         super().on_key_press(key, modifiers)
@@ -131,50 +162,17 @@ class CNN(Policy):
 
     def init_visualize(self):
         for i in range(len(self.filters)):
-            self.act_graph[f"conv2d_{i}"] = self.get_layer("conv2d", i)
+            self.set_fetch(f"conv2d_{i}", self.get_layer("conv2d", i), "predict")
 
     def update_visualize(self, data):
         index = 0
         image = data.inputs[index] * 255
         self.set_main_image(image)
 
-        action = self.output.decode(self.evaluate_result["act"][index])
+        action = self.output.decode(self.results["evaluate"]["predict"][index])
         action_message = f"{action}"
         self.add_label("action", action_message)
 
     def clear_visualize(self):
         self.visualize_layer = None
         self.remove_image("features")
-
-    def rollout(self):
-        # do standard rollout
-        transition = super().rollout()
-
-        if self.visualize_layer is not None:
-            # get layer values to visualize
-            values = self.act_result[f"conv2d_{self.visualize_layer}"]
-
-            # build image for selected feature
-            _, rows, cols, _ = values.shape
-            image = np.zeros((rows, cols, 1))
-            flat_values = values.ravel()
-            value_min = min(flat_values)
-            value_max = max(flat_values)
-            value_range = max([0.1, value_max - value_min])
-            for y, row in enumerate(values[0]):
-                for x, col in enumerate(row):
-                    value = col[self.visualize_feature]
-                    image[y][x][0] = int((value - value_min) / value_range * 255)
-
-            # render image
-            width, height = self.get_viewer_size()
-            self.add_image("features", image, x=0, y=0, width=width, height=height)
-
-        return transition
-
-    def optimize(self, epoch, evaluating=False, saving=True):
-        data = super().optimize(epoch, evaluating=evaluating, saving=saving)
-
-        # visualize evaluated dataset results
-        if self.supervised and evaluating:
-            self.update_visualize(data)

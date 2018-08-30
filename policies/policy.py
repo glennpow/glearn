@@ -37,21 +37,15 @@ class Policy(object):
         self.tensorboard_path = tensorboard_path
         self.multithreaded = multithreaded
 
-        self.act_graph = {}
-        self.optimize_graph = {}
-        self.evaluate_graph = {}
-
-        self.act_result = {}
-        self.optimize_result = {}
-        self.evaluate_result = {}
+        self.feeds = {}
+        self.fetches = {}
+        self.layers = {}
+        self.results = {}
+        self.training = False
 
         self.observation = None
         self.transitions = []
         self.episode_reward = 0
-
-        self.layers = {}
-        self.feeds = {}
-        self.training = False
 
         if self.viewer is not None:
             self.init_viewer()
@@ -128,20 +122,79 @@ class Policy(object):
     def supervised(self):
         return self.dataset is not None
 
-    def get_layer_count(self, type_name=None):
-        if type_name is None:
-            return len(self.layers)
-        else:
-            if type_name in self.layers:
-                return len(self.layers[type_name])
-        return 0
+    def set_feed(self, name, value, graphs=None):
+        # set feed node, for graph or global (None)
+        if graphs is None:
+            # global graph feed
+            graphs = ["*"]
+        if not isinstance(graphs, list):
+            graphs = [graphs]
+        # apply to specified graphs
+        for graph in graphs:
+            if graph in self.feeds:
+                graph_feeds = self.feeds[graph]
+            else:
+                graph_feeds = {}
+                self.feeds[graph] = graph_feeds
+            graph_feeds[name] = value
 
-    def get_layer(self, type_name, index=0):
-        if type_name in self.layers:
-            type_layers = self.layers[type_name]
-            if index < len(type_layers):
-                return type_layers[index]
+    def get_feed(self, name, graph=None):
+        # find feed node for graph name
+        graph_feeds = self.get_feeds(graph)
+        if name in graph_feeds:
+            return graph_feeds[name]
         return None
+
+    def get_feeds(self, graph=None):
+        # get all global feeds
+        feeds = self.feeds.get("*", {})
+        if graph is not None:
+            # merge with desired graph feeds
+            feeds.update(self.feeds.get(graph, {}))
+        return feeds
+
+    def build_feed_dict(self, mapping, graph=None):
+        feeds = self.get_feeds(graph)
+        feed_dict = {}
+        for key, value in mapping.items():
+            if key in feeds:
+                feed = feeds[key]
+                feed_dict[feed] = value
+            else:
+                graph_name = "GLOBAL" if graph is None else graph
+                self.error(f"Failed to find feed '{key}' for graph '{graph_name}'")
+        return feed_dict
+
+    def set_fetch(self, name, value, graphs=None):
+        # set fetch, for graph or global (None)
+        if graphs is None:
+            # global graph fetch
+            graphs = ["*"]
+        if not isinstance(graphs, list):
+            graphs = [graphs]
+        # apply to specified graphs
+        for graph in graphs:
+            if graph in self.fetches:
+                graph_fetches = self.fetches[graph]
+            else:
+                graph_fetches = {}
+                self.fetches[graph] = graph_fetches
+            graph_fetches[name] = value
+
+    def get_fetch(self, name, graph=None):
+        # find feed node for graph name
+        graph_fetches = self.get_fetches(graph)
+        if name in graph_fetches:
+            return graph_fetches[name]
+        return None
+
+    def get_fetches(self, graph):
+        # get all global fetches
+        fetches = self.fetches.get("*", {})
+        if graph != "*":
+            # merge with desired graph fetches
+            fetches.update(self.fetches.get(graph, {}))
+        return fetches
 
     def add_layer(self, type_name, layer):
         if type_name in self.layers:
@@ -150,6 +203,21 @@ class Policy(object):
             type_layers = []
             self.layers[type_name] = type_layers
         type_layers.append(layer)
+
+    def get_layer(self, type_name, index=0):
+        if type_name in self.layers:
+            type_layers = self.layers[type_name]
+            if index < len(type_layers):
+                return type_layers[index]
+        return None
+
+    def get_layer_count(self, type_name=None):
+        if type_name is None:
+            return len(self.layers)
+        else:
+            if type_name in self.layers:
+                return len(self.layers[type_name])
+        return 0
 
     def reset(self):
         if self.env is not None:
@@ -163,31 +231,37 @@ class Policy(object):
         if self.viewer is not None:
             self.viewer.render()
 
-    def create_inputs(self):
+    def create_default_feeds(self):
         if self.supervised:
-            self.inputs = self.dataset.get_inputs()
-            self.outputs = self.dataset.get_outputs()
+            inputs = self.dataset.get_inputs()
+            outputs = self.dataset.get_outputs()
         else:
-            self.inputs = tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
-            self.outputs = tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
-        return self.inputs, self.outputs
+            inputs = tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
+            outputs = tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
+        self.set_feed("X", inputs)
+        self.set_feed("Y", outputs)
+        return inputs, outputs
 
-    def get_epoch(self):
-        if self.supervised:
-            # supervised epoch of samples
-            return self.dataset.get_epoch()
-        else:
-            # unsupervised replay batch samples
-            batch = transition_batch(self.transitions[:self.batch_size])
-            feed_dict = {
-                self.inputs: batch.inputs,
-                self.outputs: batch.outputs,
-            }
-            return batch, feed_dict
+    def prepare_feed_map(self, graph, data, feed_map):
+        return feed_map
+
+    def run(self, graph, data, feed_map):
+        fetches = self.get_fetches(graph)
+        if len(fetches) > 0:
+            feed_dict = self.build_feed_dict(feed_map, graph=graph)
+            results = self.sess.run(fetches, feed_dict)
+            self.results[graph] = results
+            return results
+        return {}
+
+    def predict(self, data):
+        feed_map = self.prepare_feed_map("predict", data, {"X": [data]})
+        return self.run("predict", data, feed_map)
 
     def rollout(self):
         # get action
-        action = self.act(self.observation)
+        results = self.predict(self.observation)
+        action = results["predict"]
 
         # perform action
         new_observation, reward, done, info = self.env.step(self.output.decode(action))
@@ -201,56 +275,49 @@ class Policy(object):
         self.episode_reward += transition.reward
         return transition
 
-    def act_feed(self, observation, feed_dict):
-        return feed_dict
-
-    def act(self, observation):
-        if "act" in self.act_graph:
-            # prepare parameters
-            feed_dict = self.act_feed(observation, {self.inputs: [observation]})
-
-            # evaluate act graph
-            self.act_result = self.sess.run(self.act_graph, feed_dict=feed_dict)
-            action = self.act_result["act"]
-
-            return action.ravel()
-        return np.zeros(self.output.shape)
-
-    def optimize_feed(self, data, feed_dict):
-        return feed_dict
+    def get_epoch(self, graph):
+        if self.supervised:
+            # supervised epoch of samples
+            return self.dataset.get_epoch()
+        else:
+            # unsupervised replay batch samples
+            batch = transition_batch(self.transitions[:self.batch_size])
+            feed_map = {
+                "X": batch.inputs,
+                "Y": batch.outputs,
+            }
+            return batch, feed_map
 
     def optimize(self, epoch, evaluating=False, saving=True):
         """
         Run an entire supervised epoch, or batch of unsupervised episodes.
         """
-        if "optimize" in self.optimize_graph:
-            # get data for epoch
-            data, feed_dict = self.get_epoch()
-            feed_dict = self.optimize_feed(epoch, data, feed_dict)
+        self.epoch = epoch
+        self.evaluating = evaluating
+        self.saving = saving
 
-            # evaluate optimize graph
-            self.optimize_result = self.sess.run(self.optimize_graph, feed_dict=feed_dict)
+        if evaluating or saving:
+            print(f"\n------------------------------------\n  Epoch: {epoch}")
 
-            if evaluating or saving:
-                print(f"\n------------------------------------\n  Epoch: {epoch}")
+        # get data and feed and run optimize epoch pass
+        data, feed_map = self.get_epoch("optimize")
+        feed_map = self.prepare_feed_map("optimize", data, feed_map)
+        optimize_results = self.run("optimize", data, feed_map)
 
-                # evaluate periodically
-                if evaluating and len(self.evaluate_graph) > 0:
-                    # prepare evaluation parameters
-                    feed_dict = self.act_feed(data, feed_dict)
+        # evaluate periodically
+        if evaluating:
+            # get feed and run evaluate pass
+            feed_map = self.prepare_feed_map("evaluate", data, feed_map)
+            evaluate_results = self.run("evaluate", data, feed_map)
 
-                    # run evaluate graph
-                    self.evaluate_result = self.sess.run(self.evaluate_graph, feed_dict=feed_dict)
+            print_tabular(evaluate_results)
 
-                    print_tabular(self.evaluate_result)
+        # save model
+        if saving and self.save_path is not None:
+            save_path = self.saver.save(self.sess, self.save_path)
+            self.log(f"Saved model: {save_path}")
 
-                # save model
-                if saving and self.save_path is not None:
-                    save_path = self.saver.save(self.sess, self.save_path)
-                    self.log(f"Saved model: {save_path}")
-
-            return data
-        return None
+        return data, optimize_results
 
     def train(self, episodes, epochs=1, max_episode_time=None, min_episode_reward=None,
               render=False, evaluate_interval=20, profile_path=None):

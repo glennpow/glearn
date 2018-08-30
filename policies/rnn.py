@@ -42,11 +42,12 @@ class RNN(Policy):
 
         # create placeholders
         with tf.name_scope('inputs'):
-            inputs, outputs = self.create_inputs()
+            inputs, outputs = self.create_default_feeds()
 
-            self.feeds["lambda"] = tf.placeholder(tf.float32, (), name="lambda")
-            self.evaluate_graph["lambda"] = self.feeds["lambda"]
-            self.feeds["dropout"] = tf.placeholder(tf.float32, (), name="dropout")
+            learning_rate = tf.placeholder(tf.float32, (), name="lambda")
+            self.set_feed("lambda", learning_rate, ["optimize", "evaluate"])
+            dropout = tf.placeholder(tf.float32, (), name="dropout")
+            self.set_feed("dropout", dropout)
 
         # process inputs into embeddings
         with tf.device("/cpu:0"):
@@ -59,12 +60,12 @@ class RNN(Policy):
             # Feed API should really be more like:
             #     self.set_feed(graph="render", name="embedding", value=inputs)
             # &   self.get_feed("render", "embedding")
-            self.evaluate_graph["embedded"] = inputs
-            self.evaluate_graph["embedding"] = embedding
+            self.set_fetch("embedded", inputs, "evaluate")
+            self.set_fetch("embedding", embedding, "evaluate")
 
         # first dropout here
         if self.keep_prob is not None:
-            inputs = tf.nn.dropout(inputs, self.feeds["dropout"])
+            inputs = tf.nn.dropout(inputs, dropout)
 
         # define lstm cell(s)
         cell_args = {}
@@ -73,7 +74,7 @@ class RNN(Policy):
             cell_args.update(self.cell_args)
         cell = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, **cell_args)
         if self.keep_prob < 1:
-            cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self.feeds["dropout"])
+            cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=dropout)
         if self.hidden_depth > 1:
             cell = tf.contrib.rnn.MultiRNNCell([cell] * self.hidden_depth)
 
@@ -102,13 +103,12 @@ class RNN(Policy):
         # calculate prediction and accuracy
         with tf.name_scope('predict'):
             predict = tf.cast(tf.argmax(layer, axis=1), tf.int32)
-            self.act_graph["predict"] = predict
-            self.evaluate_graph["predict"] = predict
-            self.evaluate_graph["target"] = outputs
+            self.set_fetch("predict", predict, ["predict", "evaluate"])
+            self.set_fetch("target", outputs, "evaluate")
 
             correct_prediction = tf.equal(predict, tf.reshape(outputs, [-1]))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-            self.evaluate_graph["accuracy"] = accuracy
+            self.set_fetch("accuracy", accuracy, "evaluate")
 
         # calculate loss and cost
         with tf.name_scope('loss'):
@@ -117,24 +117,42 @@ class RNN(Policy):
             loss = tf.contrib.seq2seq.sequence_loss(logits, outputs, weights,
                                                     average_across_timesteps=False,
                                                     average_across_batch=True)
-            self.evaluate_graph["loss"] = loss
+            self.set_fetch("loss", loss, "evaluate")
 
             cost = tf.reduce_sum(loss)
-            self.evaluate_graph["cost"] = cost
+            self.set_fetch("cost", cost, "evaluate")
 
         # remember final state
         self.final_state = state
 
         # minimize loss
         with tf.name_scope('optimize'):
-            optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.feeds["lambda"])
+            optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
             # self.optimize_graph["optimize"] = optimizer.minimize(loss)
 
             tvars = tf.trainable_variables()
             grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars), self.max_grad_norm)
             global_step = tf.train.get_or_create_global_step()
             optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
-            self.optimize_graph["optimize"] = optimize
+            self.set_fetch("optimize", optimize, "optimize")
+
+    def prepare_feed_map(self, graph, data, feed_map):
+        if graph == "optimize" or graph == "evaluate":
+            max_lr_epoch = 10
+            lr_decay = self.lr_decay ** max(self.epoch + 1 - max_lr_epoch, 0.0)
+            learning_rate = self.learning_rate * lr_decay
+            feed_map["lambda"] = learning_rate
+            feed_map["dropout"] = self.keep_prob
+        else:
+            feed_map["dropout"] = 1
+        return feed_map
+
+    def optimize(self, epoch, evaluating=False, saving=True):
+        data = super().optimize(epoch, evaluating=evaluating, saving=saving)
+
+        # visualize evaluated dataset results
+        if self.supervised and evaluating:
+            self.update_visualize(data)
 
     def init_viewer(self):
         super().init_viewer()
@@ -161,17 +179,19 @@ class RNN(Policy):
 
         # render embeddings
         if self.visualize_embeddings:
-            values = self.process_image(self.evaluate_result["embedding"], rows=rows, cols=cols)
+            values = self.results["evaluate"]["embedding"]
+            values = self.process_image(values, rows=rows, cols=cols)
             self.viewer.set_main_image(values)
         # else:
-        #     values = self.process_image(self.evaluate_result["embedded"], rows=rows, cols=cols)
+        #     values = self.results["evaluate"]["embedded"]
+        #     values = self.process_image(, rows=rows, cols=cols)
         #     self.viewer.set_main_image(values)
 
         # show labels with targets/predictions
         num_labels = 5
-        target = self.output.decode(self.evaluate_result["target"])
+        target = self.output.decode(self.results["evaluate"]["target"])
         target_batch = self.vocabulary.decode(target[:num_labels])
-        predict = self.output.decode(self.evaluate_result["predict"])
+        predict = self.output.decode(self.results["evaluate"]["predict"])
         predict_batch = self.vocabulary.decode(predict[:self.timesteps * num_labels])
         predict_batch = np.reshape(predict_batch, [num_labels, self.timesteps])
         for i in range(num_labels):
@@ -180,25 +200,3 @@ class RNN(Policy):
             prediction_message = f"TARGET:  {target_seq}\n\nPREDICT: {predict_seq}"
             self.add_label(f"prediction_{i}", prediction_message, width=cols, multiline=True,
                            font_name="Courier New", font_size=12)
-
-    def act_feed(self, observation, feed_dict):
-        # no dropout for inference
-        feed_dict[self.feeds["dropout"]] = 1
-
-        return feed_dict
-
-    def optimize_feed(self, epoch, data, feed_dict):
-        max_lr_epoch = 10
-        lr_decay = self.lr_decay ** max(epoch + 1 - max_lr_epoch, 0.0)
-        learning_rate = self.learning_rate * lr_decay
-        feed_dict[self.feeds["lambda"]] = learning_rate
-        feed_dict[self.feeds["dropout"]] = self.keep_prob
-
-        return feed_dict
-
-    def optimize(self, epoch, evaluating=False, saving=True):
-        data = super().optimize(epoch, evaluating=evaluating, saving=saving)
-
-        # visualize evaluated dataset results
-        if self.supervised and evaluating:
-            self.update_visualize(data)
