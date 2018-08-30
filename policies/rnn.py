@@ -103,7 +103,9 @@ class RNN(Policy):
         # calculate prediction and accuracy
         with tf.name_scope('predict'):
             predict = tf.cast(tf.argmax(layer, axis=1), tf.int32)
-            self.set_fetch("predict", predict, ["predict", "evaluate"])
+            batched_predict = tf.reshape(predict, [self.batch_size, self.timesteps])
+            self.set_fetch("predict", batched_predict, ["predict", "evaluate"])
+
             self.set_fetch("target", outputs, "evaluate")
 
             correct_prediction = tf.equal(predict, tf.reshape(outputs, [-1]))
@@ -128,13 +130,20 @@ class RNN(Policy):
         # minimize loss
         with tf.name_scope('optimize'):
             optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-            optimize = optimizer.minimize(loss)
+            global_step = tf.train.get_or_create_global_step()
 
-            # tvars = tf.trainable_variables()
-            # grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars), self.max_grad_norm)
-            # global_step = tf.train.get_or_create_global_step()
-            # optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
+            if self.max_grad_norm is None:
+                # apply unclipped gradients
+                optimize = optimizer.minimize(cost, global_step=global_step)
+            else:
+                # apply gradients with clipping
+                tvars = tf.trainable_variables()
+                grads = tf.gradients(cost, tvars)
+                grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
+                optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
             self.set_fetch("optimize", optimize, "optimize")
+
+            self.set_fetch("lambda", learning_rate, "evaluate")
 
     def prepare_feed_map(self, graph, data, feed_map):
         if graph == "optimize" or graph == "evaluate":
@@ -200,8 +209,8 @@ class RNN(Policy):
         target = self.output.decode(self.results["evaluate"]["target"])
         target_batch = self.vocabulary.decode(target[:num_labels])
         predict = self.output.decode(self.results["evaluate"]["predict"])
-        predict_batch = self.vocabulary.decode(predict[:self.timesteps * num_labels])
-        predict_batch = np.reshape(predict_batch, [num_labels, self.timesteps])
+        predict_batch = self.vocabulary.decode(predict[:num_labels])
+        # predict_batch = np.reshape(predict_batch, [num_labels, self.timesteps])
         for i in range(num_labels):
             target_seq = " ".join(target_batch[i])
             predict_seq = " ".join(predict_batch[i])
