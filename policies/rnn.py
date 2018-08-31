@@ -35,7 +35,7 @@ class RNN(Policy):
     def init_model(self):
         # infer values from dataset
         self.timesteps = self.input.shape[0]  # sequence_length
-        self.vocabulary = self.dataset.info["vocabulary"]
+        self.vocabulary = self.dataset.vocabulary
 
         # default initializer
         init_scale = 0.05  # TODO - expose
@@ -212,8 +212,8 @@ class RNN(Policy):
         predict_batch = self.vocabulary.decode(predict[:num_labels])
         # predict_batch = np.reshape(predict_batch, [num_labels, self.timesteps])
         for i in range(num_labels):
-            target_seq = " ".join(target_batch[i])
-            predict_seq = " ".join(predict_batch[i])
+            target_seq = " ".join([str(x) for x in target_batch[i]])
+            predict_seq = " ".join([str(x) for x in predict_batch[i]])
             prediction_message = f"TARGET:  {target_seq}\n\nPREDICT: {predict_seq}"
             self.add_label(f"prediction_{i}", prediction_message, width=cols, multiline=True,
                            font_name="Courier New", font_size=12)

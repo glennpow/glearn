@@ -323,9 +323,24 @@ class Policy(object):
               render=False, evaluate_interval=20, profile_path=None):
         episode_rewards = []
         self.training = True
+        self.paused = False
 
         # print training info
         self.print_info()
+
+        def train_yield():
+            while True:
+                if not self.training:
+                    return True
+
+                if render:
+                    self.render()
+
+                if self.paused:
+                    time.sleep(0)
+                else:
+                    break
+            return False
 
         def train_loop():
             # start TF session
@@ -334,17 +349,14 @@ class Policy(object):
             if self.supervised:
                 # supervised learning
                 for epoch in range(epochs):
-                    if not self.training:
-                        return
-
                     self.dataset.reset()
 
                     evaluating = epoch % evaluate_interval == 0
                     saving = evaluating
                     self.optimize(epoch, evaluating=evaluating, saving=saving)
 
-                    if render:
-                        self.render()
+                    if train_yield():
+                        return
             else:
                 # reinforcement learning
                 for episode in range(episodes):
@@ -352,11 +364,8 @@ class Policy(object):
                     tic = time.time()
 
                     while True:
-                        if not self.training:
+                        if train_yield():
                             return
-
-                        if render:
-                            self.render()
 
                         # rollout
                         transition = self.rollout()
@@ -504,5 +513,9 @@ class Policy(object):
     def on_key_press(self, key, modifiers):
         # feature visualization keys
         if key == pyglet.window.key.ESCAPE:
+            self.log("Training cancelled by user")
             self.viewer.close()
             self.training = False
+        elif key == pyglet.window.key.SPACE:
+            self.log(f"Training {'unpaused' if self.paused else 'paused'} by user")
+            self.paused = not self.paused

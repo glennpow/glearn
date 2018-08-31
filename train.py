@@ -7,6 +7,7 @@ from policies.cnn import CNN
 from policies.rnn import RNN
 from datasets.mnist import train as mnist_dataset
 from datasets.ptb import train as ptb_dataset
+from datasets.rnn_tests import DigitRepeatDataset as digit_repeat_dataset
 from utils.profile import open_profile
 
 
@@ -39,6 +40,8 @@ def main(env_name, dataset_name, policy, episodes, epochs, seed, batch_size,
             dataset = mnist_dataset(f"{TEMP_DIR}/data/mnist", batch_size, max_count=1000)
         if dataset_name == "ptb":
             dataset = ptb_dataset(f"{TEMP_DIR}/data/ptb", batch_size, timesteps)
+        if dataset_name == "digit_repeat":
+            dataset = digit_repeat_dataset(batch_size=batch_size, timesteps=timesteps)
     if env is None and dataset is None:
         print("Failed to find env or dataset to train with")
         return
