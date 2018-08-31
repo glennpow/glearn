@@ -45,6 +45,10 @@ class RNN(Policy):
         with tf.name_scope('feeds'):
             inputs, outputs = self.create_default_feeds()
 
+            # TODO - add new graph "render" or "debug" for all this crap
+            self.set_fetch("X", inputs, "evaluate")
+            self.set_fetch("Y", outputs, "evaluate")
+
             learning_rate = tf.placeholder(tf.float32, (), name="lambda")
             self.set_feed("lambda", learning_rate, ["optimize", "evaluate"])
 
@@ -58,10 +62,11 @@ class RNN(Policy):
                                         initializer=scaled_init)
             inputs = tf.nn.embedding_lookup(embedding, inputs)
 
-            # TODO - feeds like this could be in a new render graphs or something
-            # self.set_feed("embedding", embedding, render")
-            self.set_fetch("embedded", inputs, "evaluate")
-            self.set_fetch("embedding", embedding, "evaluate")
+            # TODO - add new graph "render" or "debug" for all this crap
+            if self.visualize_embedded:
+                self.set_fetch("embedded", inputs, "evaluate")
+            if self.visualize_embeddings:
+                self.set_fetch("embedding", embedding, "evaluate")
 
         # first dropout here
         if self.keep_prob is not None:
@@ -105,8 +110,6 @@ class RNN(Policy):
             predict = tf.cast(tf.argmax(layer, axis=1), tf.int32)
             batched_predict = tf.reshape(predict, [self.batch_size, self.timesteps])
             self.set_fetch("predict", batched_predict, ["predict", "evaluate"])
-
-            self.set_fetch("target", outputs, "evaluate")
 
             correct_prediction = tf.equal(predict, tf.reshape(outputs, [-1]))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -206,14 +209,17 @@ class RNN(Policy):
 
         # show labels with targets/predictions
         num_labels = 5
-        target = self.output.decode(self.results["evaluate"]["target"])
+        input = self.output.decode(self.results["evaluate"]["X"])
+        input_batch = self.vocabulary.decode(input[:num_labels])
+        target = self.output.decode(self.results["evaluate"]["Y"])
         target_batch = self.vocabulary.decode(target[:num_labels])
         predict = self.output.decode(self.results["evaluate"]["predict"])
         predict_batch = self.vocabulary.decode(predict[:num_labels])
         # predict_batch = np.reshape(predict_batch, [num_labels, self.timesteps])
         for i in range(num_labels):
+            input_seq = " ".join([str(x) for x in input_batch[i]])
             target_seq = " ".join([str(x) for x in target_batch[i]])
             predict_seq = " ".join([str(x) for x in predict_batch[i]])
-            prediction_message = f"TARGET:  {target_seq}\n\nPREDICT: {predict_seq}"
+            prediction_message = f"INPUT:  {input_seq}\nTARGET:  {target_seq}\nPREDICT: {predict_seq}"
             self.add_label(f"prediction_{i}", prediction_message, width=cols, multiline=True,
                            font_name="Courier New", font_size=12)
