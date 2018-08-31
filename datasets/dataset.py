@@ -13,7 +13,7 @@ class Transition(object):
 
 
 class Batch(object):
-    def __init__(self, dataset):
+    def __init__(self, dataset=None):
         self.dataset = dataset
         self.inputs = []
         self.outputs = []
@@ -73,7 +73,7 @@ class Dataset(object):
             return self, {}
 
     def get_batch(self):
-        batch = Batch(self)
+        batch = Batch(database=self)
         batch.inputs = self.inputs[self.head:self.head + self.batch_size]
         batch.outputs = self.outputs[self.head:self.head + self.batch_size]
 

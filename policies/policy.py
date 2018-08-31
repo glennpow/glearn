@@ -256,12 +256,11 @@ class Policy(object):
 
     def predict(self, data):
         feed_map = self.prepare_feed_map("predict", data, {"X": [data]})
-        return self.run("predict", data, feed_map)
+        return self.run("predict", data, feed_map)["predict"][0]
 
     def rollout(self):
         # get action
-        results = self.predict(self.observation)
-        action = results["predict"]
+        action = self.predict(self.observation)
 
         # perform action
         new_observation, reward, done, info = self.env.step(self.output.decode(action))

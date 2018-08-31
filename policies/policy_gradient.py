@@ -25,7 +25,7 @@ class PolicyGradient(Policy):
         # prepare inputs
         input_size = self.input.size  # FIXME - can we infer this from inputs?
         inputs = tf.reshape(inputs, (-1, input_size))
-        layer = inputs
+        layer = tf.cast(inputs, tf.float32)
 
         # create hidden layers
         for i in range(self.hidden_depth):
@@ -48,16 +48,16 @@ class PolicyGradient(Policy):
         # minimize loss
         with tf.name_scope('optimize'):
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
-            self.set_fetch("optimize", optimizer.minimize(loss), graph="optimize")
+            self.set_fetch("optimize", optimizer.minimize(loss), "optimize")
 
     def prepare_feed_map(self, graph, data, feed_map):
         if graph == "optimize" or graph == "evaluate":
             # normalized discount rewards
-            # FIXME - I think this will be broken!  (rewards is no longer part of data)
-            discounted_rewards = np.zeros_like(data.rewards)
+            rewards = [e.reward for e in data.info["transitions"]]
+            discounted_rewards = np.zeros_like(rewards)
             accum = 0
-            for t in reversed(range(len(data.rewards))):
-                accum = accum * self.discount_factor + data.rewards[t]
+            for t in reversed(range(len(rewards))):
+                accum = accum * self.discount_factor + rewards[t]
                 discounted_rewards[t] = accum
             discounted_rewards -= np.mean(discounted_rewards)
             discounted_rewards /= np.std(discounted_rewards)
