@@ -1,5 +1,4 @@
 import math
-import numpy as np
 import tensorflow as tf
 from policies.policy import Policy
 from policies.layers import add_fc
@@ -11,10 +10,9 @@ DEFAULT_LSTM_CELL_ARGS = {
 
 
 class RNN(Policy):
-    def __init__(self, data_type=tf.float32, keep_prob=0.5, max_grad_norm=5,
+    def __init__(self, keep_prob=0.5, max_grad_norm=5,
                  learning_rate=1, lr_decay=0.93, hidden_size=650, hidden_depth=1, cell_args=None,
                  **kwargs):
-        self.data_type = data_type
         self.keep_prob = keep_prob
         self.max_grad_norm = max_grad_norm
         self.learning_rate = learning_rate  # lamdba λ
@@ -58,7 +56,7 @@ class RNN(Policy):
         # process inputs into embeddings
         with tf.device("/cpu:0"):
             embedding = tf.get_variable("embedding", [self.vocabulary.size, self.hidden_size],
-                                        dtype=self.data_type,
+                                        # dtype=tf.float32,
                                         initializer=scaled_init)
             inputs = tf.nn.embedding_lookup(embedding, inputs)
 
@@ -84,7 +82,7 @@ class RNN(Policy):
             cell = tf.contrib.rnn.MultiRNNCell([cell] * self.hidden_depth)
 
         # prepare lstm state
-        initial_state = cell.zero_state(self.batch_size, dtype=self.data_type)
+        initial_state = cell.zero_state(self.batch_size, dtype=tf.float32)
 
         # build unrolled layers
         inputs = tf.unstack(inputs, self.timesteps, 1)
@@ -118,7 +116,7 @@ class RNN(Policy):
         # calculate loss and cost
         with tf.name_scope('loss'):
             logits = tf.reshape(info["Z"], [self.batch_size, self.timesteps, self.vocabulary.size])
-            weights = tf.ones([self.batch_size, self.timesteps], dtype=self.data_type)
+            weights = tf.ones([self.batch_size, self.timesteps])  # , dtype=self.input.dtype)
             loss = tf.contrib.seq2seq.sequence_loss(logits, outputs, weights,
                                                     average_across_timesteps=False,
                                                     average_across_batch=True)
@@ -220,6 +218,8 @@ class RNN(Policy):
             input_seq = " ".join([str(x) for x in input_batch[i]])
             target_seq = " ".join([str(x) for x in target_batch[i]])
             predict_seq = " ".join([str(x) for x in predict_batch[i]])
-            prediction_message = f"INPUT:  {input_seq}\nTARGET:  {target_seq}\nPREDICT: {predict_seq}"
+            prediction_message = (f"INPUT:  {input_seq}\n"
+                                  f"TARGET:  {target_seq}"
+                                  f"\nPREDICT: {predict_seq}")
             self.add_label(f"prediction_{i}", prediction_message, width=cols, multiline=True,
                            font_name="Courier New", font_size=12)

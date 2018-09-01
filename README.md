@@ -11,7 +11,6 @@ python train.py --env=SpaceInvaders-v0 --policy=cnn --render
 
 ## MNIST
 python train.py --dataset=mnist --policy=cnn --epochs=40 --batch=128 --evaluate=2
-python train.py --dataset=mnist --policy=cnn --epochs=40 --batch=128 --evaluate=2 --render
 
 
 ### RNN (all failing)
@@ -20,7 +19,11 @@ python train.py --dataset=mnist --policy=cnn --epochs=40 --batch=128 --evaluate=
 python train.py --dataset=digit_repeat --policy=rnn --epochs=260 --evaluate=10 --batch=100 --timesteps=20 --render
 
 ## PTB
-python train.py --dataset=ptb --policy=rnn --epochs=60 --evaluate=5 --batch=20 --render
+python train.py --dataset=ptb --policy=rnn --epochs=60 --evaluate=5 --batch=20
+
+
+## Rendering
+python train.py ... --render
 
 
 ### Versions

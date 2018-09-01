@@ -35,10 +35,12 @@ class Vocabulary(object):
 
 class SequenceDataset(Dataset):
     def __init__(self, name, raw_data, vocabulary, batch_size, timesteps):
+        tfdtype = tf.int32  # HACK
+        npdtype = np.int32  # HACK
         # sequence producer
         with tf.name_scope(name, values=[raw_data, batch_size, timesteps]):
             # tensor of data
-            tensor_data = tf.convert_to_tensor(raw_data, name="raw_data", dtype=tf.int32)
+            tensor_data = tf.convert_to_tensor(raw_data, name="raw_data", dtype=tfdtype)
             # length of data tensor
             num_samples = tf.size(tensor_data)
             # number of batches in data
@@ -51,7 +53,7 @@ class SequenceDataset(Dataset):
             # number of unrolled batches in an epoch
             epoch_size = (num_batches - 1) // timesteps
             assertion = tf.assert_positive(epoch_size,
-                                           message="epoch_size == 0, decrease batch_size or timesteps")
+                                           message="Decrease batch_size or timesteps")
             # assert valid data?
             with tf.control_dependencies([assertion]):
                 epoch_size = tf.identity(epoch_size, name="epoch_size")
@@ -68,8 +70,8 @@ class SequenceDataset(Dataset):
 
         self.vocabulary = vocabulary
 
-        input_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=np.int32)
-        output_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=np.int32)
+        input_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=npdtype)
+        output_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=npdtype)
 
         super().__init__("PTB", inputs=x, outputs=y, input_space=input_space,
                          output_space=output_space, batch_size=batch_size)
