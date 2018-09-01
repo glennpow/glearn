@@ -5,9 +5,9 @@ import gym
 from policies.policy_gradient import PolicyGradient
 from policies.cnn import CNN
 from policies.rnn import RNN
-from datasets.mnist import train as mnist_dataset
-from datasets.ptb import train as ptb_dataset
-from datasets.rnn_tests import DigitRepeatDataset as digit_repeat_dataset
+from datasets.mnist.mnist import train as mnist_dataset
+from datasets.ptb.ptb import train as ptb_dataset
+from datasets.sequence_tests import DigitRepeatDataset as digit_repeat_dataset
 from utils.config import load_config
 from utils.profile import open_profile
 
@@ -43,9 +43,9 @@ def main(config_path, env_name, dataset_name, policy, episodes, epochs, seed, ba
         env = gym.make(env_name)
     elif dataset_name is not None:
         if dataset_name == "mnist":
-            dataset = mnist_dataset(f"{TEMP_DIR}/data/mnist", batch_size, max_count=1000)
+            dataset = mnist_dataset(batch_size, max_count=1000)
         if dataset_name == "ptb":
-            dataset = ptb_dataset(f"{TEMP_DIR}/data/ptb", batch_size, timesteps)
+            dataset = ptb_dataset(batch_size, timesteps)
         if dataset_name == "digit_repeat":
             dataset = digit_repeat_dataset(batch_size=batch_size, timesteps=timesteps)
     if env is None and dataset is None:
