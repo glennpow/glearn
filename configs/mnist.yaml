@@ -1,0 +1,6 @@
+--- # MNIST
+  include: cnn.yaml
+  dataset: mnist
+  epochs: 40
+  batch: 128
+  evaluate: 2

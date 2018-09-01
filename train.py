@@ -8,6 +8,7 @@ from policies.rnn import RNN
 from datasets.mnist import train as mnist_dataset
 from datasets.ptb import train as ptb_dataset
 from datasets.rnn_tests import DigitRepeatDataset as digit_repeat_dataset
+from utils.config import load_config
 from utils.profile import open_profile
 
 
@@ -15,6 +16,7 @@ TEMP_DIR = "/tmp/learning"
 
 
 @click.command()
+@click.option("--config", "-c", "config_path", default=None)
 @click.option("--env", "-e", "env_name", default=None)
 @click.option("--dataset", "-d", "dataset_name", default=None)
 @click.option("--policy", "-p", default="policy_gradient")
@@ -27,8 +29,12 @@ TEMP_DIR = "/tmp/learning"
 @click.option("--version", "-v", default=None)
 @click.option("--render/--no-render", default=False)
 @click.option("--profile/--no-profile", default=False)
-def main(env_name, dataset_name, policy, episodes, epochs, seed, batch_size,
+def main(config_path, env_name, dataset_name, policy, episodes, epochs, seed, batch_size,
          evaluate_interval, timesteps, version, render, profile):
+    # load config
+    if config_path is not None:
+        config = load_config(config_path)
+
     # get env or dataset
     env = None
     dataset = None
@@ -52,7 +58,7 @@ def main(env_name, dataset_name, policy, episodes, epochs, seed, batch_size,
         next_version = 1
         log_dir = f"{TEMP_DIR}/{project}/{next_version}"
         load_path = None
-        save_path = f"{log_dir}/model.ckpt"
+        save_path = None  # f"{log_dir}/model.ckpt"
     elif version.isdigit():
         version = int(version)
         next_version = version + 1
@@ -83,7 +89,7 @@ def main(env_name, dataset_name, policy, episodes, epochs, seed, batch_size,
                      dataset=dataset,
                      batch_size=batch_size,
                      seed=seed,
-                     hidden_depth=2,  # FIXME
+                     hidden_depth=2,  # FIXME - config...
                      # learning_rate=0.02,
                      # discount_factor=0.99,
                      load_path=load_path,

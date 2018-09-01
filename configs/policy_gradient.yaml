@@ -1,0 +1,11 @@
+--- # Policy Gradient
+  include: default.yaml
+
+  policy: policy_gradient
+
+  # optimizer: adam
+  # learning_rate: 2e-4
+  discount_factor: 0.95
+  
+  hidden_depth: 2
+  hidden_size: 10
