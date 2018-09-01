@@ -73,7 +73,7 @@ class Dataset(object):
             return self, {}
 
     def get_batch(self):
-        batch = Batch(database=self)
+        batch = Batch(dataset=self)
         batch.inputs = self.inputs[self.head:self.head + self.batch_size]
         batch.outputs = self.outputs[self.head:self.head + self.batch_size]
 
