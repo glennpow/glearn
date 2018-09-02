@@ -1,6 +1,6 @@
 --- # Defaults
   seed: 0
-  datatype: float32
+  datatype: float32  # input only or i/o?
 
   optimizer: sgd
   learning_rate: 1e-3

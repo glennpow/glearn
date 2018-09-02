@@ -6,24 +6,19 @@ from policies.layers import add_fc, add_conv2d
 
 
 class CNN(Policy):
-    def __init__(self, learning_rate=2e-4, filters=[(5, 5, 32), (5, 5, 64)], strides=1,
-                 padding="SAME", max_pool_k=2, fc_layers=[7 * 7 * 64, 1024], keep_prob=0.8,
-                 **kwargs):
-        self.learning_rate = learning_rate  # lamdba λ
-        # self.discount_factor = discount_factor  # gamma γ
+    def __init__(self, config, version=None):
+        self.filters = config.get("filters", [(5, 5, 32), (5, 5, 64)])
+        self.strides = config.get("strides", 1)
+        self.padding = config.get("padding", "SAME")
+        self.max_pool_k = config.get("max_pool_k", 2)
 
-        self.filters = filters
-        self.strides = strides
-        self.padding = padding
-        self.max_pool_k = max_pool_k
-
-        self.fc_layers = fc_layers
-        self.keep_prob = keep_prob
+        self.fc_layers = config.get("fc_layers", [7 * 7 * 64, 1024])
+        self.keep_prob = config.get("keep_prob", 0.8)
 
         self.visualize_layer = None
         self.visualize_feature = None
 
-        super().__init__(**kwargs)
+        super().__init__(config, version=version)
 
         self.init_visualize()
 
@@ -46,21 +41,22 @@ class CNN(Policy):
 
         # create conv layers
         for i, filter in enumerate(self.filters):
-            layer, info = add_conv2d(self, layer, input_size, input_channels, filter,
-                                     strides=self.strides, max_pool_k=self.max_pool_k,
-                                     padding=self.padding)
+            layer, info = self.add_conv2d(layer, input_size, input_channels, filter,
+                                          strides=self.strides, max_pool_k=self.max_pool_k,
+                                          padding=self.padding)
             input_size = layer.shape[1]
             input_channels = filter[2]
 
         # create fully connected layers
         input_size = np.prod(layer.shape[1:])
         for i, fc_size in enumerate(self.fc_layers):
-            layer, info = add_fc(self, layer, input_size, fc_size, reshape=i == 0,
-                                 keep_prob=dropout)
+            layer, info = self.add_fc(layer, input_size, fc_size, reshape=i == 0,
+                                      keep_prob=dropout)
             input_size = layer.shape[1]
 
         # create output layer
-        layer, info = add_fc(self, layer, input_size, self.output.size, activation=tf.nn.softmax)
+        layer, info = self.add_fc(layer, input_size, self.output.size,
+                                  activation=tf.nn.softmax)
 
         # store prediction
         predict = layer
@@ -123,8 +119,8 @@ class CNN(Policy):
 
         return transition
 
-    def optimize(self, epoch, evaluating=False, saving=True):
-        data, results = super().optimize(epoch, evaluating=evaluating, saving=saving)
+    def optimize(self, step, evaluating=False, saving=True):
+        data, results = super().optimize(step, evaluating=evaluating, saving=saving)
 
         # visualize evaluated dataset results
         if self.supervised and evaluating:

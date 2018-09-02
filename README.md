@@ -20,6 +20,7 @@ python train.py --dataset=digit_repeat --policy=rnn --epochs=260 --evaluate=10 -
 
 ## PTB
 python train.py --dataset=ptb --policy=rnn --epochs=60 --evaluate=5 --batch=20
+max_count=1000 ?
 
 
 ## Rendering

@@ -1,4 +1,5 @@
 import tensorflow as tf
+from policies.policy import Policy
 
 
 def add_conv2d(policy, inputs, input_size, input_channels, filter, strides=1, max_pool_k=2,
@@ -7,7 +8,7 @@ def add_conv2d(policy, inputs, input_size, input_channels, filter, strides=1, ma
 
     # create variables and operations
     # TODO - convert this to create object with __enter__/__exit__ to define name_scope
-    #        and add layer, etc.
+    #        and add layer, etc.     (...huh?)
     index = policy.get_layer_count("conv2d")
     with tf.name_scope(f"conv2d_{index}"):
         info = {}
@@ -20,7 +21,7 @@ def add_conv2d(policy, inputs, input_size, input_channels, filter, strides=1, ma
 
         x = inputs
         # if reshape:
-        #     x = tf.reshape(x, shape=[-1, 28, 28, 1])  # TODO - pass/infer dimensions arg?
+        #     x = tf.reshape(x, shape=[-1, 28, 28, 1])  # TODO - should pass/infer dims, or trust?
 
         # Conv2D wrapper, with bias and relu activation
         Z = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding=padding)
@@ -36,6 +37,9 @@ def add_conv2d(policy, inputs, input_size, input_channels, filter, strides=1, ma
 
     policy.add_layer("conv2d", A)
     return (A, info)
+
+
+Policy.add_conv2d = add_conv2d
 
 
 def add_fc(policy, inputs, input_size, output_size, reshape=False, keep_prob=None,
@@ -77,3 +81,6 @@ def add_fc(policy, inputs, input_size, output_size, reshape=False, keep_prob=Non
 
         policy.add_layer("fc", A)
         return (A, info)
+
+
+Policy.add_fc = add_fc

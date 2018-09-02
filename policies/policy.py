@@ -4,38 +4,77 @@ from collections import abc
 import numpy as np
 import tensorflow as tf
 import pyglet
+import gym
 from policies.interface import Interface
+from datasets import load_dataset
 from datasets.dataset import Transition, transition_batch
 from utils.viewer import AdvancedViewer
 from utils.printing import colorize, print_tabular
+from utils.profile import open_profile
+
+
+TEMP_DIR = "/tmp/learning"
 
 
 class Policy(object):
-    def __init__(self, env=None, dataset=None, batch_size=None, seed=0,
-                 load_path=None, save_path=None, tensorboard_path=None,
-                 multithreaded=False):
-        self.env = env
-        self.dataset = dataset
-        self.batch_size = batch_size
-        self.seed = seed
-        if self.supervised:
-            self.input = dataset.input
-            self.output = dataset.output
+    def __init__(self, config, version=None):
+        self.config = config
 
-            self.viewer = AdvancedViewer()
+        # get env or dataset
+        self.env = None
+        self.dataset = None
+        if "env" in config:
+            # make env
+            env_name = config["env"]
+            self.env = gym.make(env_name)
+            self.project = env_name
+        elif "dataset" in config:
+            # make dataset
+            self.dataset = load_dataset(config)
+            self.project = self.dataset.name
+        if self.env is None and self.dataset is None:
+            raise Exception("Failed to find env or dataset to train with")
+
+        # get basic params
+        self.learning_rate = config.get("learning_rate", 1)  # lamdba λ
+        self.batch_size = config.get("batch_size", 1)
+        self.seed = config.get("seed", 0)
+        self.multithreaded = config.get("multithreaded", False)
+
+        # create render viewer
+        self.viewer = AdvancedViewer()
+
+        # prepare input/output interfaces
+        if self.supervised:
+            self.input = self.dataset.input
+            self.output = self.dataset.output
         elif self.reinforcement:
             self.env.seed(self.seed)
 
-            self.viewer = AdvancedViewer()
             self.env.unwrapped.viewer = self.viewer
 
-            self.input = Interface(env.observation_space)
-            self.output = Interface(env.action_space)
+            self.input = Interface(self.env.observation_space)
+            self.output = Interface(self.env.action_space)
 
-        self.load_path = load_path
-        self.save_path = save_path
-        self.tensorboard_path = tensorboard_path
-        self.multithreaded = multithreaded
+        # prepare log and save/load paths
+        if version is None:
+            next_version = 1
+            self.log_dir = f"{TEMP_DIR}/{self.project}/{next_version}"
+            self.load_path = None
+            self.save_path = None
+        elif version.isdigit():
+            version = int(version)
+            next_version = version + 1
+            self.log_dir = f"{TEMP_DIR}/{self.project}/{next_version}"
+            self.load_path = f"{TEMP_DIR}/{self.project}/{version}/model.ckpt"
+            self.save_path = f"{self.log_dir}/model.ckpt"
+        else:
+            next_version = None
+            self.log_dir = f"{TEMP_DIR}/{self.project}/{version}"
+            self.load_path = f"{TEMP_DIR}/{self.project}/{version}/model.ckpt"
+            self.save_path = None
+        self.version = version
+        self.tensorboard_path = f"{self.log_dir}/tensorboard/"
 
         self.feeds = {}
         self.fetches = {}
@@ -274,10 +313,10 @@ class Policy(object):
         self.episode_reward += transition.reward
         return transition
 
-    def get_epoch(self, graph):
+    def get_step_data(self, graph):
         if self.supervised:
             # supervised epoch of samples
-            return self.dataset.get_epoch()
+            return self.dataset.get_step_data()
         else:
             # unsupervised replay batch samples
             batch = transition_batch(self.transitions[:self.batch_size])
@@ -287,19 +326,19 @@ class Policy(object):
             }
             return batch, feed_map
 
-    def optimize(self, epoch, evaluating=False, saving=True):
+    def optimize(self, step, evaluating=False, saving=True):
         """
         Run an entire supervised epoch, or batch of unsupervised episodes.
         """
-        self.epoch = epoch
+        self.step = step
         self.evaluating = evaluating
         self.saving = saving
 
         if evaluating or saving:
-            print(f"\n------------------------------------\n  Epoch: {epoch}")
+            print(f"\n------------------------------------\n  Step: {step}")
 
-        # get data and feed and run optimize epoch pass
-        data, feed_map = self.get_epoch("optimize")
+        # get data and feed and run optimize step pass
+        data, feed_map = self.get_step_data("optimize")
         feed_map = self.prepare_feed_map("optimize", data, feed_map)
         optimize_results = self.run("optimize", data, feed_map)
 
@@ -318,8 +357,7 @@ class Policy(object):
 
         return data, optimize_results
 
-    def train(self, episodes, epochs=1, max_episode_time=None, min_episode_reward=None,
-              render=False, evaluate_interval=20, profile_path=None):
+    def train(self, render=False, profile=False):
         episode_rewards = []
         self.training = True
         self.paused = False
@@ -347,6 +385,9 @@ class Policy(object):
 
             if self.supervised:
                 # supervised learning
+                epochs = self.config.get("epochs", 100)
+                evaluate_interval = self.config.get("evaluate_interval", 10)
+
                 for epoch in range(epochs):
                     self.dataset.reset()
 
@@ -358,6 +399,10 @@ class Policy(object):
                         return
             else:
                 # reinforcement learning
+                episodes = self.config.get("episodes", 1000)
+                max_episode_time = self.config.get("max_episode_time", None)
+                min_episode_reward = self.config.get("min_episode_reward", None)
+
                 for episode in range(episodes):
                     self.reset()
                     tic = time.time()
@@ -402,9 +447,11 @@ class Policy(object):
             # stop TF session
             self.stop_session()
 
-        if profile_path is not None:
+        if profile:
+            profile_path = f"{self.log_dir}/profile"
             with tf.contrib.tfprof.ProfileContext(profile_path) as pctx:  # noqa
                 train_loop()
+            open_profile(profile_path)
         else:
             train_loop()
 

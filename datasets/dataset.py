@@ -57,7 +57,7 @@ class Dataset(object):
         else:
             return self.outputs
 
-    def get_epoch(self):
+    def get_step_data(self):
         if self.optimize_batch:
             # return individual batches instead (HACK)
             # should iterate over batch count here, but rather just remove this param entirely.
@@ -81,4 +81,5 @@ class Dataset(object):
         batch.outputs = [self.output.encode(o) for o in batch.outputs]
 
         self.head = (self.head + self.batch_size) % len(self.inputs)
+        import ipdb; ipdb.set_trace()  # HACK DEBUGGING !!!
         return batch

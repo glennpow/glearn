@@ -148,8 +148,8 @@ class RNN(Policy):
 
     def prepare_feed_map(self, graph, data, feed_map):
         if graph == "optimize" or graph == "evaluate":
-            max_lr_epoch = 10
-            lr_decay = self.lr_decay ** max(self.epoch + 1 - max_lr_epoch, 0.0)
+            max_lr_step = 10
+            lr_decay = self.lr_decay ** max(self.step + 1 - max_lr_step, 0.0)
             learning_rate = self.learning_rate * lr_decay
             feed_map["lambda"] = learning_rate
             feed_map["dropout"] = self.keep_prob
@@ -157,8 +157,8 @@ class RNN(Policy):
             feed_map["dropout"] = 1
         return feed_map
 
-    def optimize(self, epoch, evaluating=False, saving=True):
-        data = super().optimize(epoch, evaluating=evaluating, saving=saving)
+    def optimize(self, step, evaluating=False, saving=True):
+        data = super().optimize(step, evaluating=evaluating, saving=saving)
 
         # visualize evaluated dataset results
         if self.supervised and evaluating:

@@ -27,8 +27,7 @@ def check_image_file_header(filename):
             raise ValueError('Invalid magic number %d in MNIST file %s' % (magic,
                                                                            f.name))
         if rows != 28 or cols != 28:
-            raise ValueError(
-                             'Invalid MNIST file %s: Expected 28x28 images, found %dx%d' %
+            raise ValueError('Invalid MNIST file %s: Expected 28x28 images, found %dx%d' %
                              (f.name, rows, cols))
 
 
@@ -72,7 +71,7 @@ def load_data(path, element_size, max_count=None, header_bytes=0, mapping=None):
         return data
 
 
-def dataset(images_file, labels_file, batch_size, max_count=None):
+def dataset(images_file, labels_file, config):
     """Download and parse MNIST dataset."""
     directory = os.path.dirname(__file__)
     images_file = download(directory, images_file)
@@ -94,6 +93,9 @@ def dataset(images_file, labels_file, batch_size, max_count=None):
         label = label.flatten()
         return label
 
+    batch_size = config.get("batch_size", 128)
+    max_count = config.get("max_count", None)
+
     images = load_data(images_file, 28 * 28, max_count=max_count, header_bytes=16,
                        mapping=decode_image)
     labels = load_data(labels_file, 1, max_count=max_count, header_bytes=8, mapping=decode_label)
@@ -106,12 +108,11 @@ def dataset(images_file, labels_file, batch_size, max_count=None):
                    output_space=gym.spaces.Discrete(10), batch_size=batch_size)
 
 
-def train(batch_size, max_count=None):
+def train(config):
     """tf.data.Dataset object for MNIST training data."""
-    return dataset('train-images-idx3-ubyte', 'train-labels-idx1-ubyte',
-                   batch_size, max_count=max_count)
+    return dataset('train-images-idx3-ubyte', 'train-labels-idx1-ubyte', config)
 
 
-def test(directory, batch_size):
+def test(config):
     """tf.data.Dataset object for MNIST test data."""
-    return dataset('t10k-images-idx3-ubyte', 't10k-labels-idx1-ubyte', batch_size)
+    return dataset('t10k-images-idx3-ubyte', 't10k-labels-idx1-ubyte', config)

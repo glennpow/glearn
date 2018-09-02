@@ -17,9 +17,13 @@ class Interface(object):
         self.deterministic = deterministic
 
     def __str__(self):
-        discreteness = "discrete" if self.discrete else "continuous"
-        deterministicness = "deterministic" if self.deterministic else "stochastic"
-        return f"Interface({self.shape} [{self.size}], {discreteness}, {deterministicness})"
+        properties = [
+            f"{self.shape} [{self.size}]",
+            "discrete" if self.discrete else "continuous",
+            self.dtype.name,
+            "deterministic" if self.deterministic else "stochastic",
+        ]
+        return f"Interface({', '.join(properties)})"
 
     def encode(self, value):
         # handle discrete values

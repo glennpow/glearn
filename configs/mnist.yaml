@@ -2,5 +2,5 @@
   include: cnn.yaml
   dataset: mnist
   epochs: 40
-  batch: 128
-  evaluate: 2
+  batch_size: 128
+  evaluate_interval: 2
