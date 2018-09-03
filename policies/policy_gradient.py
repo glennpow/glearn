@@ -4,6 +4,7 @@ from policies.policy import Policy
 from policies.layers import add_fc
 
 
+# TODO FIXME - BROKEN - update this to use configs!!!
 class PolicyGradient(Policy):
     def __init__(self, learning_rate=2e-4, discount_factor=0.95, hidden_depth=2, hidden_size=10,
                  **kwargs):

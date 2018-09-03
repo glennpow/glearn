@@ -326,16 +326,23 @@ class Policy(object):
             }
             return batch, feed_map
 
-    def optimize(self, step, evaluating=False, saving=True):
+    def optimize(self, step):
         """
-        Run an entire supervised epoch, or batch of unsupervised episodes.
+        Optimize/evaluate using a supervised or unsupervised batch
         """
         self.step = step
-        self.evaluating = evaluating
-        self.saving = saving
+        evaluate_interval = self.config.get("evaluate_interval", 10)
+        self.evaluating = step % evaluate_interval == 0
+        self.saving = self.evaluating
 
-        if evaluating or saving:
-            print(f"\n------------------------------------\n  Step: {step}")
+        # log evaluation of current step
+        if self.evaluating or self.saving:
+
+            # TODO - timing info.....
+
+            tab_content = f"  Epoch: {self.epoch}  |  Batch Step: {step}  "
+            print(f"\n,{'-' * len(tab_content)},")
+            print(f"|{tab_content}|")
 
         # get data and feed and run optimize step pass
         data, feed_map = self.get_step_data("optimize")
@@ -343,7 +350,7 @@ class Policy(object):
         optimize_results = self.run("optimize", data, feed_map)
 
         # evaluate periodically
-        if evaluating:
+        if self.evaluating:
             # get feed and run evaluate pass
             feed_map = self.prepare_feed_map("evaluate", data, feed_map)
             evaluate_results = self.run("evaluate", data, feed_map)
@@ -351,7 +358,7 @@ class Policy(object):
             print_tabular(evaluate_results)
 
         # save model
-        if saving and self.save_path is not None:
+        if self.saving and self.save_path is not None:
             save_path = self.saver.save(self.sess, self.save_path)
             self.log(f"Saved model: {save_path}")
 
@@ -386,17 +393,16 @@ class Policy(object):
             if self.supervised:
                 # supervised learning
                 epochs = self.config.get("epochs", 100)
-                evaluate_interval = self.config.get("evaluate_interval", 10)
 
                 for epoch in range(epochs):
                     self.dataset.reset()
+                    self.epoch = epoch
 
-                    evaluating = epoch % evaluate_interval == 0
-                    saving = evaluating
-                    self.optimize(epoch, evaluating=evaluating, saving=saving)
+                    for step in range(self.dataset.epoch_size):
+                        self.optimize(step)
 
-                    if train_yield():
-                        return
+                        if train_yield():
+                            return
             else:
                 # reinforcement learning
                 episodes = self.config.get("episodes", 1000)
@@ -404,8 +410,10 @@ class Policy(object):
                 min_episode_reward = self.config.get("min_episode_reward", None)
 
                 for episode in range(episodes):
+                    self.episode = episode
                     self.reset()
                     tic = time.time()
+                    step = 0
 
                     while True:
                         if train_yield():
@@ -435,7 +443,8 @@ class Policy(object):
                             max_reward_so_far = np.amax(episode_rewards)
 
                             # optimize after episode
-                            self.optimize(episode)
+                            self.optimize(step)
+                            step += 1
 
                             print_tabular({
                                 "episode": episode,
@@ -459,10 +468,9 @@ class Policy(object):
         if self.supervised:
             training_info = {
                 "Training Method": "Supervised",
-                "Dataset": self.dataset.name,
+                "Dataset": self.dataset,
                 "Input": self.dataset.input,
                 "Output": self.dataset.output,
-                "Batch Size": self.dataset.batch_size,
                 # TODO - get extra subclass stats
             }
         else:

@@ -1,6 +1,5 @@
 from collections import abc
 import numpy as np
-from collections import OrderedDict
 
 
 color2num = dict(
@@ -46,7 +45,7 @@ def print_tabular(values, color=None, bold=False, show_type=True):
     for (key, val) in values.items():
         ftype, fval = _format_type(val)
         if show_type:
-            formatted.append([key, ftype, fval])
+            formatted.append([key, fval, ftype])
         else:
             formatted.append([key, fval])
 

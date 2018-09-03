@@ -35,8 +35,9 @@ class Vocabulary(object):
 
 class SequenceDataset(Dataset):
     def __init__(self, name, raw_data, vocabulary, batch_size, timesteps):
-        tfdtype = tf.int32  # HACK
-        npdtype = np.int32  # HACK
+        tfdtype = tf.int32  # HACK - can we infer?
+        npdtype = np.int32  # HACK ?
+
         # sequence producer
         with tf.name_scope(name, values=[raw_data, batch_size, timesteps]):
             # tensor of data
@@ -73,5 +74,9 @@ class SequenceDataset(Dataset):
         input_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=npdtype)
         output_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=npdtype)
 
+        # calculate this outside TF
+        raw_epoch_size = ((len(raw_data) // batch_size) - 1) // timesteps
+
         super().__init__("PTB", inputs=x, outputs=y, input_space=input_space,
-                         output_space=output_space, batch_size=batch_size)
+                         output_space=output_space, batch_size=batch_size,
+                         epoch_size=raw_epoch_size)

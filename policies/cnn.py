@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 import pyglet
 from policies.policy import Policy
-from policies.layers import add_fc, add_conv2d
 
 
 class CNN(Policy):
@@ -119,11 +118,11 @@ class CNN(Policy):
 
         return transition
 
-    def optimize(self, step, evaluating=False, saving=True):
-        data, results = super().optimize(step, evaluating=evaluating, saving=saving)
+    def optimize(self, step):
+        data, results = super().optimize(step)
 
         # visualize evaluated dataset results
-        if self.supervised and evaluating:
+        if self.supervised and self.evaluating:
             self.update_visualize(data)
 
     def on_key_press(self, key, modifiers):

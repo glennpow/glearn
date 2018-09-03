@@ -30,17 +30,33 @@ def transition_batch(transitions):
 
 class Dataset(object):
     def __init__(self, name, inputs, outputs, input_space, output_space, batch_size,
-                 optimize_batch=False, info={}):
+                 epoch_size=None, optimize_batch=False, info={}):
         self.name = name
         self.inputs = inputs
         self.outputs = outputs
         self.input = Interface(input_space)
         self.output = Interface(output_space)
         self.batch_size = batch_size
+
         self.optimize_batch = optimize_batch
         self.info = info
 
+        # this should be provided, otherwise it is inferred from inputs
+        if epoch_size is None:
+            self.epoch_size = len(inputs)
+        else:
+            self.epoch_size = epoch_size
+        self.total_samples = self.epoch_size * self.batch_size
+
         self.reset()
+
+    def __str__(self):
+        properties = [
+            self.name,
+            f"total={self.total_samples}",
+            f"batches={self.epoch_size}x{self.batch_size}",
+        ]
+        return f"Dataset({', '.join(properties)})"
 
     def reset(self):
         self.head = 0
@@ -74,12 +90,14 @@ class Dataset(object):
 
     def get_batch(self):
         batch = Batch(dataset=self)
+        # get slices of data
         batch.inputs = self.inputs[self.head:self.head + self.batch_size]
         batch.outputs = self.outputs[self.head:self.head + self.batch_size]
 
+        # encode data through the interfaces
         batch.inputs = [self.input.encode(o) for o in batch.inputs]
         batch.outputs = [self.output.encode(o) for o in batch.outputs]
 
+        # move batch head
         self.head = (self.head + self.batch_size) % len(self.inputs)
-        import ipdb; ipdb.set_trace()  # HACK DEBUGGING !!!
         return batch

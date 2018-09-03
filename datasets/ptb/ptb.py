@@ -41,21 +41,24 @@ def ptb_raw_data():
     return train_data, valid_data, test_data, vocabulary
 
 
-def build_dataset(index, batch_size, timesteps):
+def build_dataset(index, config):
     global raw_data
     if raw_data is None:
         raw_data = ptb_raw_data()
 
+    batch_size = config.get("batch_size", 20)
+    timesteps = config.get("timesteps", 35)
+
     return SequenceDataset("PTB", raw_data[index], raw_data[3], batch_size, timesteps)
 
 
-def train(batch_size, timesteps):
-    return build_dataset(0, batch_size, timesteps)
+def train(config):
+    return build_dataset(0, config)
 
 
-def validate(batch_size, timesteps):
-    return build_dataset(1, batch_size, timesteps)
+def validate(config):
+    return build_dataset(1, config)
 
 
-def test(batch_size, timesteps):
-    return build_dataset(2, batch_size, timesteps)
+def test(config):
+    return build_dataset(2, config)

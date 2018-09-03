@@ -67,7 +67,9 @@ def load_data(path, element_size, max_count=None, header_bytes=0, mapping=None):
         if max_count is not None:
             data = data[:max_count]
         if mapping is not None:
-            data = list(map(mapping, data))
+            # HACK? (to get dtype.  is it fine?)
+            # data = list(map(mapping, data))
+            data = np.array(list(map(mapping, data)))
         return data
 
 
@@ -100,12 +102,15 @@ def dataset(images_file, labels_file, config):
                        mapping=decode_image)
     labels = load_data(labels_file, 1, max_count=max_count, header_bytes=8, mapping=decode_label)
 
+    input_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(28, 28, 1), dtype=images.dtype)
+    output_space = gym.spaces.Discrete(10)
+
     # TODO fix HACK - Producer like PTB, which iterates all batches in an epoch...
 
     return Dataset("MNIST", inputs=images, outputs=labels,
                    optimize_batch=True,  # HACK fix above
-                   input_space=gym.spaces.Box(low=-np.inf, high=np.inf, shape=(28, 28, 1)),
-                   output_space=gym.spaces.Discrete(10), batch_size=batch_size)
+                   input_space=input_space, output_space=output_space,
+                   batch_size=batch_size)
 
 
 def train(config):

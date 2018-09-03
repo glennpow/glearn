@@ -1,32 +1,23 @@
 import math
 import tensorflow as tf
 from policies.policy import Policy
-from policies.layers import add_fc
-
-
-DEFAULT_LSTM_CELL_ARGS = {
-    "forget_bias": 1,
-}
 
 
 class RNN(Policy):
-    def __init__(self, keep_prob=0.5, max_grad_norm=5,
-                 learning_rate=1, lr_decay=0.93, hidden_size=650, hidden_depth=1, cell_args=None,
-                 **kwargs):
-        self.keep_prob = keep_prob
-        self.max_grad_norm = max_grad_norm
-        self.learning_rate = learning_rate  # lamdba λ
-        self.lr_decay = lr_decay
-        self.hidden_size = hidden_size
-        self.hidden_depth = hidden_depth
-        self.cell_args = cell_args
+    def __init__(self, config, version=None):
+        self.learning_rate = config.get("learning_rate", 1)
+        self.lr_decay = config.get("lr_decay", .95)
+        self.keep_prob = config.get("keep_prob", None)
+        self.max_grad_norm = config.get("max_grad_norm", None)
+
+        self.hidden_size = config.get("hidden_size", 128)
+        self.hidden_depth = config.get("hidden_depth", 1)
+        self.cell_args = config.get("cell_args", None)
 
         self.visualize_embeddings = False  # HACK - expose these?
         self.visualize_embedded = False  # HACK
 
-        kwargs["multithreaded"] = True  # TODO - figure this out from the dataset
-
-        super().__init__(**kwargs)
+        super().__init__(config, version=version)
 
         self.init_visualize()
 
@@ -72,7 +63,7 @@ class RNN(Policy):
 
         # define lstm cell(s)
         cell_args = {}
-        cell_args.update(DEFAULT_LSTM_CELL_ARGS)
+        # cell_args.update(DEFAULT_LSTM_CELL_ARGS)
         if self.cell_args is not None:
             cell_args.update(self.cell_args)
         cell = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, **cell_args)
@@ -100,8 +91,8 @@ class RNN(Policy):
 
         # create output layer
         layer = tf.reshape(tf.concat(layer, 1), [-1, self.hidden_size])
-        layer, info = add_fc(self, layer, self.hidden_size, self.vocabulary.size,
-                             activation=tf.nn.softmax, initializer=scaled_init)
+        layer, info = self.add_fc(layer, self.hidden_size, self.vocabulary.size,
+                                  activation=tf.nn.softmax, initializer=scaled_init)
 
         # calculate prediction and accuracy
         with tf.name_scope('predict'):
@@ -157,11 +148,11 @@ class RNN(Policy):
             feed_map["dropout"] = 1
         return feed_map
 
-    def optimize(self, step, evaluating=False, saving=True):
-        data = super().optimize(step, evaluating=evaluating, saving=saving)
+    def optimize(self, step):
+        data = super().optimize(step)
 
         # visualize evaluated dataset results
-        if self.supervised and evaluating:
+        if self.supervised and self.evaluating:
             self.update_visualize(data)
 
     def init_viewer(self):

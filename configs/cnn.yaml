@@ -4,7 +4,7 @@
   policy: cnn
 
   optimizer: adam
-  learning_rate: 2e-4
+  learning_rate: 2.0e-4
   keep_prob: 0.8
 
   filters:
