@@ -315,10 +315,10 @@ class Policy(object):
 
     def get_step_data(self, graph):
         if self.supervised:
-            # supervised epoch of samples
+            # supervised batch of samples
             return self.dataset.get_step_data()
         else:
-            # unsupervised replay batch samples
+            # unsupervised experience replay batch of samples
             batch = transition_batch(self.transitions[:self.batch_size])
             feed_map = {
                 "X": batch.inputs,
@@ -333,12 +333,11 @@ class Policy(object):
         self.step = step
         evaluate_interval = self.config.get("evaluate_interval", 10)
         self.evaluating = step % evaluate_interval == 0
-        self.saving = self.evaluating
 
         # log evaluation of current step
-        if self.evaluating or self.saving:
+        if self.evaluating:
 
-            # TODO - timing info.....
+            # TODO - print timing info..... and alternatively RL stats
 
             tab_content = f"  Epoch: {self.epoch}  |  Batch Step: {step}  "
             print(f"\n,{'-' * len(tab_content)},")
@@ -357,10 +356,10 @@ class Policy(object):
 
             print_tabular(evaluate_results)
 
-        # save model
-        if self.saving and self.save_path is not None:
-            save_path = self.saver.save(self.sess, self.save_path)
-            self.log(f"Saved model: {save_path}")
+            # save model
+            if self.save_path is not None:
+                save_path = self.saver.save(self.sess, self.save_path)
+                self.log(f"Saved model: {save_path}")
 
         return data, optimize_results
 

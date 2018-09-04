@@ -1,0 +1,6 @@
+--- # Space Invaders
+  include: cnn.yaml
+  env: SpaceInvaders-v0
+  episodes: 5000
+  batch_size: 128
+  evaluate_interval: 1

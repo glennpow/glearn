@@ -13,7 +13,7 @@ python train.py --env=SpaceInvaders-v0 --policy=cnn --render
 python train.py --dataset=mnist --policy=cnn --epochs=40 --batch=128 --evaluate=2
 
 
-### RNN (all failing)
+### RNN
 
 ## Digit Repeat
 python train.py --dataset=digit_repeat --policy=rnn --epochs=260 --evaluate=10 --batch=100 --timesteps=20 --render

@@ -85,7 +85,7 @@ class Dataset(object):
             # dataset = tf.data.Dataset.from_tensor_slices(batch)
             return batch, feed_map
         else:
-            # optimize on entire epoch
+            # the tensorflow graph will handle batching itself
             return self, {}
 
     def get_batch(self):
