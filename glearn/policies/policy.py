@@ -6,11 +6,11 @@ import numpy as np
 import tensorflow as tf
 import pyglet
 import gym
-from policies.interface import Interface
-from datasets import load_dataset
-from datasets.dataset import Transition, transition_batch
-from utils.printing import colorize, print_tabular
-from utils.profile import open_profile
+from glearn.policies.interface import Interface
+from glearn.datasets import load_dataset
+from glearn.datasets.dataset import Transition, transition_batch
+from glearn.utils.printing import colorize, print_tabular
+from glearn.utils.profile import open_profile
 
 
 TEMP_DIR = "/tmp/learning"

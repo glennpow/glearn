@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import click
-from policies import load_policy
-from utils.config import load_config
+from glearn.policies import load_policy
+from glearn.utils.config import load_config
 
 
 def train(config_path, version=None, render=False, profile=False):

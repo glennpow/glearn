@@ -2,7 +2,7 @@ from collections import abc
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Box
-from datasets.dataset import Dataset
+from glearn.datasets.dataset import Dataset
 
 
 class Vocabulary(object):

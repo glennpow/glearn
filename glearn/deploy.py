@@ -3,7 +3,7 @@
 import os
 import click
 from rcall import meta
-from train import train
+from glearn.train import train
 
 
 def remote_train(config_path):

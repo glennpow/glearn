@@ -2,7 +2,7 @@ import json
 import logging
 from subprocess import check_call, check_output, Popen, PIPE
 from inspect import signature
-from utils.printing import colorize
+from glearn.utils.printing import colorize
 
 
 logger = logging.getLogger(__name__)

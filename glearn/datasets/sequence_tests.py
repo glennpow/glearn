@@ -1,4 +1,4 @@
-from datasets.sequence import Vocabulary, SequenceDataset
+from glearn.datasets.sequence import Vocabulary, SequenceDataset
 
 
 class DigitRepeatDataset(SequenceDataset):

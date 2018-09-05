@@ -1,6 +1,6 @@
 import math
 import tensorflow as tf
-from policies.policy import Policy
+from glearn.policies.policy import Policy
 
 
 class RNN(Policy):

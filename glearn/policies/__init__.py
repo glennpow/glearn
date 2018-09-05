@@ -1,6 +1,6 @@
-from policies.policy_gradient import PolicyGradient
-from policies.cnn import CNN
-from policies.rnn import RNN
+from glearn.policies.policy_gradient import PolicyGradient
+from glearn.policies.cnn import CNN
+from glearn.policies.rnn import RNN
 
 
 def load_policy(config, version=None):

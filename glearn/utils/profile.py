@@ -2,7 +2,7 @@
 
 import os
 import click
-from utils.subprocess_utils import shell_call
+from glearn.utils.subprocess_utils import shell_call
 
 
 def open_profile(path):

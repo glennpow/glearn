@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import pyglet
-from policies.policy import Policy
+from glearn.policies.policy import Policy
 
 
 class CNN(Policy):

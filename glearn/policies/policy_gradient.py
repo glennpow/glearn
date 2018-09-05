@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
-from policies.policy import Policy
-from policies.layers import add_fc
+from glearn.policies.policy import Policy
+from glearn.policies.layers import add_fc
 
 
 # TODO FIXME - BROKEN - update this to use configs!!!

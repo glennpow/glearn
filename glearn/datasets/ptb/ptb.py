@@ -1,7 +1,7 @@
 import collections
 import os
 import tensorflow as tf
-from datasets.sequence import Vocabulary, SequenceDataset
+from glearn.datasets.sequence import Vocabulary, SequenceDataset
 
 
 raw_data = None

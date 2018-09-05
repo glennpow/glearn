@@ -1,5 +1,5 @@
 import tensorflow as tf
-from policies.interface import Interface
+from glearn.policies.interface import Interface
 
 
 class Transition(object):

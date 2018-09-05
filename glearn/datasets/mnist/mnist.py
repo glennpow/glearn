@@ -2,12 +2,11 @@ import gzip
 import os
 import shutil
 import tempfile
-
 import numpy as np
 from six.moves import urllib
 import tensorflow as tf
 import gym
-from datasets.dataset import Dataset
+from glearn.datasets.dataset import Dataset
 
 
 def read32(bytestream):

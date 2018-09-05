@@ -1,5 +1,5 @@
 import tensorflow as tf
-from policies.policy import Policy
+from glearn.policies.policy import Policy
 
 
 def add_conv2d(policy, inputs, input_size, input_channels, filter, strides=1, max_pool_k=2,
