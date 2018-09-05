@@ -1,6 +1,6 @@
+import os
 import yaml
 import json
-from utils.file import relative_path
 
 
 def load_config(path):
@@ -20,7 +20,7 @@ def load_config(path):
             includes = [includes]
         new_config = {}
         for include in includes:
-            relative_include = relative_path(include, relative_to=path)
+            relative_include = os.path.join(os.path.dirname(path), include)
             included = load_config(relative_include)
             if included is not None:
                 new_config.update(included)

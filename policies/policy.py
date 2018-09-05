@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 from collections import abc
 import numpy as np
@@ -8,7 +9,6 @@ import gym
 from policies.interface import Interface
 from datasets import load_dataset
 from datasets.dataset import Transition, transition_batch
-from utils.viewer import AdvancedViewer
 from utils.printing import colorize, print_tabular
 from utils.profile import open_profile
 
@@ -42,7 +42,10 @@ class Policy(object):
         self.multithreaded = config.get("multithreaded", False)
 
         # create render viewer
-        self.viewer = AdvancedViewer()
+        can_render = sys.stdout.isatty()
+        if can_render:
+            from utils.viewer import AdvancedViewer
+            self.viewer = AdvancedViewer()
 
         # prepare input/output interfaces
         if self.supervised:

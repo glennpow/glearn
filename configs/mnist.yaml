@@ -3,4 +3,4 @@
   dataset: mnist
   epochs: 40
   batch_size: 128
-  evaluate_interval: 2
+  evaluate_interval: 20
