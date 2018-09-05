@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import click
 from glearn.policies import load_policy
 from glearn.utils.config import load_config
@@ -14,6 +15,11 @@ def train(config_path, version=None, render=False, profile=False):
 
     # train policy
     policy.train(render=render, profile=profile)
+
+
+def remote_train(config_path):
+    config_path = os.path.join(os.path.dirname(__file__), config_path)
+    train(config_path)
 
 
 @click.command()

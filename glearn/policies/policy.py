@@ -13,7 +13,7 @@ from glearn.utils.printing import colorize, print_tabular
 from glearn.utils.profile import open_profile
 
 
-TEMP_DIR = "/tmp/learning"
+TEMP_DIR = "/tmp/glearn"
 
 
 class Policy(object):

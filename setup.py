@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 
 setuptools.setup(
-    name="learning",
+    name="glearn",
     version="0.0.1",
     author="Glenn Powell",
     author_email="glenn@openai.com",

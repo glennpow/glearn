@@ -3,12 +3,7 @@
 import os
 import click
 from rcall import meta
-from glearn.train import train
-
-
-def remote_train(config_path):
-    config_path = os.path.join(os.path.dirname(__file__), config_path)
-    train(config_path)
+from glearn.train import remote_train
 
 
 @click.command()
