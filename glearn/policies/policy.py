@@ -46,6 +46,8 @@ class Policy(object):
         if can_render:
             from utils.viewer import AdvancedViewer
             self.viewer = AdvancedViewer()
+        else:
+            self.viewer = None
 
         # prepare input/output interfaces
         if self.supervised:
