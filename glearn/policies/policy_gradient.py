@@ -4,16 +4,14 @@ from glearn.policies.policy import Policy
 from glearn.policies.layers import add_fc
 
 
-# TODO FIXME - BROKEN - update this to use configs!!!
 class PolicyGradient(Policy):
-    def __init__(self, learning_rate=2e-4, discount_factor=0.95, hidden_depth=2, hidden_size=10,
-                 **kwargs):
-        self.learning_rate = learning_rate  # lamdba λ
-        self.discount_factor = discount_factor  # gamma γ
-        self.hidden_depth = hidden_depth
-        self.hidden_size = hidden_size
+    def __init__(self, config, version=None):
+        self.learning_rate = config.get("learning_rate", 2e-4)  # lamdba λ
+        self.discount_factor = config.get("discount_factor", 0.95)  # gamma γ
+        self.hidden_depth = config.get("hidden_depth", 2)
+        self.hidden_size = config.get("hidden_size", 10)
 
-        super().__init__(**kwargs)
+        super().__init__(config, version=version)
 
     def init_model(self):
         # create feed placeholders

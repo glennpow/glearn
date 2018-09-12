@@ -11,6 +11,7 @@ from glearn.datasets import load_dataset
 from glearn.datasets.dataset import Transition, transition_batch
 from glearn.utils.printing import colorize, print_tabular
 from glearn.utils.profile import open_profile
+from glearn.utils.reflection import get_class
 
 
 TEMP_DIR = "/tmp/glearn"
@@ -26,7 +27,16 @@ class Policy(object):
         if "env" in config:
             # make env
             env_name = config["env"]
-            self.env = gym.make(env_name)
+            if ":" in env_name:
+                # use EntryPoint to get env
+                env_class = get_class(env_name, config.get("env_args", None))
+                self.env = env_class()
+            elif "-v" in env_name:
+                # use gym to get env
+                self.env = gym.make(env_name)
+                # TODO - pass config["env_args"] to env
+            else:
+                raise Exception(f"Unrecognizable environment identifier: {env_name}")
             self.project = env_name
         elif "dataset" in config:
             # make dataset
@@ -42,12 +52,14 @@ class Policy(object):
         self.multithreaded = config.get("multithreaded", False)
 
         # create render viewer
+        self.viewer = None
         can_render = sys.stdout.isatty()
         if can_render:
-            from utils.viewer import AdvancedViewer
-            self.viewer = AdvancedViewer()
-        else:
-            self.viewer = None
+            if "viewer" in config:
+                viewer_class = get_class(config["viewer"])
+                self.viewer = viewer_class()
+                # from utils.viewer import AdvancedViewer
+                # self.viewer = AdvancedViewer()
 
         # prepare input/output interfaces
         if self.supervised:
@@ -56,7 +68,8 @@ class Policy(object):
         elif self.reinforcement:
             self.env.seed(self.seed)
 
-            self.env.unwrapped.viewer = self.viewer
+            if self.viewer is not None:
+                self.env.unwrapped.viewer = self.viewer
 
             self.input = Interface(self.env.observation_space)
             self.output = Interface(self.env.action_space)
@@ -305,6 +318,7 @@ class Policy(object):
     def rollout(self):
         # get action
         action = self.predict(self.observation)
+        print(action)
 
         # perform action
         new_observation, reward, done, info = self.env.step(self.output.decode(action))
@@ -341,12 +355,16 @@ class Policy(object):
 
         # log evaluation of current step
         if self.evaluating:
+            if self.supervised:
+                tab_content = f"  Epoch: {self.epoch}  |  Batch Step: {step}  "
+                print(f"\n,{'-' * len(tab_content)},")
+                print(f"|{tab_content}|")
+            else:
+                tab_content = f"  Episode: {self.episode}"
+                print(f"\n,{'-' * len(tab_content)},")
+                print(f"|{tab_content}|")
 
-            # TODO - print timing info..... and alternatively RL stats
-
-            tab_content = f"  Epoch: {self.epoch}  |  Batch Step: {step}  "
-            print(f"\n,{'-' * len(tab_content)},")
-            print(f"|{tab_content}|")
+            # TODO - print timing info
 
         # get data and feed and run optimize step pass
         data, feed_map = self.get_step_data("optimize")

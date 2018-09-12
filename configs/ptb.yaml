@@ -7,3 +7,5 @@
   evaluate_interval: 65
 
   hidden_size: 650
+
+  viewer: glearn.utils.viewer:AdvancedViewer

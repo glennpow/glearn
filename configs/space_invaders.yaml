@@ -4,3 +4,5 @@
   episodes: 5000
   batch_size: 128
   evaluate_interval: 1
+
+  viewer: glearn.utils.viewer:AdvancedViewer

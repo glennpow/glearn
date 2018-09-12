@@ -157,8 +157,11 @@ class CNN(Policy):
                 self.visualize_feature = max(self.visualize_feature - 1, 0)
 
     def init_visualize(self):
-        for i in range(len(self.filters)):
-            self.set_fetch(f"conv2d_{i}", self.get_layer("conv2d", i), "predict")
+        if self.viewer is not None:
+            self.viewer.set_zoom(4)
+
+            for i in range(len(self.filters)):
+                self.set_fetch(f"conv2d_{i}", self.get_layer("conv2d", i), "predict")
 
     def update_visualize(self, data):
         index = 0

@@ -4,3 +4,5 @@
   epochs: 40
   batch_size: 128
   evaluate_interval: 20
+  
+  viewer: glearn.utils.viewer:AdvancedViewer
