@@ -1,0 +1,13 @@
+--- # Space Invaders
+  include:
+    - ../policies/cnn.yaml
+    - ../methods/reinforcement.yaml
+  env: SpaceInvaders-v0
+  episodes: 5000
+  batch_size: 128
+  evaluate_interval: 1
+
+  viewer:
+    name: glearn.utils.viewer:AdvancedViewer
+    args:
+        zoom: 4

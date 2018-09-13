@@ -1,5 +1,7 @@
 --- # MNIST
-  include: cnn.yaml
+  include:
+    - ../policies/cnn.yaml
+    - ../methods/supervised.yaml
   dataset: mnist
   epochs: 40
   batch_size: 128

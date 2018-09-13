@@ -1,0 +1,11 @@
+--- # Space Invaders
+  include:
+    - ../policies/policy_gradient.yaml
+    - ../methods/reinforcement.yaml
+  env: glearn.envs.curiosity:CuriousColoniesEnv
+  episodes: 5000
+  batch_size: 128
+  evaluate_interval: 1
+
+  # HACK
+  policy: glearn.policies:RandomPolicy

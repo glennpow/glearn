@@ -311,7 +311,10 @@ class Policy(object):
 
     def predict(self, data):
         feed_map = self.prepare_feed_map("predict", data, {"X": [data]})
-        return self.run("predict", data, feed_map)["predict"][0]
+        result = self.run("predict", data, feed_map)["predict"]
+        # you only need the first result of batched results
+        result = result[0]
+        return result
 
     def rollout(self):
         # get action

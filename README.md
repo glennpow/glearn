@@ -1,29 +1,26 @@
-### Policy Gradient
+### Experiments
 
-## SpaceInvaders
-python train.py --env=SpaceInvaders-v0 --policy=policy_gradient --render
+## SpaceInvaders (CNN)
+glearn/train.py configs/experiments/space_invaders.yaml --render
 
+## SpaceInvaders (Policy Gradient)
+glearn/train.py configs/experiments/space_invaders_pg.yaml --render
 
-### CNN
+## Curiosity (Policy Gradient)
+python glearn/train.py configs/experiments/curiousity.yaml --render
 
-## SpaceInvaders CNN
-python train.py --env=SpaceInvaders-v0 --policy=cnn --render
-
-## MNIST
+## MNIST (CNN)
 python train.py --dataset=mnist --policy=cnn --epochs=40 --batch=128 --evaluate=2
 
-
-### RNN
-
-## Digit Repeat
+## Digit Repeat (RNN)
 python train.py --dataset=digit_repeat --policy=rnn --epochs=260 --evaluate=10 --batch=100 --timesteps=20 --render
 
-## PTB
+## PTB (RNN)
 python train.py --dataset=ptb --policy=rnn --epochs=60 --evaluate=5 --batch=20
 max_count=1000 ?
 
 
-## Rendering
+### Rendering
 python train.py ... --render
 
 

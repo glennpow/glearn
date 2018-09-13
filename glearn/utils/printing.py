@@ -58,7 +58,6 @@ def print_tabular(values, color=None, bold=False, show_type=True):
     dashes = '-' * np.sum(widths)
     lines = [dashes]
     for f in formatted:
-        # import ipdb; ipdb.set_trace()  # HACK DEBUGGING !!!
         cols = [(" " * padding + f[i]).ljust(widths[i]) for i in range(len(f))]
         lines.append("|".join(cols))
     lines.append(dashes)

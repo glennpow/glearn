@@ -1,0 +1,16 @@
+--- # PTB
+  include:
+    - ../policies/rnn.yaml
+    - ../methods/supervised.yaml
+  dataset: ptb
+  epochs: 60
+  batch_size: 20
+  timesteps: 35
+  evaluate_interval: 65
+
+  hidden_size: 650
+
+  viewer:
+    name: glearn.utils.viewer:AdvancedViewer
+    args:
+      zoom: 2

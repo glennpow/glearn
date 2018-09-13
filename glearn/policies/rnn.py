@@ -3,7 +3,7 @@ import tensorflow as tf
 from glearn.policies.policy import Policy
 
 
-class RNN(Policy):
+class RNNPolicy(Policy):
     def __init__(self, config, version=None):
         self.learning_rate = config.get("learning_rate", 1)
         self.lr_decay = config.get("lr_decay", .95)
@@ -168,11 +168,9 @@ class RNN(Policy):
                 self.max_embeddings = 40
                 size = self.max_embeddings * self.hidden_size
                 stride = self.hidden_size
-                self.viewer.set_zoom(2)
             elif self.visualize_embedded:
                 size = self.hidden_size * self.timesteps
                 stride = self.timesteps
-                self.viewer.set_zoom(3)
             else:
                 self.viewer.set_size(512, 512)
                 return

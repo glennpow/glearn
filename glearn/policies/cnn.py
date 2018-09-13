@@ -4,7 +4,7 @@ import pyglet
 from glearn.policies.policy import Policy
 
 
-class CNN(Policy):
+class CNNPolicy(Policy):
     def __init__(self, config, version=None):
         self.filters = config.get("filters", [(5, 5, 32), (5, 5, 64)])
         self.strides = config.get("strides", 1)
@@ -158,8 +158,6 @@ class CNN(Policy):
 
     def init_visualize(self):
         if self.viewer is not None:
-            self.viewer.set_zoom(4)
-
             for i in range(len(self.filters)):
                 self.set_fetch(f"conv2d_{i}", self.get_layer("conv2d", i), "predict")
 

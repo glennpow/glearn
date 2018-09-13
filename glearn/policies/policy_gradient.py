@@ -4,7 +4,7 @@ from glearn.policies.policy import Policy
 from glearn.policies.layers import add_fc
 
 
-class PolicyGradient(Policy):
+class PolicyGradientPolicy(Policy):
     def __init__(self, config, version=None):
         self.learning_rate = config.get("learning_rate", 2e-4)  # lamdba λ
         self.discount_factor = config.get("discount_factor", 0.95)  # gamma γ

@@ -1,8 +1,9 @@
 from glearn.utils.reflection import get_class
 
-from glearn.policies.policy_gradient import PolicyGradient  # noqa
-from glearn.policies.cnn import CNN  # noqa
-from glearn.policies.rnn import RNN  # noqa
+from glearn.policies.policy_gradient import PolicyGradientPolicy  # noqa
+from glearn.policies.cnn import CNNPolicy  # noqa
+from glearn.policies.rnn import RNNPolicy  # noqa
+from glearn.policies.random import RandomPolicy  # noqa
 
 
 def load_policy(config, version=None):
