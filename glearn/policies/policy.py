@@ -29,8 +29,8 @@ class Policy(object):
             env_name = config["env"]
             if ":" in env_name:
                 # use EntryPoint to get env
-                env_class = get_class(env_name, config.get("env_args", None))
-                self.env = env_class()
+                EnvClass = get_class(env_name, config.get("env_args", None))
+                self.env = EnvClass()
             elif "-v" in env_name:
                 # use gym to get env
                 self.env = gym.make(env_name)
@@ -56,10 +56,8 @@ class Policy(object):
         can_render = sys.stdout.isatty()
         if can_render:
             if "viewer" in config:
-                viewer_class = get_class(config["viewer"])
-                self.viewer = viewer_class()
-                # from utils.viewer import AdvancedViewer
-                # self.viewer = AdvancedViewer()
+                ViewerClass = get_class(config["viewer"])
+                self.viewer = ViewerClass()
 
         # prepare input/output interfaces
         if self.supervised:
@@ -318,7 +316,6 @@ class Policy(object):
     def rollout(self):
         # get action
         action = self.predict(self.observation)
-        print(action)
 
         # perform action
         new_observation, reward, done, info = self.env.step(self.output.decode(action))

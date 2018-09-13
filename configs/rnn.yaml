@@ -1,7 +1,7 @@
 --- # RNN
   include: default.yaml
   
-  policy: rnn
+  policy: glearn.policies:RNN
   
   optimizer: sgd  # FIXME - was hardcoded in rnn.py
   learning_rate: 1

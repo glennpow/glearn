@@ -1,7 +1,7 @@
 --- # Policy Gradient
   include: default.yaml
 
-  policy: policy_gradient
+  policy: glearn.policies:PolicyGradient
 
   # optimizer: adam
   # learning_rate: 2.0e-4

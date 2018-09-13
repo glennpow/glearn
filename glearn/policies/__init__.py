@@ -1,16 +1,13 @@
-from glearn.policies.policy_gradient import PolicyGradient
-from glearn.policies.cnn import CNN
-from glearn.policies.rnn import RNN
+from glearn.utils.reflection import get_class
+
+from glearn.policies.policy_gradient import PolicyGradient  # noqa
+from glearn.policies.cnn import CNN  # noqa
+from glearn.policies.rnn import RNN  # noqa
 
 
 def load_policy(config, version=None):
     name = config.get("policy", None)
 
-    if name == "cnn":
-        PolicyClass = CNN
-    elif name == "rnn":
-        PolicyClass = RNN
-    else:
-        PolicyClass = PolicyGradient
+    PolicyClass = get_class(name)
 
     return PolicyClass(config, version=version)

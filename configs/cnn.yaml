@@ -1,7 +1,7 @@
 --- # CNN
   include: default.yaml
 
-  policy: cnn
+  policy: glearn.policies:CNN
 
   optimizer: adam
   learning_rate: 2.0e-4
