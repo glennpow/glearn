@@ -4,16 +4,16 @@ from gym.spaces import Discrete
 
 
 class Interface(object):
-    def __init__(self, space=None, deterministic=True):
-        if space is not None:
-            # get shape and discreteness for interface
-            if isinstance(space, Discrete):
-                self.shape, self.size, self.discrete = (space.n, ), space.n, True
-            elif isinstance(space, Space):
-                self.shape, self.size, self.discrete = space.shape, np.prod(space.shape), False
-            else:
-                print(f"Invalid interface space: {space}")
-            self.dtype = space.dtype
+    def __init__(self, space, deterministic=True):
+        # get shape and discreteness for interface
+        if isinstance(space, Discrete):
+            self.shape, self.size, self.discrete = (space.n, ), space.n, True
+        elif isinstance(space, Space):
+            self.shape, self.size, self.discrete = space.shape, np.prod(space.shape), False
+        else:
+            print(f"Invalid interface space: {space}")
+        self.space = space
+        self.dtype = space.dtype
         self.deterministic = deterministic
 
     def __str__(self):
@@ -24,6 +24,14 @@ class Interface(object):
             "deterministic" if self.deterministic else "stochastic",
         ]
         return f"Interface({', '.join(properties)})"
+
+    def sample(self):
+        if self.discrete:
+            result = np.zeros(self.size)
+            result[np.random.randint(0, self.size)] = 1
+            return result
+        else:
+            return self.space.sample()
 
     def encode(self, value):
         # handle discrete values

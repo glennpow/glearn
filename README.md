@@ -7,7 +7,7 @@ glearn/train.py configs/experiments/space_invaders.yaml --render
 glearn/train.py configs/experiments/space_invaders_pg.yaml --render
 
 ## Curiosity (Policy Gradient)
-python glearn/train.py configs/experiments/curiousity.yaml --render
+python glearn/train.py configs/experiments/curiosity.yaml --render
 
 ## MNIST (CNN)
 python train.py --dataset=mnist --policy=cnn --epochs=40 --batch=128 --evaluate=2

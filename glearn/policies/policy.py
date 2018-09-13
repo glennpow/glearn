@@ -27,17 +27,21 @@ class Policy(object):
         if "env" in config:
             # make env
             env_name = config["env"]
-            if ":" in env_name:
+            if isinstance(env_name, dict) or ":" in env_name:
                 # use EntryPoint to get env
                 EnvClass = get_class(env_name, config.get("env_args", None))
                 self.env = EnvClass()
+
+                if isinstance(env_name, dict):
+                    self.project = env_name['name']
+                self.project = self.project.split(":")[-1]
             elif "-v" in env_name:
                 # use gym to get env
                 self.env = gym.make(env_name)
                 # TODO - pass config["env_args"] to env
+                self.project = env_name
             else:
                 raise Exception(f"Unrecognizable environment identifier: {env_name}")
-            self.project = env_name
         elif "dataset" in config:
             # make dataset
             self.dataset = load_dataset(config)
@@ -360,7 +364,7 @@ class Policy(object):
                 print(f"\n,{'-' * len(tab_content)},")
                 print(f"|{tab_content}|")
             else:
-                tab_content = f"  Episode: {self.episode}"
+                tab_content = f"  Episode: {self.episode}  "
                 print(f"\n,{'-' * len(tab_content)},")
                 print(f"|{tab_content}|")
 

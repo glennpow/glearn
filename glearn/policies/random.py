@@ -1,23 +1,23 @@
-import tensorflow as tf
+# import tensorflow as tf
 from glearn.policies.policy import Policy
 
 
 class RandomPolicy(Policy):
-    def __init__(self, config, version=None):
-        self.mean = config.get("mean", 0)
-        self.stddev = config.get("stddev", 1)
+    # def init_model(self):
+    #     # create feed placeholders
+    #     with tf.name_scope('feeds'):
+    #         inputs, _ = self.create_default_feeds()
 
-        super().__init__(config, version=version)
+    #     output_shape = (tf.shape(inputs)[0], ) + self.output.shape
+    #     dtype = self.output.dtype
+    #     predict = tf.random_uniform(output_shape, minval=self.output.low, ..., dtype=dtype)
+    #     self.set_fetch("predict", predict, ["predict", "evaluate"])
 
-    def init_model(self):
-        # create feed placeholders
-        with tf.name_scope('feeds'):
-            inputs, _ = self.create_default_feeds()
+    #     self.set_fetch("evaluate", tf.no_op(), "optimize")
+    #     self.set_fetch("optimize", tf.no_op(), "optimize")
 
-        output_shape = (tf.shape(inputs)[0], ) + self.output.shape
-        predict = tf.random_normal(output_shape, mean=self.mean, stddev=self.stddev,
-                                   dtype=self.output.dtype)
-        self.set_fetch("predict", predict, ["predict", "evaluate"])
+    def predict(self, data):
+        return self.output.sample()
 
-        self.set_fetch("evaluate", tf.no_op(), "optimize")
-        self.set_fetch("optimize", tf.no_op(), "optimize")
+    def optimize(self, step):
+        return None, None

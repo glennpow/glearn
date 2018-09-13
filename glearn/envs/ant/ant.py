@@ -4,9 +4,9 @@ from gym import utils
 from gym.envs.mujoco import mujoco_env
 
 
-class CuriousColoniesEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
-        asset_path = os.path.join(os.path.dirname(__file__), 'assets', 'curious_colonies.xml')
+        asset_path = os.path.join(os.path.dirname(__file__), 'assets', 'ant.xml')
         mujoco_env.MujocoEnv.__init__(self, asset_path, 5)
         utils.EzPickle.__init__(self)
 
