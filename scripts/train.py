@@ -18,9 +18,8 @@ def train(config_path, version=None, render=False, profile=False):
 
 
 def remote_train(config_path):
-    # update config path when running on remote machine
+    # update config
     config_path = os.path.join(os.path.dirname(__file__), config_path)
-
     train(config_path)
 
 
