@@ -85,6 +85,13 @@ class MazeView2D:
         except Exception:
             pass
 
+    def can_move_robot(self, dir):
+        if dir not in self.__maze.COMPASS.keys():
+            raise ValueError("dir cannot be %s. The only valid dirs are %s."
+                             % (str(dir), str(self.__maze.COMPASS.keys())))
+
+        return self.__maze.is_open(self.__robot, dir)
+
     def move_robot(self, dir):
         if dir not in self.__maze.COMPASS.keys():
             raise ValueError("dir cannot be %s. The only valid dirs are %s."

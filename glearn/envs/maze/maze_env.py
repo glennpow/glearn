@@ -13,8 +13,8 @@ class MazeEnv(gym.Env):
 
     ACTION = ["N", "S", "E", "W"]
 
-    def __init__(self, maze_file=None, maze_size=None, mode=None):
-
+    def __init__(self, maze_file=None, maze_size=None, gen_mode=None,
+                 obs_coord=True, obs_walls=True):
         self.viewer = None
 
         if maze_file:
@@ -22,7 +22,7 @@ class MazeEnv(gym.Env):
                                         maze_file_path=maze_file,
                                         screen_size=(640, 640))
         elif maze_size:
-            if mode == "plus":
+            if gen_mode == "plus":
                 has_loops = True
                 num_portals = int(round(min(maze_size) / 3))
             else:
@@ -41,9 +41,19 @@ class MazeEnv(gym.Env):
         # forward or backward in each dimension
         self.action_space = spaces.Discrete(2 * len(self.maze_size))
 
-        # observation is the x, y coordinate of the grid
-        low = np.zeros(len(self.maze_size), dtype=int)
-        high = np.array(self.maze_size, dtype=int) - np.ones(len(self.maze_size), dtype=int)
+        self.obs_coord = obs_coord
+        if self.obs_coord:
+            # observation contains the x, y coordinate of the grid
+            low = np.zeros(len(self.maze_size), dtype=int)
+            high = np.array(self.maze_size, dtype=int) - np.ones(len(self.maze_size), dtype=int)
+        else:
+            low = []
+            high = []
+        self.obs_walls = obs_walls
+        if self.obs_walls:
+            # observation contains 4 walls
+            low = np.append(low, np.zeros(4, dtype=int))
+            high = np.append(high, np.ones(4, dtype=int))
         self.observation_space = spaces.Box(low, high)
 
         # initial condition
@@ -68,11 +78,7 @@ class MazeEnv(gym.Env):
         return [seed]
 
     def step(self, action):
-        # if isinstance(action, int):
         self.maze_view.move_robot(self.ACTION[action])
-        print(self.ACTION[action])
-        # else:
-        # self.maze_view.move_robot(action)
 
         if np.array_equal(self.maze_view.robot, self.maze_view.goal):
             reward = 1
@@ -81,7 +87,13 @@ class MazeEnv(gym.Env):
             reward = -0.1 / (self.maze_size[0] * self.maze_size[1])
             done = False
 
-        self.state = self.maze_view.robot
+        if self.obs_coord:
+            self.state = self.maze_view.robot
+        else:
+            self.state = []
+        if self.obs_walls:
+            walls = [1 if self.maze_view.can_move_robot(dir) else 0 for dir in self.ACTION]
+            self.state = np.append(self.state, walls)
 
         info = {}
 
@@ -89,7 +101,7 @@ class MazeEnv(gym.Env):
 
     def reset(self):
         self.maze_view.reset_robot()
-        self.state = np.zeros(2)
+        self.state = np.zeros(self.observation_space.shape)
         self.steps_beyond_done = None
         self.done = False
         return self.state

@@ -164,7 +164,6 @@ class RNNPolicy(Policy):
         if self.viewer is not None:
             # cache the desired dims here
             if self.visualize_embeddings:
-                # size = self.vocabulary.size * self.hidden_size
                 self.max_embeddings = 40
                 size = self.max_embeddings * self.hidden_size
                 stride = self.hidden_size

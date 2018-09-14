@@ -29,7 +29,7 @@ class Policy(object):
             env_name = config["env"]
             if isinstance(env_name, dict) or ":" in env_name:
                 # use EntryPoint to get env
-                EnvClass = get_class(env_name, config.get("env_args", None))
+                EnvClass = get_class(env_name)
                 self.env = EnvClass()
 
                 if isinstance(env_name, dict):
@@ -38,7 +38,6 @@ class Policy(object):
             elif "-v" in env_name:
                 # use gym to get env
                 self.env = gym.make(env_name)
-                # TODO - pass config["env_args"] to env
                 self.project = env_name
             else:
                 raise Exception(f"Unrecognizable environment identifier: {env_name}")
@@ -54,6 +53,7 @@ class Policy(object):
         self.batch_size = config.get("batch_size", 1)
         self.seed = config.get("seed", 0)
         self.multithreaded = config.get("multithreaded", False)
+        self.epsilon = config.get("epsilon", 0)
 
         # create render viewer
         self.viewer = None
@@ -105,6 +105,7 @@ class Policy(object):
         self.observation = None
         self.transitions = []
         self.episode_reward = 0
+        self.step = 0
 
         if self.viewer is not None:
             self.init_viewer()
@@ -321,8 +322,19 @@ class Policy(object):
         return result
 
     def rollout(self):
+        # decaying epsilon-greedy
+        epsilon = self.epsilon
+        if isinstance(epsilon, list):
+            t = min(1, self.step / epsilon[2])
+            epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
+
         # get action
-        action = self.predict(self.observation)
+        if np.random.random() < epsilon:
+            # choose epsilon-greedy random action  (TODO - could implement this in tf)
+            action = self.output.sample()
+        else:
+            # choose optimal policy action
+            action = self.predict(self.observation)
 
         # perform action
         new_observation, reward, done, info = self.env.step(self.output.decode(action))
