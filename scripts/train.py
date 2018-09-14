@@ -6,7 +6,7 @@ from glearn.policies import load_policy
 from glearn.utils.config import load_config
 
 
-def train(config_path, version=None, render=False, profile=False):
+def train(config_path, version=None, render=True, profile=False):
     # load config
     config = load_config(config_path)
 
@@ -20,13 +20,13 @@ def train(config_path, version=None, render=False, profile=False):
 def remote_train(config_path):
     # update config
     config_path = os.path.join(os.path.dirname(__file__), config_path)
-    train(config_path)
+    train(config_path, render=False)
 
 
 @click.command()
 @click.argument("config_path")
 @click.option("--version", "-v", default=None)
-@click.option("--render/--no-render", default=False)
+@click.option("--render/--no-render", default=True)
 @click.option("--profile/--no-profile", default=False)
 def main(config_path, version, render, profile):
     train(config_path, version=version, render=render, profile=profile)

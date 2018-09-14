@@ -21,7 +21,11 @@ max_count=1000 ?
 
 
 ### Rendering
+Now the default flag is to render:
 python train.py ... --render
+
+You can disable rendering with:
+python train.py ... --no-render
 
 
 ### Versions
