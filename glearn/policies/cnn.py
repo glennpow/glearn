@@ -14,6 +14,7 @@ class CNNPolicy(Policy):
         self.fc_layers = config.get("fc_layers", [7 * 7 * 64, 1024])
         self.keep_prob = config.get("keep_prob", 0.8)
 
+        self.visualize_graph = None
         self.visualize_layer = None
         self.visualize_feature = None
 
@@ -92,41 +93,24 @@ class CNNPolicy(Policy):
             feed_map["dropout"] = 1
         return feed_map
 
-    def rollout(self):
-        # do standard rollout
-        transition = super().rollout()
+    def predict(self, data):
+        result = super().predict(data)
 
-        if self.visualize_layer is not None:
-            # get layer values to visualize
-            values = self.results["predict"][f"conv2d_{self.visualize_layer}"]
+        self.visualize_features("predict")
 
-            # build image for selected feature
-            _, rows, cols, _ = values.shape
-            image = np.zeros((rows, cols, 1))
-            flat_values = values.ravel()
-            value_min = min(flat_values)
-            value_max = max(flat_values)
-            value_range = max([0.1, value_max - value_min])
-            for y, row in enumerate(values[0]):
-                for x, col in enumerate(row):
-                    value = col[self.visualize_feature]
-                    image[y][x][0] = int((value - value_min) / value_range * 255)
-
-            # render image
-            width, height = self.get_viewer_size()
-            self.add_image("features", image, x=0, y=0, width=width, height=height)
-
-        return transition
+        return result
 
     def optimize(self, step):
         data, results = super().optimize(step)
 
         # visualize evaluated dataset results
         if self.supervised and self.evaluating:
+            self.visualize_features("evaluate")
+
             self.update_visualize(data)
 
-    def on_key_press(self, key, modifiers):
-        super().on_key_press(key, modifiers)
+    def handle_key_press(self, key, modifiers):
+        super().handle_key_press(key, modifiers)
 
         # feature visualization keys
         if key == pyglet.window.key._0:
@@ -140,6 +124,7 @@ class CNNPolicy(Policy):
                 self.visualize_layer = min(self.visualize_layer + 1, max_layers - 1)
             max_features = self.filters[self.visualize_layer][2]
             self.visualize_feature = min(self.visualize_feature, max_features - 1)
+            self.visualize_features()
         elif key == pyglet.window.key.MINUS:
             if self.visualize_layer is not None:
                 self.visualize_layer -= 1
@@ -148,18 +133,21 @@ class CNNPolicy(Policy):
                 else:
                     max_features = self.filters[self.visualize_layer][2]
                     self.visualize_feature = min(self.visualize_feature, max_features - 1)
+                    self.visualize_features()
         elif key == pyglet.window.key.BRACKETRIGHT:
             if self.visualize_layer is not None:
                 max_features = self.filters[self.visualize_layer][2]
                 self.visualize_feature = min(self.visualize_feature + 1, max_features - 1)
+                self.visualize_features()
         elif key == pyglet.window.key.BRACKETLEFT:
             if self.visualize_layer is not None:
                 self.visualize_feature = max(self.visualize_feature - 1, 0)
+                self.visualize_features()
 
     def init_visualize(self):
         if self.viewer is not None:
             for i in range(len(self.filters)):
-                self.set_fetch(f"conv2d_{i}", self.get_layer("conv2d", i), "predict")
+                self.set_fetch(f"conv2d_{i}", self.get_layer("conv2d", i), ["predict", "evaluate"])
 
     def update_visualize(self, data):
         index = 0
@@ -169,6 +157,31 @@ class CNNPolicy(Policy):
         action = self.output.decode(self.results["evaluate"]["predict"][index])
         action_message = f"{action}"
         self.add_label("action", action_message)
+
+    def visualize_features(self, graph=None):
+        if self.viewer is not None and self.visualize_layer is not None:
+            if graph is None:
+                graph = self.visualize_graph
+            if graph in self.results:
+                # get layer values to visualize
+                values = self.results[graph][f"conv2d_{self.visualize_layer}"]
+                self.visualize_graph = graph
+
+                # build image for selected feature
+                _, rows, cols, _ = values.shape
+                image = np.zeros((rows, cols, 1))
+                flat_values = values.ravel()
+                value_min = min(flat_values)
+                value_max = max(flat_values)
+                value_range = max([0.1, value_max - value_min])
+                for y, row in enumerate(values[0]):
+                    for x, col in enumerate(row):
+                        value = col[self.visualize_feature]
+                        image[y][x][0] = int((value - value_min) / value_range * 255)
+
+                # render image
+                width, height = self.get_viewer_size()
+                self.add_image("features", image, x=0, y=0, width=width, height=height)
 
     def clear_visualize(self):
         self.visualize_layer = None

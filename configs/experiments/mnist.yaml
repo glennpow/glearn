@@ -7,4 +7,7 @@
   batch_size: 128
   evaluate_interval: 20
   
-  viewer: glearn.utils.viewer:AdvancedViewer
+  viewer:
+    name: glearn.utils.viewer:AdvancedViewer
+    args:
+      zoom: 2

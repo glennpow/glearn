@@ -285,12 +285,6 @@ class Policy(object):
             self.transitions = []
             self.episode_reward = 0
 
-    def render(self, mode="human"):
-        if self.env is not None:
-            self.env.render(mode=mode)
-        if self.viewer is not None:
-            self.viewer.render()
-
     def create_default_feeds(self):
         if self.supervised:
             inputs = self.dataset.get_inputs()
@@ -410,6 +404,7 @@ class Policy(object):
         # print training info
         self.print_info()
 
+        # yield after each training step
         def train_yield():
             while True:
                 if not self.training:
@@ -424,6 +419,7 @@ class Policy(object):
                     break
             return False
 
+        # main training loop
         def train_loop():
             # start TF session
             self.start_session()
@@ -495,11 +491,14 @@ class Policy(object):
             self.stop_session()
 
         if profile:
+            # profile training loop
             profile_path = f"{self.log_dir}/profile"
             with tf.contrib.tfprof.ProfileContext(profile_path) as pctx:  # noqa
                 train_loop()
+            # show profiling results
             open_profile(profile_path)
         else:
+            # run training loop without profiling
             train_loop()
 
     def print_info(self):
@@ -514,11 +513,20 @@ class Policy(object):
         else:
             training_info = {
                 "Training Method": "Reinforcement",
+                "Environment": self.project,
+                "Input": self.input,
+                "Output": self.output,
                 # TODO...
             }
         print()
         print_tabular(training_info, show_type=False)
         print()
+
+    def render(self, mode="human"):
+        if self.env is not None:
+            self.env.render(mode=mode)
+        if self.viewer is not None:
+            self.viewer.render()
 
     def process_image(self, values, rows=None, cols=None, chans=None):
         # get image dimensions
@@ -603,6 +611,11 @@ class Policy(object):
             self.viewer.remove_label(name)
 
     def on_key_press(self, key, modifiers):
+        self.handle_key_press(key, modifiers)
+
+        self.render()
+
+    def handle_key_press(self, key, modifiers):
         # feature visualization keys
         if key == pyglet.window.key.ESCAPE:
             self.log("Training cancelled by user")
