@@ -11,3 +11,4 @@
     name: glearn.utils.viewer:AdvancedViewer
     args:
       zoom: 2
+  visualize_grid: [10, 10]

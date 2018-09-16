@@ -602,13 +602,21 @@ class Policy(object):
         if self.viewer is not None:
             self.viewer.remove_image(name)
 
+    def remove_images(self, prefix):
+        if self.viewer is not None:
+            self.viewer.remove_images(prefix)
+
     def add_label(self, name, values, **kwargs):
         if self.viewer is not None:
             self.viewer.add_label(name, values, **kwargs)
 
-    def remove_label(self, name):
+    def remove_label(self, prefix):
         if self.viewer is not None:
-            self.viewer.remove_label(name)
+            self.viewer.remove_label(prefix)
+
+    def remove_labels(self, name):
+        if self.viewer is not None:
+            self.viewer.remove_labels(name)
 
     def on_key_press(self, key, modifiers):
         self.handle_key_press(key, modifiers)

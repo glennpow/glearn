@@ -103,6 +103,10 @@ class AdvancedViewer(object):
     def remove_image(self, name):
         self.images.pop(name, None)
 
+    def remove_images(self, prefix):
+        self.images = {name: image for name, image in self.images.items()
+                       if not name.startswith(prefix)}
+
     def add_label(self, name, message, x=0, y=0, anchor_x='left', anchor_y='bottom',
                   font_name='Times New Roman', font_size=16, **kwargs):
         label = pyglet.text.Label(message, x=x, y=y, anchor_x=anchor_x, anchor_y=anchor_y,
@@ -111,6 +115,10 @@ class AdvancedViewer(object):
 
     def remove_label(self, name):
         self.labels.pop(name, None)
+
+    def remove_labels(self, prefix):
+        self.labels = {name: label for name, label in self.labels.items()
+                       if not name.startswith(prefix)}
 
     def set_label_spacing(self, spacing):
         self.label_spacing = spacing
@@ -152,6 +160,7 @@ class AdvancedViewer(object):
         for image_data in self.images.values():
             image, x, y, width, height = image_data
 
+            # apply zoom
             x *= self.zoom
             y *= self.zoom
             width *= self.zoom
@@ -165,13 +174,17 @@ class AdvancedViewer(object):
             image.blit(x, y, width=width, height=height)
 
         # draw custom labels (such advanced viewing!)
-        offset = 0
         for label in self.labels.values():
-            origin_y = label.y
-            label.y += offset
-            label.draw()
-            label.y = origin_y
+            # apply zoom
+            base = (label.x, label.y, label.font_size)
+            label.x *= self.zoom
+            label.y *= self.zoom
+            label.font_size *= self.zoom
 
-            offset += label.content_height + self.label_spacing  # HACK - calc this better
+            label.draw()
+
+            label.x = base[0]
+            label.y = base[1]
+            label.font_size = base[2]
 
         self.window.flip()

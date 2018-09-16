@@ -14,6 +14,7 @@ class CNNPolicy(Policy):
         self.fc_layers = config.get("fc_layers", [7 * 7 * 64, 1024])
         self.keep_prob = config.get("keep_prob", 0.8)
 
+        self.visualize_grid = config.get("visualize_grid", [1, 1])
         self.visualize_graph = None
         self.visualize_layer = None
         self.visualize_feature = None
@@ -150,39 +151,64 @@ class CNNPolicy(Policy):
                 self.set_fetch(f"conv2d_{i}", self.get_layer("conv2d", i), ["predict", "evaluate"])
 
     def update_visualize(self, data):
-        index = 0
-        image = data.inputs[index] * 255
+        # build image grid of inputs
+        grid = self.visualize_grid + [1]
+        image_size = np.multiply(self.input.shape, grid)
+        width = self.input.shape[1]
+        height = self.input.shape[0]
+        image = np.zeros(image_size)
+        for row in range(grid[0]):
+            for col in range(grid[1]):
+                index = row * grid[1] + col
+                input_image = data.inputs[index] * 255
+                x = col * width
+                y = row * height
+                image[y:y + height, x:x + width] = input_image
+
+                action = self.output.decode(self.results["evaluate"]["predict"][index])
+                action_s = f"{action}"
+                correct = action == self.output.decode(data.outputs[index])
+                color = (0, 255, 0, 255) if correct else (255, 0, 0, 255)
+                lx = x + width
+                ly = image_size[0] - (y + height)
+                self.add_label(f"action:{index}", action_s, x=lx, y=ly, font_size=8, color=color,
+                               anchor_x='right', anchor_y='bottom')
         self.set_main_image(image)
 
-        action = self.output.decode(self.results["evaluate"]["predict"][index])
-        action_message = f"{action}"
-        self.add_label("action", action_message)
-
     def visualize_features(self, graph=None):
+        if graph is None:
+            graph = self.visualize_graph
+        self.visualize_graph = graph
         if self.viewer is not None and self.visualize_layer is not None:
-            if graph is None:
-                graph = self.visualize_graph
             if graph in self.results:
                 # get layer values to visualize
                 values = self.results[graph][f"conv2d_{self.visualize_layer}"]
-                self.visualize_graph = graph
-
-                # build image for selected feature
-                _, rows, cols, _ = values.shape
-                image = np.zeros((rows, cols, 1))
                 flat_values = values.ravel()
                 value_min = min(flat_values)
                 value_max = max(flat_values)
                 value_range = max([0.1, value_max - value_min])
-                for y, row in enumerate(values[0]):
-                    for x, col in enumerate(row):
-                        value = col[self.visualize_feature]
-                        image[y][x][0] = int((value - value_min) / value_range * 255)
 
-                # render image
-                width, height = self.get_viewer_size()
-                self.add_image("features", image, x=0, y=0, width=width, height=height)
+                # build grid of feature images
+                vh = self.viewer.height
+                width = self.input.shape[1]
+                height = self.input.shape[0]
+                for row in range(self.visualize_grid[0]):
+                    for col in range(self.visualize_grid[1]):
+                        # build image for selected feature
+                        index = row * self.visualize_grid[1] + col
+                        _, f_height, f_width, _ = values.shape
+                        image = np.zeros((f_height, f_width, 1))
+                        for y, f_row in enumerate(values[index]):
+                            for x, f_col in enumerate(f_row):
+                                value = f_col[self.visualize_feature]
+                                image[y][x][0] = int((value - value_min) / value_range * 255)
+
+                        # add image
+                        x = col * width
+                        y = vh - (row + 1) * height
+                        self.add_image(f"feature:{index}", image, x=x, y=y, width=width,
+                                       height=height)
 
     def clear_visualize(self):
         self.visualize_layer = None
-        self.remove_image("features")
+        self.remove_images("feature")
