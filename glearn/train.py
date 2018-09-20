@@ -1,21 +1,25 @@
 import os
 from glearn.policies import load_policy
+from glearn.trainers import load_trainer
 from glearn.utils.config import load_config
 
 
-def train(config_path, version=None, render=False, profile=False):
+def train(config_path, version=None, render=False, debug=False, profile=False):
     # load config
-    config = load_config(config_path)
+    config = load_config(config_path, version=version, debug=debug)
 
     # create policy
-    policy = load_policy(config, version=version)
+    policy = load_policy(config)
+
+    # create trainer
+    trainer = load_trainer(config, policy)
 
     # train policy
-    policy.train(render=render, profile=profile)
+    trainer.train(render=render, profile=profile)
 
 
-def remote_train(config_path):
+def remote_train(config_path, **kwargs):
     # update config path when running on remote machine
     config_path = os.path.join(os.path.dirname(__file__), config_path)
 
-    train(config_path)
+    train(config_path, **kwargs)

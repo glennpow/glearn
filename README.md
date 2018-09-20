@@ -1,37 +1,43 @@
-### Experiments
+## Experiments
 
-## SpaceInvaders (CNN)
+### SpaceInvaders (CNN)
 ./scripts/glearn train space_invaders
 
-## SpaceInvaders (Policy Gradient)
+### SpaceInvaders (Policy Gradient)
 ./scripts/glearn train space_invaders_pg
 
-## Curiosity (Policy Gradient)
+### Curiosity (Policy Gradient)
 ./scripts/glearn train curiosity
 
-## MNIST (CNN)
+### MNIST (CNN)
 ./scripts/glearn train mnist
 
-## Digit Repeat (RNN)
+### Digit Repeat (RNN)
 ./scripts/glearn train digit_repeat
 
-## PTB (RNN)
+### PTB (RNN)
 ./scripts/glearn train ptb
 
 
-### Rendering
+## Rendering
 
-You can disable rendering with:
+Rendering is enabled by default.  You can disable rendering with:
 ./scripts/glearn train ... --no-render
 
 
-### Versions
+## Debugging
+
+You can enable debugging information with:
+./scripts/glearn train ... --debug
+
+
+## Versions
 
 ./scripts/glearn train ... --version=VERSION
 VERSION is which params to load.  It can be an int or string.  If int, then autosaves to VERSION+1
 
 
-### Profiling
+## Profiling
 
 ./scripts/glearn train ... --profile
  OR

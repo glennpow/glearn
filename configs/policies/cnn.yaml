@@ -3,9 +3,9 @@
 
   policy: glearn.policies:CNNPolicy
 
-  optimizer: adam
-  learning_rate: 2.0e-4
-  keep_prob: 0.8
+  # optimizer: adam
+  # learning_rate: 2.0e-4
+  # keep_prob: 0.8
 
   filters:
     - [5, 5, 32]

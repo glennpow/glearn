@@ -5,21 +5,20 @@ from glearn.policies.policy import Policy
 
 
 class CNNPolicy(Policy):
-    def __init__(self, config, version=None):
+    def __init__(self, config):
         self.filters = config.get("filters", [(5, 5, 32), (5, 5, 64)])
         self.strides = config.get("strides", 1)
         self.padding = config.get("padding", "SAME")
         self.max_pool_k = config.get("max_pool_k", 2)
 
         self.fc_layers = config.get("fc_layers", [7 * 7 * 64, 1024])
-        self.keep_prob = config.get("keep_prob", 0.8)
 
         self.visualize_grid = config.get("visualize_grid", [1, 1])
         self.visualize_graph = None
         self.visualize_layer = None
         self.visualize_feature = None
 
-        super().__init__(config, version=version)
+        super().__init__(config)
 
         self.init_visualize()
 
@@ -71,11 +70,6 @@ class CNNPolicy(Policy):
             loss = tf.reduce_mean(neg_log_p)
             self.set_fetch("loss", loss, "evaluate")
 
-        # minimize loss
-        with tf.name_scope('optimize'):
-            optimizer = tf.train.AdamOptimizer(self.learning_rate)
-            self.set_fetch("optimize", optimizer.minimize(loss), "optimize")
-
         # evaluate accuracy
         with tf.name_scope('accuracy'):
             if self.output.discrete:
@@ -87,70 +81,69 @@ class CNNPolicy(Policy):
                 # TODO - continuous evaluate
                 pass
 
-    def prepare_feed_map(self, graph, data, feed_map):
-        if graph == "optimize":
-            feed_map["dropout"] = self.keep_prob
-        else:
-            feed_map["dropout"] = 1
+    def prepare_default_feeds(self, graph, feed_map):
+        feed_map["dropout"] = 1
         return feed_map
 
-    def predict(self, data):
-        result = super().predict(data)
-
-        self.visualize_features("predict")
-
-        return result
-
-    def optimize(self, step):
-        data, results = super().optimize(step)
+    def evaluate(self, sess, feed_map):
+        results = super().evaluate(sess, feed_map)
 
         # visualize evaluated dataset results
-        if self.supervised and self.evaluating:
-            self.visualize_features("evaluate")
+        if self.supervised and self.rendering:
+            self.update_visualize(feed_map["X"], feed_map["Y"])
 
-            self.update_visualize(data)
+        return results
 
-    def handle_key_press(self, key, modifiers):
-        super().handle_key_press(key, modifiers)
+    def debug(self, sess, feed_map):
+        results = super().debug(sess, feed_map)
+
+        # visualize debug dataset results
+        if self.rendering:
+            self.visualize_features("debug")
+
+        return results
+
+    def on_key_press(self, key, modifiers):
+        super().on_key_press(key, modifiers)
 
         # feature visualization keys
-        if key == pyglet.window.key._0:
-            self.clear_visualize()
-        elif key == pyglet.window.key.EQUAL:
-            if self.visualize_layer is None:
-                self.visualize_layer = 0
-                self.visualize_feature = 0
-            else:
-                max_layers = len(self.filters)
-                self.visualize_layer = min(self.visualize_layer + 1, max_layers - 1)
-            max_features = self.filters[self.visualize_layer][2]
-            self.visualize_feature = min(self.visualize_feature, max_features - 1)
-            self.visualize_features()
-        elif key == pyglet.window.key.MINUS:
-            if self.visualize_layer is not None:
-                self.visualize_layer -= 1
-                if self.visualize_layer < 0:
-                    self.clear_visualize()
+        if self.debugging:
+            if key == pyglet.window.key._0:
+                self.clear_visualize()
+            elif key == pyglet.window.key.EQUAL:
+                if self.visualize_layer is None:
+                    self.visualize_layer = 0
+                    self.visualize_feature = 0
                 else:
-                    max_features = self.filters[self.visualize_layer][2]
-                    self.visualize_feature = min(self.visualize_feature, max_features - 1)
-                    self.visualize_features()
-        elif key == pyglet.window.key.BRACKETRIGHT:
-            if self.visualize_layer is not None:
+                    max_layers = len(self.filters)
+                    self.visualize_layer = min(self.visualize_layer + 1, max_layers - 1)
                 max_features = self.filters[self.visualize_layer][2]
-                self.visualize_feature = min(self.visualize_feature + 1, max_features - 1)
+                self.visualize_feature = min(self.visualize_feature, max_features - 1)
                 self.visualize_features()
-        elif key == pyglet.window.key.BRACKETLEFT:
-            if self.visualize_layer is not None:
-                self.visualize_feature = max(self.visualize_feature - 1, 0)
-                self.visualize_features()
+            elif key == pyglet.window.key.MINUS:
+                if self.visualize_layer is not None:
+                    self.visualize_layer -= 1
+                    if self.visualize_layer < 0:
+                        self.clear_visualize()
+                    else:
+                        max_features = self.filters[self.visualize_layer][2]
+                        self.visualize_feature = min(self.visualize_feature, max_features - 1)
+                        self.visualize_features()
+            elif key == pyglet.window.key.BRACKETRIGHT:
+                if self.visualize_layer is not None:
+                    max_features = self.filters[self.visualize_layer][2]
+                    self.visualize_feature = min(self.visualize_feature + 1, max_features - 1)
+                    self.visualize_features()
+            elif key == pyglet.window.key.BRACKETLEFT:
+                if self.visualize_layer is not None:
+                    self.visualize_feature = max(self.visualize_feature - 1, 0)
+                    self.visualize_features()
 
     def init_visualize(self):
-        if self.viewer is not None:
-            for i in range(len(self.filters)):
-                self.set_fetch(f"conv2d_{i}", self.get_layer("conv2d", i), ["predict", "evaluate"])
+        for i in range(len(self.filters)):
+            self.set_fetch(f"conv2d_{i}", self.get_layer("conv2d", i), "debug")
 
-    def update_visualize(self, data):
+    def update_visualize(self, inputs, outputs):
         # build image grid of inputs
         grid = self.visualize_grid + [1]
         image_size = np.multiply(self.input.shape, grid)
@@ -160,26 +153,26 @@ class CNNPolicy(Policy):
         for row in range(grid[0]):
             for col in range(grid[1]):
                 index = row * grid[1] + col
-                input_image = data.inputs[index] * 255
+                input_image = inputs[index] * 255
                 x = col * width
                 y = row * height
                 image[y:y + height, x:x + width] = input_image
 
                 action = self.output.decode(self.results["evaluate"]["predict"][index])
                 action_s = f"{action}"
-                correct = action == self.output.decode(data.outputs[index])
+                correct = action == self.output.decode(outputs[index])
                 color = (0, 255, 0, 255) if correct else (255, 0, 0, 255)
                 lx = x + width
                 ly = image_size[0] - (y + height)
-                self.add_label(f"action:{index}", action_s, x=lx, y=ly, font_size=8, color=color,
-                               anchor_x='right', anchor_y='bottom')
-        self.set_main_image(image)
+                self.viewer.add_label(f"action:{index}", action_s, x=lx, y=ly, font_size=8,
+                                      color=color, anchor_x='right', anchor_y='bottom')
+        self.viewer.set_main_image(image)
 
     def visualize_features(self, graph=None):
         if graph is None:
             graph = self.visualize_graph
         self.visualize_graph = graph
-        if self.viewer is not None and self.visualize_layer is not None:
+        if self.rendering and self.visualize_layer is not None:
             if graph in self.results:
                 # get layer values to visualize
                 values = self.results[graph][f"conv2d_{self.visualize_layer}"]
@@ -206,9 +199,9 @@ class CNNPolicy(Policy):
                         # add image
                         x = col * width
                         y = vh - (row + 1) * height
-                        self.add_image(f"feature:{index}", image, x=x, y=y, width=width,
-                                       height=height)
+                        self.viewer.add_image(f"feature:{index}", image, x=x, y=y, width=width,
+                                              height=height)
 
     def clear_visualize(self):
         self.visualize_layer = None
-        self.remove_images("feature")
+        self.viewer.remove_images("feature")

@@ -1,8 +1,8 @@
-from collections import abc
+from collections import abc, OrderedDict
 import numpy as np
 
 
-color2num = dict(
+COLOR_NUMBERS = dict(
     gray=30,
     red=31,
     green=32,
@@ -13,11 +13,12 @@ color2num = dict(
     white=37,
     crimson=38
 )
+MAX_TABULAR_WIDTH = 120
 
 
 def colorize(string, color, bold=False, highlight=False):
     attr = []
-    num = color2num[color]
+    num = COLOR_NUMBERS[color]
     if highlight:
         num += 10
     attr.append(str(num))
@@ -36,31 +37,55 @@ def _format_type(value):
         if isinstance(value, abc.Iterable):
             typename = f"{typename}{np.shape(value)}"
         value = f"{value}".split('\n')[0]
+    if len(value) > MAX_TABULAR_WIDTH:
+        value = value[:MAX_TABULAR_WIDTH]
     return typename, value
 
 
-def print_tabular(values, color=None, bold=False, show_type=True):
+def print_tabular(values, grouped=False, color=None, bold=False, show_type=True, padding=2):
     # Create strings for printing
-    formatted = []
-    for (key, val) in values.items():
-        ftype, fval = _format_type(val)
-        if show_type:
-            formatted.append([key, fval, ftype])
-        else:
-            formatted.append([key, fval])
+    if not grouped:
+        values = {None: values}
+    formatted = OrderedDict()
+    for header, group in values.items():
+        group_format = []
+        formatted[header] = group_format
+        for (key, val) in group.items():
+            ftype, fval = _format_type(val)
+            if show_type:
+                group_format.append([key, fval, ftype])
+            else:
+                group_format.append([key, fval])
 
     # Find max widths
-    padding = 2
-    lcols = [[len(v) for v in f] for f in np.transpose(formatted)]
-    widths = np.array([np.max(f) for f in lcols]) + (2 * padding)
+    lcols = {header: [[len(v) for v in f] for f in np.transpose(group)]
+             for header, group in formatted.items()}
+    widths = {header: np.array([np.max(f) for f in group]) + (2 * padding)
+              for header, group in lcols.items()}
+    table_width = max([np.sum(w) for _, w in widths.items()])
+
+    # header and table widths
+    header_widths = {}
+    for header, group in formatted.items():
+        if header is not None:
+            header_width = len(header) + (2 * padding)
+            header_widths[header] = header_width
+            table_width = max(header_width, table_width)
 
     # Write out the data
-    dashes = '-' * np.sum(widths)
-    lines = [dashes]
-    for f in formatted:
-        cols = [(" " * padding + f[i]).ljust(widths[i]) for i in range(len(f))]
-        lines.append("|".join(cols))
-    lines.append(dashes)
+    equals = '=' * table_width
+    dashes = '-' * table_width
+    dotted = ('- ' * (table_width // 2 + 1))[:table_width]
+    lines = []
+    for header, group in formatted.items():
+        lines.append(equals if len(lines) == 0 else dashes)
+        if header is not None:
+            lines += [" " * padding + header, dotted]
+        group_widths = widths[header]
+        for f in group:
+            cols = [(" " * padding + f[i]).ljust(group_widths[i]) for i in range(len(f))]
+            lines.append("|".join(cols))
+    lines.append(equals)
     message = '\n'.join(lines)
     if color is not None:
         message = colorize(message, color, bold=bold)

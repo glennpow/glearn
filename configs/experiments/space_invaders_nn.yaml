@@ -1,8 +1,8 @@
---- # Curiosity
+--- # Space Invaders
   include:
     - ../policies/nn.yaml
     - ../trainers/policy_gradient.yaml
-  env: glearn.envs.ant:AntEnv
+  env: SpaceInvaders-v0
 
   optimizer: adam
   learning_rate: 2.0e-4
@@ -11,7 +11,7 @@
   keep_prob: 0.8
   evaluate_interval: 1
 
-  # TODO
-
-  # HACK
-  # policy: glearn.policies:RandomPolicy
+  viewer:
+    name: glearn.viewers:AdvancedViewer
+    args:
+        zoom: 4

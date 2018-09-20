@@ -1,8 +1,18 @@
 --- # Ant
   include:
-    - ../policies/policy_gradient.yaml
-    - ../methods/reinforcement.yaml
+    - ../policies/nn.yaml
+    - ../trainers/policy_gradient.yaml # ppo
   env: glearn.envs.ant:AntEnv
+
+  optimizer: adam
+  learning_rate: 2.0e-4
   episodes: 5000
   batch_size: 128
+  keep_prob: 0.8
+  epsilon: [1, 0.1, 10]
   evaluate_interval: 1
+
+  # TODO
+
+  # HACK
+  # policy: glearn.policies:RandomPolicy

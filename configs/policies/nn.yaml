@@ -1,0 +1,12 @@
+--- # NN
+  include: default.yaml
+
+  policy: glearn.policies:NNPolicy
+
+  # optimizer: adam
+  # learning_rate: 2.0e-4
+  # keep_prob: 0.8
+
+  fc_layers:
+    - 128
+    - 128

@@ -12,6 +12,8 @@ def get_function(identifier, default_kwargs=None):
             if default_kwargs is not None:
                 args.update(default_kwargs)
             default_kwargs = args
+    else:
+        raise ValueError(f"Unkown class or function identifier: {identifier}")
 
     # get entry point, and if necessary wrap with args
     entry_point = pkg_resources.EntryPoint.parse('x={}'.format(name))

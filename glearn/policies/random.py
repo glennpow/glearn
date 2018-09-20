@@ -14,10 +14,9 @@ class RandomPolicy(Policy):
     #     self.set_fetch("predict", predict, ["predict", "evaluate"])
 
     #     self.set_fetch("evaluate", tf.no_op(), "optimize")
-    #     self.set_fetch("optimize", tf.no_op(), "optimize")
 
-    def predict(self, data):
-        return self.output.sample()
-
-    def optimize(self, step):
-        return None, None
+    def predict(self, sess, feed_map):
+        output = []
+        for i in range(len(feed_map["X"])):
+            output.append(self.output.sample())
+        return {"predict": output}

@@ -22,15 +22,17 @@ def train(args):
     config_path = args.config
     version = args.version
     render = not args.no_render
+    debug = args.debug
     profile = args.profile
 
-    local_train(config_path, version=version, render=render, profile=profile)
+    local_train(config_path, version=version, render=render, debug=debug, profile=profile)
 
 
 def train_usage(parser):
     parser.add_argument("config", type=str)
     parser.add_argument("--version", "-v", default=None)
     parser.add_argument("--no-render", action="store_true")
+    parser.add_argument("--debug", action="store_true")
     parser.add_argument("--profile", action="store_true")
 
 

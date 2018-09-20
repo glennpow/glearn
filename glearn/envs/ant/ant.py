@@ -25,7 +25,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             and state[2] >= 0.51 and state[2] <= 1.0
         done = not notdone
         ob = self._get_obs()
-        print(f"reward={reward}, notdone={notdone}, state[2]={state[2]}")
+        # print(f"reward={reward}, notdone={notdone}, state[2]={state[2]}")
         return ob, reward, done, dict(
             reward_forward=forward_reward,
             reward_ctrl=-ctrl_cost,

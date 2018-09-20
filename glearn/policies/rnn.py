@@ -4,11 +4,9 @@ from glearn.policies.policy import Policy
 
 
 class RNNPolicy(Policy):
-    def __init__(self, config, version=None):
-        self.learning_rate = config.get("learning_rate", 1)
-        self.lr_decay = config.get("lr_decay", .95)
-        self.keep_prob = config.get("keep_prob", None)
-        self.max_grad_norm = config.get("max_grad_norm", None)
+    def __init__(self, config):
+        self.keep_prob = config.get("keep_prob", 1)
+        self.batch_size = config.get("batch_size", 1)
 
         self.hidden_size = config.get("hidden_size", 128)
         self.hidden_depth = config.get("hidden_depth", 1)
@@ -17,7 +15,7 @@ class RNNPolicy(Policy):
         self.visualize_embeddings = False  # HACK - expose these?
         self.visualize_embedded = False  # HACK
 
-        super().__init__(config, version=version)
+        super().__init__(config)
 
         self.init_visualize()
 
@@ -38,8 +36,8 @@ class RNNPolicy(Policy):
             self.set_fetch("X", inputs, "evaluate")
             self.set_fetch("Y", outputs, "evaluate")
 
-            learning_rate = tf.placeholder(tf.float32, (), name="lambda")
-            self.set_feed("lambda", learning_rate, ["optimize", "evaluate"])
+            # learning_rate = tf.placeholder(tf.float32, (), name="lambda")
+            # self.set_feed("lambda", learning_rate, ["optimize", "evaluate"])
 
             dropout = tf.placeholder(tf.float32, (), name="dropout")
             self.set_feed("dropout", dropout)
@@ -51,14 +49,14 @@ class RNNPolicy(Policy):
                                         initializer=scaled_init)
             inputs = tf.nn.embedding_lookup(embedding, inputs)
 
-            # TODO - add new graph "render" or "debug" for all this crap
+            # debugging fetches
             if self.visualize_embedded:
-                self.set_fetch("embedded", inputs, "evaluate")
+                self.set_fetch("embedded", inputs, "debug")
             if self.visualize_embeddings:
-                self.set_fetch("embedding", embedding, "evaluate")
+                self.set_fetch("embedding", embedding, "debug")
 
         # first dropout here
-        if self.keep_prob is not None:
+        if self.keep_prob < 1:
             inputs = tf.nn.dropout(inputs, dropout)
 
         # define lstm cell(s)
@@ -108,60 +106,32 @@ class RNNPolicy(Policy):
         with tf.name_scope('loss'):
             logits = tf.reshape(info["Z"], [self.batch_size, self.timesteps, self.vocabulary.size])
             weights = tf.ones([self.batch_size, self.timesteps])  # , dtype=self.input.dtype)
-            loss = tf.contrib.seq2seq.sequence_loss(logits, outputs, weights,
-                                                    average_across_timesteps=False,
-                                                    average_across_batch=True)
-            self.set_fetch("loss", loss, "evaluate")
+            sequence_loss = tf.contrib.seq2seq.sequence_loss(logits, outputs, weights,
+                                                             average_across_timesteps=False,
+                                                             average_across_batch=True)
+            self.set_fetch("sequence_loss", sequence_loss, "evaluate")
 
-            cost = tf.reduce_sum(loss)
-            self.set_fetch("cost", cost, "evaluate")
+            loss = tf.reduce_sum(sequence_loss)
+            self.set_fetch("loss", loss, "evaluate")
 
         # remember final state
         self.final_state = state
 
-        # minimize loss
-        with tf.name_scope('optimize'):
-            optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-            global_step = tf.train.get_or_create_global_step()
-
-            if self.max_grad_norm is None:
-                # apply unclipped gradients
-                optimize = optimizer.minimize(cost, global_step=global_step)
-            else:
-                # apply gradients with clipping
-                tvars = tf.trainable_variables()
-                grads = tf.gradients(cost, tvars)
-                grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
-                optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
-            self.set_fetch("optimize", optimize, "optimize")
-
-            self.set_fetch("lambda", learning_rate, "evaluate")
-
-    def prepare_feed_map(self, graph, data, feed_map):
-        if graph == "optimize" or graph == "evaluate":
-            max_lr_step = 10
-            lr_decay = self.lr_decay ** max(self.step + 1 - max_lr_step, 0.0)
-            learning_rate = self.learning_rate * lr_decay
-            feed_map["lambda"] = learning_rate
-            feed_map["dropout"] = self.keep_prob
-        else:
-            feed_map["dropout"] = 1
+    def prepare_feeds(self, graph, data, feed_map):
+        feed_map["dropout"] = 1
         return feed_map
 
-    def optimize(self, step):
-        data = super().optimize(step)
+    def debug(self, sess, feed_map):
+        results = super().debug(sess, feed_map)
 
         # visualize evaluated dataset results
-        if self.supervised and self.evaluating:
-            self.update_visualize(data)
+        if self.supervised and self.rendering:
+            self.update_visualize(feed_map, results)
 
-    def init_viewer(self):
-        super().init_viewer()
-
-        self.viewer.set_label_spacing(20)
+        return results
 
     def init_visualize(self):
-        if self.viewer is not None:
+        if self.rendering:
             # cache the desired dims here
             if self.visualize_embeddings:
                 self.max_embeddings = 40
@@ -177,29 +147,29 @@ class RNNPolicy(Policy):
             rows = math.ceil(size / cols)
             self.viewer.set_size(cols, rows)
 
-    def update_visualize(self, data):
-        cols, rows = self.get_viewer_size()
+    def update_visualize(self, feed_map, results):
+        cols, rows = self.viewer.get_size()
 
         if self.visualize_embeddings:
             # render embeddings params
-            values = self.results["evaluate"]["embedding"][:self.max_embeddings]
-            values = self.process_image(values, rows=rows, cols=cols)
+            values = results["embedding"][:self.max_embeddings]
+            values = self.viewer.process_image(values, rows=rows, cols=cols)
             self.viewer.set_main_image(values)
         elif self.visualize_embedded:
             # render embedded representation of input
-            values = self.results["evaluate"]["embedded"]
+            values = results["embedded"]
             batch = 0
             values = values[batch]
-            values = self.process_image(values, rows=rows, cols=cols)
+            values = self.viewer.process_image(values, rows=rows, cols=cols)
             self.viewer.set_main_image(values)
 
         # show labels with targets/predictions
         num_labels = 5
-        input = self.output.decode(self.results["evaluate"]["X"])
+        input = self.output.decode(results["X"])
         input_batch = self.vocabulary.decode(input[:num_labels])
-        target = self.output.decode(self.results["evaluate"]["Y"])
+        target = self.output.decode(results["Y"])
         target_batch = self.vocabulary.decode(target[:num_labels])
-        predict = self.output.decode(self.results["evaluate"]["predict"])
+        predict = self.output.decode(results["predict"])
         predict_batch = self.vocabulary.decode(predict[:num_labels])
         # predict_batch = np.reshape(predict_batch, [num_labels, self.timesteps])
         for i in range(num_labels):
@@ -209,5 +179,5 @@ class RNNPolicy(Policy):
             prediction_message = (f"INPUT:  {input_seq}\n"
                                   f"TARGET:  {target_seq}"
                                   f"\nPREDICT: {predict_seq}")
-            self.add_label(f"prediction_{i}", prediction_message, width=cols, multiline=True,
-                           font_name="Courier New", font_size=12)
+            self.viewer.add_label(f"prediction_{i}", prediction_message, width=cols,
+                                  multiline=True, font_name="Courier New", font_size=12)

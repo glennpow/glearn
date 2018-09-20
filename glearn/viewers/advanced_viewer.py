@@ -10,7 +10,6 @@ class AdvancedViewer(object):
 
         self.images = {}
         self.labels = {}
-        self.label_spacing = 0
 
         if width is None:
             width = 100
@@ -75,6 +74,10 @@ class AdvancedViewer(object):
         self.set_size(width, height)
         self.add_image("*", values, x=0, y=0, width=width, height=height)
 
+    def imshow(self, arr):
+        # backwards compatibility with Atari envs
+        self.set_main_image(arr)
+
     def add_image(self, name, values, x=0, y=0, width=None, height=None):
         # get image data
         rows, cols, chans = values.shape
@@ -119,13 +122,6 @@ class AdvancedViewer(object):
     def remove_labels(self, prefix):
         self.labels = {name: label for name, label in self.labels.items()
                        if not name.startswith(prefix)}
-
-    def set_label_spacing(self, spacing):
-        self.label_spacing = spacing
-
-    def imshow(self, arr):
-        # backwards compatibility with Atari envs
-        self.set_main_image(arr)
 
     def render(self):
         if len(self.images) + len(self.labels) == 0:
