@@ -15,8 +15,8 @@ class RandomPolicy(Policy):
 
     #     self.set_fetch("evaluate", tf.no_op(), "optimize")
 
-    def predict(self, sess, feed_map):
+    def run(self, sess, graph, feed_map, **kwargs):
         output = []
         for i in range(len(feed_map["X"])):
             output.append(self.output.sample())
-        return {"predict": output}
+        return {graph: output}

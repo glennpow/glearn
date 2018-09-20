@@ -21,7 +21,7 @@ class Trainer(object):
         self.min_episode_reward = self.config.get("min_episode_reward", None)
         self.evaluate_interval = self.config.get("evaluate_interval", 10)
 
-        self.iteration = 0
+        self.global_step = 0
         self.epoch_step = 0
         self.episode_step = 0
         self.observation = None
@@ -78,10 +78,6 @@ class Trainer(object):
     def load_path(self):
         return self.config.load_path
 
-    @property
-    def tensorboard_path(self):
-        return self.config.tensorboard_path
-
     def start_session(self):
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
@@ -89,7 +85,6 @@ class Trainer(object):
         self.policy.start_session(self.sess)
 
         self.start_persistence()
-        self.start_tensorboard()
 
     def stop_session(self):
         self.policy.stop_session(self.sess)
@@ -115,11 +110,6 @@ class Trainer(object):
             os.makedirs(save_dir, exist_ok=True)
             # TODO - clear old dir?
 
-    def start_tensorboard(self):
-        if self.tensorboard_path is not None:
-            self.log(f"Tensorboard log directory: {self.tensorboard_path}")
-            tf.summary.FileWriter(self.tensorboard_path, self.sess.graph)
-
     def reset(self):
         # reset env and episode
         if self.env is not None:
@@ -133,14 +123,16 @@ class Trainer(object):
     def prepare_feeds(self, graph, data, feed_map):
         return self.policy.prepare_default_feeds(graph, feed_map)
 
-    def predict(self, data):
-        feed_map = self.prepare_feeds("predict", data, {"X": [data]})
-        result = self.policy.predict(self.sess, feed_map)["predict"][0]
+    def predict(self, inputs, global_step=None):
+        # get prediction for inputs
+        feed_map = self.prepare_feeds("predict", inputs, {"X": [inputs]})
+        results = self.policy.run(self.sess, "predict", feed_map, global_step=global_step)
+        result = results["predict"][0]
 
         # debugging
         if self.debugging:
-            feed_map = self.prepare_feeds("debug", data, feed_map)
-            self.policy.debug(self.sess, feed_map)
+            feed_map = self.prepare_feeds("debug", inputs, feed_map)
+            self.policy.run(self.sess, "debug", feed_map, global_step=global_step)
 
         return result
 
@@ -163,10 +155,10 @@ class Trainer(object):
         self.episode_reward += transition.reward
         return transition
 
-    def get_step_data(self, graph):
+    def get_batch(self, graph):
         if self.supervised:
             # supervised batch of samples
-            return self.dataset.get_step_data()
+            return self.dataset.get_batch()
         else:
             # unsupervised experience replay batch of samples
             batch = transition_batch(self.transitions[:self.batch_size])
@@ -180,20 +172,22 @@ class Trainer(object):
         """
         Optimize/evaluate using a supervised or unsupervised batch
         """
-        self.iteration += 1
-        self.evaluating = self.iteration % self.evaluate_interval == 0
+        self.global_step += 1
+        self.evaluating = self.global_step % self.evaluate_interval == 0
 
         # log info for current iteration
         if self.supervised:
             table = {
                 f"Epoch: {self.epoch}": {
-                    "epoch iteration": self.iteration,
+                    "global step": self.global_step,
+                    "epoch step": self.epoch_step,
                     "epoch time": self.epoch_time,
                 }
             }
         else:
             table = {
                 f"Episode: {self.episode}": {
+                    "global step": self.global_step,
                     "episode steps": self.episode_step,
                     "episode time": self.episode_time,
                     "reward": self.episode_reward,
@@ -202,21 +196,24 @@ class Trainer(object):
             }
 
         # get data and feed and run optimize step pass
-        data, feed_map = self.get_step_data("optimize")
+        data, feed_map = self.get_batch("optimize")
         feed_map = self.prepare_feeds("optimize", data, feed_map)
-        optimize_results = self.policy.optimize(self.sess, feed_map)
+        optimize_results = self.policy.run(self.sess, "optimize", feed_map,
+                                           global_step=self.global_step)
 
         # evaluate if time to do so
         if self.evaluating:
             # get feed and run evaluate pass
             feed_map = self.prepare_feeds("evaluate", data, feed_map)
-            evaluate_results = self.policy.evaluate(self.sess, feed_map)
+            evaluate_results = self.policy.run(self.sess, "evaluate", feed_map,
+                                               global_step=self.global_step)
 
             # # debugging
             debug_results = None
             if self.debugging:
                 feed_map = self.prepare_feeds("debug", data, feed_map)
-                debug_results = self.policy.debug(self.sess, feed_map)
+                debug_results = self.policy.run(self.sess, "debug", feed_map,
+                                                global_step=self.global_step)
 
             # print inputs and results
             table["Inputs"] = feed_map
@@ -236,6 +233,7 @@ class Trainer(object):
         return data, optimize_results
 
     def train(self, render=False, profile=False):
+        self.global_step = 0
         self.episode_rewards = []
         self.training = True
         self.paused = False
@@ -294,7 +292,7 @@ class Trainer(object):
                 # epoch time
                 toc = time.time()
                 self.epoch_time = toc - tic
-                self.epoch_step = step
+                self.epoch_step = step + 1
 
                 self.optimize()
 

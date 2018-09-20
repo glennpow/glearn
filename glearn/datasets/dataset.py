@@ -73,11 +73,11 @@ class Dataset(object):
         else:
             return self.outputs
 
-    def get_step_data(self):
+    def get_batch(self):
         if self.optimize_batch:
             # return individual batches instead (HACK)
             # should iterate over batch count here, but rather just remove this param entirely.
-            batch = self.get_batch()
+            batch = self.build_batch()
             feed_map = {
                 "X": batch.inputs,
                 "Y": batch.outputs,
@@ -88,7 +88,7 @@ class Dataset(object):
             # the tensorflow graph will handle batching itself
             return self, {}
 
-    def get_batch(self):
+    def build_batch(self):
         batch = Batch(dataset=self)
         # get slices of data
         batch.inputs = self.inputs[self.head:self.head + self.batch_size]

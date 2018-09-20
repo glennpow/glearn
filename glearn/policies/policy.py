@@ -1,5 +1,9 @@
 import tensorflow as tf
 from glearn.utils.printing import colorize
+from glearn.utils.summary import SummaryWriter
+
+
+SUMMARY_FETCH_ID = "__summary__"
 
 
 class Policy(object):
@@ -12,10 +16,12 @@ class Policy(object):
         self.fetches = {}
         self.layers = {}
         self.results = {}
+        self.summaries = {}
         self.training = False
 
         if self.rendering:
             self.init_viewer()
+        self.init_summaries()
         self.init_model()
 
     def log(self, *args):
@@ -56,14 +62,22 @@ class Policy(object):
     def output(self):
         return self.config.output
 
+    @property
+    def tensorboard_path(self):
+        return self.config.tensorboard_path
+
     def init_model(self):
         pass
 
     def start_session(self, sess):
         self.start_threading(sess)
 
+        self.start_summaries(sess)
+
     def stop_session(self, sess):
         self.stop_threading(sess)
+
+        self.stop_summaries(sess)
 
     def start_threading(self, sess):
         if self.multithreaded:
@@ -174,6 +188,21 @@ class Policy(object):
                 return len(self.layers[type_name])
         return 0
 
+    def init_summaries(self):
+        if self.tensorboard_path is not None:
+            self.log(f"Tensorboard log root directory: {self.tensorboard_path}")
+            self.summary_writer = SummaryWriter(self.tensorboard_path)
+        else:
+            self.summary_writer = None
+
+    def start_summaries(self, sess):
+        if self.summary_writer is not None:
+            self.summary_writer.start(graph=sess.graph)
+
+    def stop_summaries(self, sess):
+        if self.summary_writer is not None:
+            self.summary_writer.stop()
+
     def reset(self):
         pass
 
@@ -191,26 +220,36 @@ class Policy(object):
     def prepare_default_feeds(self, graph, feed_map):
         return feed_map
 
-    def run(self, sess, graph, feed_map):
+    def run(self, sess, graph, feed_map, global_step=None, summary_family=None):
+        # get configured fetches
         fetches = self.get_fetches(graph)
+
+        # also fetch summaries
+        if self.summary_writer is not None:
+            if summary_family is None:
+                summary_family = graph
+            summary_fetch = self.summary_writer.get_fetch(summary_family)
+            if summary_fetch is not None:
+                fetches[SUMMARY_FETCH_ID] = summary_fetch
+
         if len(fetches) > 0:
+            # build final feed_dict
             feed_dict = self.build_feed_dict(feed_map, graph=graph)
+
+            # run graph
             results = sess.run(fetches, feed_dict)
+
+            # handle summaries
+            if SUMMARY_FETCH_ID in results:
+                summary = results[SUMMARY_FETCH_ID]
+                self.summary_writer.write(summary, family=summary_family, global_step=global_step)
+                results.pop(SUMMARY_FETCH_ID, None)
+
+            # store results
             self.results[graph] = results
+
             return results
         return {}
-
-    def predict(self, sess, feed_map):
-        return self.run(sess, "predict", feed_map)
-
-    def optimize(self, sess, feed_map):
-        return self.run(sess, "optimize", feed_map)
-
-    def evaluate(self, sess, feed_map):
-        return self.run(sess, "evaluate", feed_map)
-
-    def debug(self, sess, feed_map):
-        return self.run(sess, "debug", feed_map)
 
     @property
     def viewer(self):

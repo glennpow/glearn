@@ -85,21 +85,17 @@ class CNNPolicy(Policy):
         feed_map["dropout"] = 1
         return feed_map
 
-    def evaluate(self, sess, feed_map):
-        results = super().evaluate(sess, feed_map)
+    def run(self, sess, graph, feed_map, **kwargs):
+        results = super().run(sess, graph, feed_map, **kwargs)
 
-        # visualize evaluated dataset results
-        if self.supervised and self.rendering:
-            self.update_visualize(feed_map["X"], feed_map["Y"])
-
-        return results
-
-    def debug(self, sess, feed_map):
-        results = super().debug(sess, feed_map)
-
-        # visualize debug dataset results
-        if self.rendering:
-            self.visualize_features("debug")
+        if graph == "evaluate":
+            # visualize evaluated dataset results
+            if self.supervised and self.rendering:
+                self.update_visualize(feed_map["X"], feed_map["Y"])
+        elif graph == "debug":
+            # visualize debug dataset results
+            if self.rendering:
+                self.visualize_features("debug")
 
         return results
 

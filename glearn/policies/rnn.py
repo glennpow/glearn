@@ -121,12 +121,13 @@ class RNNPolicy(Policy):
         feed_map["dropout"] = 1
         return feed_map
 
-    def debug(self, sess, feed_map):
-        results = super().debug(sess, feed_map)
+    def run(self, sess, graph, feed_map, **kwargs):
+        results = super().run(sess, graph, feed_map, **kwargs)
 
-        # visualize evaluated dataset results
-        if self.supervised and self.rendering:
-            self.update_visualize(feed_map, results)
+        if graph == "debug":
+            # visualize evaluated dataset results
+            if self.supervised and self.rendering:
+                self.update_visualize(feed_map, results)
 
         return results
 
