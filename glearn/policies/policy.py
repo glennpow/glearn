@@ -1,9 +1,6 @@
 import tensorflow as tf
 from glearn.utils.printing import colorize
-from glearn.utils.summary import SummaryWriter
-
-
-SUMMARY_FETCH_ID = "__summary__"
+from glearn.utils.summary import SummaryWriter, NullSummaryWriter
 
 
 class Policy(object):
@@ -191,17 +188,17 @@ class Policy(object):
     def init_summaries(self):
         if self.tensorboard_path is not None:
             self.log(f"Tensorboard log root directory: {self.tensorboard_path}")
-            self.summary_writer = SummaryWriter(self.tensorboard_path)
+            self.summary = SummaryWriter(self.tensorboard_path)
         else:
-            self.summary_writer = None
+            self.summary = NullSummaryWriter()
 
     def start_summaries(self, sess):
-        if self.summary_writer is not None:
-            self.summary_writer.start(graph=sess.graph)
+        if self.summary is not None:
+            self.summary.start(graph=sess.graph)
 
     def stop_summaries(self, sess):
-        if self.summary_writer is not None:
-            self.summary_writer.stop()
+        if self.summary is not None:
+            self.summary.stop()
 
     def reset(self):
         pass
@@ -225,12 +222,9 @@ class Policy(object):
         fetches = self.get_fetches(graph)
 
         # also fetch summaries
-        if self.summary_writer is not None:
-            if summary_family is None:
-                summary_family = graph
-            summary_fetch = self.summary_writer.get_fetch(summary_family)
-            if summary_fetch is not None:
-                fetches[SUMMARY_FETCH_ID] = summary_fetch
+        if summary_family is None:
+            summary_family = graph
+        self.summary.prepare_fetches(fetches, summary_family)
 
         if len(fetches) > 0:
             # build final feed_dict
@@ -240,10 +234,7 @@ class Policy(object):
             results = sess.run(fetches, feed_dict)
 
             # handle summaries
-            if SUMMARY_FETCH_ID in results:
-                summary = results[SUMMARY_FETCH_ID]
-                self.summary_writer.write(summary, family=summary_family, global_step=global_step)
-                results.pop(SUMMARY_FETCH_ID, None)
+            self.summary.process_results(results, summary_family, global_step=global_step)
 
             # store results
             self.results[graph] = results

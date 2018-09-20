@@ -78,6 +78,10 @@ class Trainer(object):
     def load_path(self):
         return self.config.load_path
 
+    @property
+    def summary(self):
+        return self.policy.summary
+
     def start_session(self):
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
@@ -191,7 +195,7 @@ class Trainer(object):
                     "episode steps": self.episode_step,
                     "episode time": self.episode_time,
                     "reward": self.episode_reward,
-                    "max reward": np.amax(self.episode_rewards),
+                    "max reward": self.max_episode_reward,
                 }
             }
 
@@ -234,7 +238,8 @@ class Trainer(object):
 
     def train(self, render=False, profile=False):
         self.global_step = 0
-        self.episode_rewards = []
+        # self.episode_rewards = []
+        self.max_episode_reward = None
         self.training = True
         self.paused = False
 
@@ -333,7 +338,14 @@ class Trainer(object):
                         done = True
 
                 if done:
-                    self.episode_rewards.append(self.episode_reward)
+                    # self.episode_rewards.append(self.episode_reward)
+                    if self.max_episode_reward is None \
+                       or self.episode_reward > self.max_episode_reward:
+                        self.max_episode_reward = self.episode_reward
+
+                    # summary values
+                    self.summary.add_simple_value("max_episode_reward", self.max_episode_reward,
+                                                  "evaluate")
 
                     # optimize after episode
                     self.optimize()
@@ -354,7 +366,7 @@ class Trainer(object):
                 "Environment": self.project,
                 "Input": self.input,
                 "Output": self.output,
-                # TODO...
+                # TODO - get extra subclass stats
             }
         print()
         print_tabular(training_info, show_type=False)

@@ -18,7 +18,7 @@ class PolicyGradientTrainer(Trainer):
         loss = self.policy.get_fetch("loss", "evaluate")
         if loss is None:
             raise Exception(f"Policy ({self.policy}) does not define a 'loss' feed for 'evaluate'")
-        self.policy.summary_writer.add_scalar("loss", loss, "evaluate")
+        self.summary.add_scalar("loss", loss, "evaluate")
 
         # TODO - loss *= discounted_rewards
 
@@ -58,7 +58,7 @@ class PolicyGradientTrainer(Trainer):
         # if graph == "optimize" or graph == "evaluate":
         #     # should this be per epoch/episode instead of iteration?
         #     max_lr_step = 10
-        #     lr_decay = self.lr_decay ** max(self.iteration + 1 - max_lr_step, 0.0)
+        #     lr_decay = self.lr_decay ** max(self.global_step + 1 - max_lr_step, 0.0)
         #     learning_rate = self.learning_rate * lr_decay
         #     feed_map["lambda"] = learning_rate
 
@@ -73,7 +73,7 @@ class PolicyGradientTrainer(Trainer):
         # FIXME - should this be per epoch/episode instead of iteration?
         epsilon = self.epsilon
         if isinstance(epsilon, list):
-            t = min(1, self.iteration / epsilon[2])
+            t = min(1, self.global_step / epsilon[2])
             epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
 
         # get action
