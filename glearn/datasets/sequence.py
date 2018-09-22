@@ -77,6 +77,6 @@ class SequenceDataset(Dataset):
         # calculate this outside TF
         raw_epoch_size = ((len(raw_data) // batch_size) - 1) // timesteps
 
-        super().__init__("PTB", inputs=x, outputs=y, input_space=input_space,
+        super().__init__(name, inputs=x, outputs=y, input_space=input_space,
                          output_space=output_space, batch_size=batch_size,
                          epoch_size=raw_epoch_size)

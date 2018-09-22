@@ -1,6 +1,7 @@
 import os
 import shutil
 import tensorflow as tf
+from glearn.utils.subprocess_utils import shell_call
 
 
 SUMMARY_FETCH_ID = "__summary__"
@@ -16,12 +17,17 @@ class SummaryWriter(object):
         self.summary_fetches = {}
         self.writers = {}
 
-    def start(self, append=False, **kwargs):
+    def start(self, append=False, server=False, **kwargs):
         self.kwargs = kwargs
 
+        # prepare directory
         if not append:
             shutil.rmtree(self.path, ignore_errors=True)
         os.makedirs(self.path, exist_ok=True)
+
+        # prepare server
+        if server:
+            shell_call(["tensorboard", "--logdir", path])
 
     def stop(self):
         for _, writer in self.writers.items():

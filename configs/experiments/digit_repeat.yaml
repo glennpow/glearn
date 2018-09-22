@@ -1,11 +1,13 @@
---- # PTB
+--- # Digit Repeat
   include:
     - ../policies/rnn.yaml
     - ../trainers/policy_gradient.yaml
-  dataset: ptb
+  dataset: digit_repeat
 
-  optimizer: sgd
-  learning_rate: 1.0e-3
+  optimizer: adam
+  learning_rate: 2.0e-4
+  # optimizer: sgd
+  # learning_rate: 1.0e-3
   # learning_rate: 1
   # lr_decay: 0.93
   multithreaded: true
@@ -14,10 +16,10 @@
   timesteps: 35
   keep_prob: 0.5
   max_grad_norm: 5
-  evaluate_interval: 65
+  evaluate_interval: 10  # 65
 
   hidden_size: 650
-  hidden_depth: 2
+  hidden_depth: 1
 
   viewer:
     name: glearn.viewers:AdvancedViewer

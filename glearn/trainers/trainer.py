@@ -1,6 +1,5 @@
 import os
 import time
-import numpy as np
 import tensorflow as tf
 import pyglet
 from glearn.datasets.dataset import Transition, transition_batch
@@ -31,6 +30,12 @@ class Trainer(object):
         if self.rendering:
             self.init_viewer()
         self.init_optimizer()
+
+    def __str__(self):
+        properties = [
+            "supervised" if self.supervised else "reinforcement",
+        ]
+        return f"{type(self).__name__}({', '.join(properties)})"
 
     def log(self, *args):
         print(*args)
@@ -354,19 +359,21 @@ class Trainer(object):
     def print_info(self):
         if self.supervised:
             training_info = {
-                "Training Method": "Supervised",
+                "Trainer": self,
+                "Policy": self.policy,
                 "Dataset": self.dataset,
                 "Input": self.dataset.input,
                 "Output": self.dataset.output,
-                # TODO - get extra subclass stats
+                # TODO - get extra trainer and policy stats
             }
         else:
             training_info = {
-                "Training Method": "Reinforcement",
+                "Trainer": self,
+                "Policy": self.policy,
                 "Environment": self.project,
                 "Input": self.input,
                 "Output": self.output,
-                # TODO - get extra subclass stats
+                # TODO - get extra trainer and policy stats
             }
         print()
         print_tabular(training_info, show_type=False)

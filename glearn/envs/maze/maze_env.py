@@ -18,9 +18,9 @@ class MazeEnv(gym.Env):
         self.viewer = None
 
         if maze_file:
-            self.maze_view = MazeView2D(maze_name="OpenAI Gym - Maze (%s)" % maze_file,
-                                        maze_file_path=maze_file,
-                                        screen_size=(640, 640))
+            self.viewer = MazeView2D(maze_name="OpenAI Gym - Maze (%s)" % maze_file,
+                                     maze_file_path=maze_file,
+                                     screen_size=(640, 640))
         elif maze_size:
             if gen_mode == "plus":
                 has_loops = True
@@ -29,14 +29,14 @@ class MazeEnv(gym.Env):
                 has_loops = False
                 num_portals = 0
 
-            self.maze_view = MazeView2D(maze_name=f"OpenAI Gym - Maze ({maze_size})",
-                                        maze_size=maze_size, screen_size=(640, 640),
-                                        has_loops=has_loops, num_portals=num_portals)
+            self.viewer = MazeView2D(maze_name=f"OpenAI Gym - Maze ({maze_size})",
+                                     maze_size=maze_size, screen_size=(640, 640),
+                                     has_loops=has_loops, num_portals=num_portals)
         else:
             raise AttributeError("One must supply either a maze_file path (str) "
                                  "or the maze_size (tuple of length 2)")
 
-        self.maze_size = self.maze_view.maze_size
+        self.maze_size = self.viewer.maze_size
 
         # forward or backward in each dimension
         self.action_space = spaces.Discrete(2 * len(self.maze_size))
@@ -68,7 +68,7 @@ class MazeEnv(gym.Env):
         self._configure()
 
     def __del__(self):
-        self.maze_view.quit_game()
+        self.viewer.quit_game()
 
     def _configure(self, display=None):
         self.display = display
@@ -78,9 +78,9 @@ class MazeEnv(gym.Env):
         return [seed]
 
     def step(self, action):
-        self.maze_view.move_robot(self.ACTION[action])
+        self.viewer.move_robot(self.ACTION[action])
 
-        if np.array_equal(self.maze_view.robot, self.maze_view.goal):
+        if np.array_equal(self.viewer.robot, self.viewer.goal):
             reward = 1
             done = True
         else:
@@ -88,11 +88,11 @@ class MazeEnv(gym.Env):
             done = False
 
         if self.obs_coord:
-            self.state = self.maze_view.robot
+            self.state = self.viewer.robot
         else:
             self.state = []
         if self.obs_walls:
-            walls = [1 if self.maze_view.can_move_robot(dir) else 0 for dir in self.ACTION]
+            walls = [1 if self.viewer.can_move_robot(dir) else 0 for dir in self.ACTION]
             self.state = np.append(self.state, walls)
 
         info = {}
@@ -100,20 +100,20 @@ class MazeEnv(gym.Env):
         return self.state, reward, done, info
 
     def reset(self):
-        self.maze_view.reset_robot()
+        self.viewer.reset_robot()
         self.state = np.zeros(self.observation_space.shape)
         self.steps_beyond_done = None
         self.done = False
         return self.state
 
     def is_game_over(self):
-        return self.maze_view.game_over
+        return self.viewer.game_over
 
     def render(self, mode="human", close=False):
         if close:
-            self.maze_view.quit_game()
+            self.viewer.quit_game()
 
-        return self.maze_view.update(mode)
+        return self.viewer.render(mode)
 
 
 class MazeEnvSample5x5(MazeEnv):

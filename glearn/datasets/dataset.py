@@ -43,7 +43,7 @@ class Dataset(object):
 
         # this should be provided, otherwise it is inferred from inputs
         if epoch_size is None:
-            self.epoch_size = len(inputs)
+            self.epoch_size = len(inputs) // batch_size
         else:
             self.epoch_size = epoch_size
         self.total_samples = self.epoch_size * self.batch_size

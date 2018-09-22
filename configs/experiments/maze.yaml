@@ -1,16 +1,18 @@
 --- # Maze
   include:
-    - ../policies/policy_gradient.yaml
-    # - ../policies/rnn.yaml
-    - ../methods/reinforcement.yaml
+    - ../policies/nn.yaml
+    - ../trainers/policy_gradient.yaml
   env:
     name: glearn.envs.maze:MazeEnv
     args:
       maze_size: [10, 10]
-  episodes: 1000
+
+  optimizer: adam
+  learning_rate: 2.0e-4
+  episodes: 5000
   batch_size: 128
-  evaluate_interval: 1
   epsilon: [1, .1, 100]
+  evaluate_interval: 1
 
   # HACK
   # policy: glearn.policies:RandomPolicy

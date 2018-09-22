@@ -66,7 +66,7 @@ class MazeView2D:
         # show the goal
         self.__draw_goal()
 
-    def update(self, mode="human"):
+    def render(self, mode="human"):
         try:
             img_output = self.__view_update(mode)
             self.__controller_update()

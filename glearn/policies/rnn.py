@@ -33,8 +33,8 @@ class RNNPolicy(Policy):
             inputs, outputs = self.create_default_feeds()
 
             # TODO - add new graph "render" or "debug" for all this crap
-            self.set_fetch("X", inputs, "evaluate")
-            self.set_fetch("Y", outputs, "evaluate")
+            self.set_fetch("X", inputs, ["evaluate", "debug"])
+            self.set_fetch("Y", outputs, ["evaluate", "debug"])
 
             # learning_rate = tf.placeholder(tf.float32, (), name="lambda")
             # self.set_feed("lambda", learning_rate, ["optimize", "evaluate"])
@@ -61,7 +61,6 @@ class RNNPolicy(Policy):
 
         # define lstm cell(s)
         cell_args = {}
-        # cell_args.update(DEFAULT_LSTM_CELL_ARGS)
         if self.cell_args is not None:
             cell_args.update(self.cell_args)
         cell = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, **cell_args)

@@ -21,6 +21,12 @@ class Policy(object):
         self.init_summaries()
         self.init_model()
 
+    def __str__(self):
+        properties = [
+            "multi-threaded" if self.multithreaded else "single-threaded",
+        ]
+        return f"{type(self).__name__}({', '.join(properties)})"
+
     def log(self, *args):
         print(*args)
 
@@ -81,6 +87,9 @@ class Policy(object):
             # start thread queue
             self.coord = tf.train.Coordinator()
             self.threads = tf.train.start_queue_runners(coord=self.coord, sess=sess)
+
+            num_threads = len(self.threads)
+            print(f"Started training threads: {num_threads}")
 
     def stop_threading(self, sess):
         if self.multithreaded:
