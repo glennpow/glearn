@@ -169,18 +169,18 @@ class AdvancedViewer(object):
             # blit image
             image.blit(x, y, width=width, height=height)
 
-        # draw custom labels (such advanced viewing!)
+        # draw custom labels
         for label in self.labels.values():
             # apply zoom
-            base = (label.x, label.y, label.font_size)
+            base = (label.x, label.y, label.font_size, label.width, label.height)
             label.x *= self.zoom
             label.y *= self.zoom
+            label.width = label.width * self.zoom if label.width is not None else None
+            label.height = label.height * self.zoom if label.height is not None else None
             label.font_size *= self.zoom
 
             label.draw()
 
-            label.x = base[0]
-            label.y = base[1]
-            label.font_size = base[2]
+            label.x, label.y, label.font_size, label.width, label.height = base
 
         self.window.flip()

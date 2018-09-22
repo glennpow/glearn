@@ -95,7 +95,7 @@ class RNNPolicy(Policy):
         with tf.name_scope('predict'):
             predict = tf.cast(tf.argmax(layer, axis=1), tf.int32)
             batched_predict = tf.reshape(predict, [self.batch_size, self.timesteps])
-            self.set_fetch("predict", batched_predict, ["predict", "evaluate"])
+            self.set_fetch("predict", batched_predict, ["predict", "debug"])
 
             correct_prediction = tf.equal(predict, tf.reshape(outputs, [-1]))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -164,7 +164,7 @@ class RNNPolicy(Policy):
             self.viewer.set_main_image(values)
 
         # show labels with targets/predictions
-        num_labels = 5
+        num_labels = 1
         input = self.output.decode(results["X"])
         input_batch = self.vocabulary.decode(input[:num_labels])
         target = self.output.decode(results["Y"])
