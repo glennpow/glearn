@@ -116,7 +116,7 @@ class RNNPolicy(Policy):
         # remember final state
         self.final_state = state
 
-    def prepare_feeds(self, graph, data, feed_map):
+    def prepare_default_feeds(self, graph, feed_map):
         feed_map["dropout"] = 1
         return feed_map
 

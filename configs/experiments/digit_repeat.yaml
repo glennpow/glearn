@@ -16,7 +16,7 @@
   timesteps: 35
   keep_prob: 0.5
   max_grad_norm: 5
-  evaluate_interval: 10  # 65
+  evaluate_interval: 6
 
   hidden_size: 650
   hidden_depth: 1
