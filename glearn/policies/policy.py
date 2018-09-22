@@ -203,7 +203,7 @@ class Policy(object):
 
     def start_summaries(self, sess):
         if self.summary is not None:
-            self.summary.start(graph=sess.graph)
+            self.summary.start(graph=sess.graph, server=self.debugging)
 
     def stop_summaries(self, sess):
         if self.summary is not None:

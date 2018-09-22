@@ -1,5 +1,6 @@
 import os
 import time
+import atexit
 import tensorflow as tf
 import pyglet
 from glearn.datasets.dataset import Transition, transition_batch
@@ -271,14 +272,16 @@ class Trainer(object):
             # start TF session
             self.start_session()
 
+            # cleanup TF session
+            def cleanup():
+                self.stop_session()
+            atexit.register(cleanup)
+
             # do supervised or reinforcement loop
             if self.supervised:
                 self.train_supervised_loop(train_yield)
             else:
                 self.train_reinforcement_loop(train_yield)
-
-            # stop TF session
-            self.stop_session()
 
         if profile:
             # profile training loop

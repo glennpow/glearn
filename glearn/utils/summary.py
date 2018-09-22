@@ -1,7 +1,8 @@
 import os
 import shutil
+import atexit
 import tensorflow as tf
-from glearn.utils.subprocess_utils import shell_call
+from subprocess import Popen
 
 
 SUMMARY_FETCH_ID = "__summary__"
@@ -16,6 +17,12 @@ class SummaryWriter(object):
         self.summaries = {}
         self.summary_fetches = {}
         self.writers = {}
+        self.server = None
+
+        # cleanup
+        def cleanup():
+            self.stop()
+        atexit.register(cleanup)
 
     def start(self, append=False, server=False, **kwargs):
         self.kwargs = kwargs
@@ -27,12 +34,19 @@ class SummaryWriter(object):
 
         # prepare server
         if server:
-            shell_call(["tensorboard", "--logdir", path])
+            command = ["tensorboard", "--logdir", self.path]
+            self.server = Popen(command)
+            print(f"Started tensorboard server with PID: {self.server.pid}")
 
     def stop(self):
         for _, writer in self.writers.items():
             writer.close()
         self.writers = {}
+
+        # stop server
+        if self.server is not None:
+            self.server.terminate()
+            self.server = None
 
     def add_simple_value(self, name, value, family=None):
         if family in self.simple_values:
