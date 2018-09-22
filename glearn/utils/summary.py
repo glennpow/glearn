@@ -1,6 +1,5 @@
 import os
 import shutil
-import atexit
 import tensorflow as tf
 from subprocess import Popen
 
@@ -18,11 +17,6 @@ class SummaryWriter(object):
         self.summary_fetches = {}
         self.writers = {}
         self.server = None
-
-        # cleanup
-        def cleanup():
-            self.stop()
-        atexit.register(cleanup)
 
     def start(self, append=False, server=False, **kwargs):
         self.kwargs = kwargs
