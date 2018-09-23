@@ -9,17 +9,20 @@ from glearn.utils.profile import open_profile
 
 
 class Trainer(object):
-    def __init__(self, config, policy):
+    def __init__(self, config, policy,
+                 seed=0, epochs=100, episodes=1000, max_episode_time=None,
+                 min_episode_reward=None, evaluate_interval=10):
         self.config = config
         self.policy = policy
 
-        self.batch_size = config.get("batch_size", 1)
-        self.seed = config.get("seed", 0)
-        self.epochs = self.config.get("epochs", 100)
-        self.episodes = self.config.get("episodes", 1000)
-        self.max_episode_time = self.config.get("max_episode_time", None)
-        self.min_episode_reward = self.config.get("min_episode_reward", None)
-        self.evaluate_interval = self.config.get("evaluate_interval", 10)
+        self.batch_size = config.get("batch_size", 1)  # TODO - get from dataset/env?
+
+        self.seed = seed
+        self.epochs = epochs
+        self.episodes = episodes
+        self.max_episode_time = max_episode_time
+        self.min_episode_reward = min_episode_reward
+        self.evaluate_interval = evaluate_interval
 
         self.global_step = 0
         self.epoch_step = 0
@@ -179,9 +182,7 @@ class Trainer(object):
             return batch, feed_map
 
     def optimize(self):
-        """
-        Optimize/evaluate using a supervised or unsupervised batch
-        """
+        # Optimize/evaluate using a supervised or unsupervised batch
         self.global_step += 1
         self.evaluating = self.global_step % self.evaluate_interval == 0
 

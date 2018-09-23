@@ -7,7 +7,7 @@ class Policy(object):
     def __init__(self, config):
         self.config = config
 
-        self.multithreaded = config.get("multithreaded", False)
+        self.multithreaded = config.get("multithreaded", False)  # TODO get this from dataset
 
         self.feeds = {}
         self.fetches = {}

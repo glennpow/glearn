@@ -4,14 +4,17 @@ from glearn.trainers.trainer import Trainer
 
 
 class PolicyGradientTrainer(Trainer):
-    def __init__(self, config, policy):
+    def __init__(self, config, policy,
+                 optimizer="sgd", learning_rate=1e-3, epsilon=0, keep_prob=1, max_grad_norm=None,
+                 **kwargs):
         # get basic params
-        self.learning_rate = config.get("learning_rate", 1e-3)  # lambda λ
-        # self.lr_decay = config.get("lr_decay", .95)
-        self.epsilon = config.get("epsilon", 0)
-        self.keep_prob = config.get("keep_prob", 1)
+        self.optimizer = optimizer
+        self.learning_rate = learning_rate  # lambda λ
+        self.epsilon = epsilon
+        self.keep_prob = keep_prob
+        self.max_grad_norm = max_grad_norm
 
-        super().__init__(config, policy)
+        super().__init__(config, policy, **kwargs)
 
     def init_optimizer(self):
         # get loss from policy
@@ -20,27 +23,26 @@ class PolicyGradientTrainer(Trainer):
             raise Exception(f"Policy ({self.policy}) does not define a 'loss' feed for 'evaluate'")
         self.summary.add_scalar("loss", loss, "evaluate")
 
-        # TODO - loss *= discounted_rewards
+        # TODO - loss *= discounted_rewards (gamma)
 
         # minimize loss
         with tf.name_scope('optimize'):
             # create optimizer
-            optimizer_name = self.config.get("optimizer", "sgd")
-            if optimizer_name == "sgd":
+            if self.optimizer == "sgd":
                 optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
 
                 # self.policy.set_fetch("learning_rate", optimizer._learning_rate, "debug")
-            elif optimizer_name == "adam":
+            elif self.optimizer == "adam":
                 optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
 
                 # TODO - this is only populated later, for some reason
                 # self.policy.set_fetch("learning_rate", optimizer._lr_t, "debug")
             else:
-                raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
+                raise Exception(f"Unknown optimizer type specified in config: {self.optimizer}")
             global_step = tf.train.get_or_create_global_step()
 
             # apply gradients, with any configured clipping
-            max_grad_norm = self.config.get("max_grad_norm", None)
+            max_grad_norm = self.max_grad_norm
             if max_grad_norm is None:
                 # apply unclipped gradients
                 optimize = optimizer.minimize(loss, global_step=global_step)

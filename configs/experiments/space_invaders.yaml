@@ -1,15 +1,18 @@
 --- # Space Invaders
-  include:
-    - ../policies/cnn.yaml
-    - ../trainers/policy_gradient.yaml
   env: SpaceInvaders-v0
-  
-  optimizer: adam
-  learning_rate: 2.0e-4
-  episodes: 5000
   batch_size: 128
-  keep_prob: 0.8
-  evaluate_interval: 1
+    
+  policy:
+    name: glearn.policies:CNNPolicy
+
+  trainer:
+    name: glearn.trainers:PolicyGradientTrainer
+    args:
+      optimizer: adam
+      learning_rate: 2.0e-4
+      episodes: 5000
+      keep_prob: 0.8
+      evaluate_interval: 1
 
   viewer:
     name: glearn.viewers:AdvancedViewer

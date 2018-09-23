@@ -4,18 +4,18 @@ from glearn.policies.policy import Policy
 
 
 class RNNPolicy(Policy):
-    def __init__(self, config):
-        self.keep_prob = config.get("keep_prob", 1)
-        self.batch_size = config.get("batch_size", 1)
+    def __init__(self, config,
+                 hidden_sizes=[128], keep_prob=1, cell_args={"forget_bias": 1}, **kwargs):
+        self.hidden_sizes = hidden_sizes
+        self.keep_prob = keep_prob
+        self.cell_args = cell_args
 
-        self.hidden_size = config.get("hidden_size", 128)
-        self.hidden_depth = config.get("hidden_depth", 1)
-        self.cell_args = config.get("cell_args", None)
+        self.batch_size = config.get("batch_size", 1)  # TODO - from dataset/env?
 
         self.visualize_embeddings = False  # HACK - expose these?
         self.visualize_embedded = False  # HACK
 
-        super().__init__(config)
+        super().__init__(config, **kwargs)
 
         self.init_visualize()
 
@@ -32,19 +32,15 @@ class RNNPolicy(Policy):
         with tf.name_scope('feeds'):
             inputs, outputs = self.create_default_feeds()
 
-            # TODO - add new graph "render" or "debug" for all this crap
             self.set_fetch("X", inputs, ["evaluate", "debug"])
             self.set_fetch("Y", outputs, ["evaluate", "debug"])
-
-            # learning_rate = tf.placeholder(tf.float32, (), name="lambda")
-            # self.set_feed("lambda", learning_rate, ["optimize", "evaluate"])
 
             dropout = tf.placeholder(tf.float32, (), name="dropout")
             self.set_feed("dropout", dropout)
 
         # process inputs into embeddings
         with tf.device("/cpu:0"):
-            embedding = tf.get_variable("embedding", [self.vocabulary.size, self.hidden_size],
+            embedding = tf.get_variable("embedding", [self.vocabulary.size, self.hidden_sizes[0]],
                                         # dtype=tf.float32,
                                         initializer=scaled_init)
             inputs = tf.nn.embedding_lookup(embedding, inputs)
@@ -63,11 +59,18 @@ class RNNPolicy(Policy):
         cell_args = {}
         if self.cell_args is not None:
             cell_args.update(self.cell_args)
-        cell = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, **cell_args)
-        if self.keep_prob < 1:
-            cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=dropout)
-        if self.hidden_depth > 1:
-            cell = tf.contrib.rnn.MultiRNNCell([cell] * self.hidden_depth)
+        if len(self.hidden_sizes) == 1:
+            cell = tf.contrib.rnn.BasicLSTMCell(self.hidden_sizes[0], **cell_args)
+            if self.keep_prob < 1:
+                cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=dropout)
+        else:
+            cells = []
+            for hidden_size in self.hidden_sizes:
+                cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, **cell_args)
+                if self.keep_prob < 1:
+                    cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=dropout)
+                cells.append(cell)
+            cell = tf.contrib.rnn.MultiRNNCell(cells)
 
         # prepare lstm state
         initial_state = cell.zero_state(self.batch_size, dtype=tf.float32)
@@ -87,8 +90,8 @@ class RNNPolicy(Policy):
         # layer = outputs
 
         # create output layer
-        layer = tf.reshape(tf.concat(layer, 1), [-1, self.hidden_size])
-        layer, info = self.add_fc(layer, self.hidden_size, self.vocabulary.size,
+        layer = tf.reshape(tf.concat(layer, 1), [-1, self.hidden_sizes[-1]])
+        layer, info = self.add_fc(layer, self.hidden_sizes[-1], self.vocabulary.size,
                                   activation=tf.nn.softmax, initializer=scaled_init)
 
         # calculate prediction and accuracy

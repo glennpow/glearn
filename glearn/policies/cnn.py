@@ -5,20 +5,22 @@ from glearn.policies.policy import Policy
 
 
 class CNNPolicy(Policy):
-    def __init__(self, config):
-        self.filters = config.get("filters", [(5, 5, 32), (5, 5, 64)])
-        self.strides = config.get("strides", 1)
-        self.padding = config.get("padding", "SAME")
-        self.max_pool_k = config.get("max_pool_k", 2)
+    def __init__(self, config,
+                 filters=[(5, 5, 32), (5, 5, 64)], strides=1, padding="SAME", max_pool_k=2,
+                 hidden_sizes=[3136, 1024], visualize_grid=[1, 1], **kwargs):
+        self.filters = filters
+        self.strides = strides
+        self.padding = padding
+        self.max_pool_k = max_pool_k
 
-        self.fc_layers = config.get("fc_layers", [7 * 7 * 64, 1024])
+        self.hidden_sizes = hidden_sizes
 
-        self.visualize_grid = config.get("visualize_grid", [1, 1])
+        self.visualize_grid = visualize_grid
         self.visualize_graph = None
         self.visualize_layer = None
         self.visualize_feature = None
 
-        super().__init__(config)
+        super().__init__(config, **kwargs)
 
         self.init_visualize()
 
@@ -29,9 +31,6 @@ class CNNPolicy(Policy):
 
             dropout = tf.placeholder(tf.float32, (), name="dropout")
             self.set_feed("dropout", dropout)
-
-            # gamma = tf.placeholder(tf.float32, (None, ), name="gamma")
-            # self.set_feed("gamma", gamma, ["optimize", "evaluate"])
 
         # prepare inputs
         # inputs = tf.reshape(inputs, shape=[-1, 28, 28, 1])  # TODO - pass/infer dimensions arg?
@@ -49,8 +48,8 @@ class CNNPolicy(Policy):
 
         # create fully connected layers
         input_size = np.prod(layer.shape[1:])
-        for i, fc_size in enumerate(self.fc_layers):
-            layer, info = self.add_fc(layer, input_size, fc_size, reshape=i == 0,
+        for i, hidden_size in enumerate(self.hidden_sizes):
+            layer, info = self.add_fc(layer, input_size, hidden_size, reshape=i == 0,
                                       keep_prob=dropout)
             input_size = layer.shape[1]
 

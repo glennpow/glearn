@@ -1,0 +1,14 @@
+--- # Pendulum
+  env: Pendulum-v0
+
+  # TODO
+
+  optimizer: adam
+  learning_rate: 2.0e-4
+  episodes: 5000
+  batch_size: 128
+  keep_prob: 0.8
+  epsilon: [1, 0.1, 10]
+  evaluate_interval: 1
+
+  

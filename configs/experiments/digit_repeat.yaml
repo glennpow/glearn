@@ -1,25 +1,23 @@
 --- # Digit Repeat
-  include:
-    - ../policies/rnn.yaml
-    - ../trainers/policy_gradient.yaml
   dataset: digit_repeat
-
-  optimizer: adam
-  learning_rate: 2.0e-4
-  # optimizer: sgd
-  # learning_rate: 1.0e-3
-  # learning_rate: 1
-  # lr_decay: 0.93
-  multithreaded: true
-  epochs: 60
   batch_size: 20
   timesteps: 35
-  keep_prob: 0.5
-  max_grad_norm: 5
-  evaluate_interval: 6
+  multithreaded: true
 
-  hidden_size: 650
-  hidden_depth: 1
+  policy:
+    name: glearn.policies:RNNPolicy
+    args:
+      hidden_sizes: [128]
+
+  trainer:
+    name: glearn.trainers:PolicyGradientTrainer
+    args:
+      optimizer: adam
+      learning_rate: 2.0e-4
+      epochs: 60
+      keep_prob: 0.5
+      max_grad_norm: 5
+      evaluate_interval: 6
 
   viewer:
     name: glearn.viewers:AdvancedViewer
