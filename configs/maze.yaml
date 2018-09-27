@@ -8,10 +8,11 @@
   policy:
     name: glearn.policies:NetworkPolicy
     args:
-      layers:
-        - name: glearn.network:FullyConnectedLayer
-          args:
-            hidden_sizes: [128, 128]
+      network:
+        layers:
+          - name: glearn.networks:FullyConnectedLayer
+            args:
+              hidden_sizes: [128, 128]
   # policy: glearn.policies:RandomPolicy  # HACK
 
   trainer:

@@ -3,9 +3,9 @@ from .layer import NetworkLayer
 
 
 class Conv2dLayer(NetworkLayer):
-    def __init__(self, index, filters, input_channels=None, strides=1, max_pool_k=2,
+    def __init__(self, network, index, filters, input_channels=None, strides=1, max_pool_k=2,
                  padding="SAME", activation=tf.nn.relu, initializer=None):
-        super().__init__(index)
+        super().__init__(network, index)
 
         self.filters = filters
         self.input_channels = input_channels
@@ -15,12 +15,12 @@ class Conv2dLayer(NetworkLayer):
         self.activation = activation
         self.initializer = initializer
 
-    def build(self, policy, inputs, outputs=None):
+    def build(self, inputs, outputs=None):
         # get variables
-        dropout = policy.get_feed("dropout")
+        dropout = self.context.get_feed("dropout")
         if dropout is None:
             dropout = tf.placeholder(tf.float32, (), name="dropout")
-            policy.set_feed("dropout", dropout)
+            self.context.set_feed("dropout", dropout)
 
         # initializer
         initializer_seed = 1
@@ -73,6 +73,7 @@ class Conv2dLayer(NetworkLayer):
         if outputs is None:
             return x
 
+        # TODO - could extract loss components from layers, and share them
         raise Exception("No evaluation logic available for CNN")
 
     def prepare_default_feeds(self, graphs, feed_map):

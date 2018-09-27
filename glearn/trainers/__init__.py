@@ -6,11 +6,11 @@ from .policy_gradient import PolicyGradientTrainer  # noqa
 
 
 def load_trainer(config, policy):
-    name = config.get("trainer", None)
-    if name is None:
+    definition = config.get("trainer", None)
+    if definition is None:
         print("No trainer configured, using default.")
         return Trainer(config, policy)
 
-    TrainerClass = get_class(name)
+    TrainerClass = get_class(definition)
 
     return TrainerClass(config, policy)

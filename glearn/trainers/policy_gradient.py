@@ -4,12 +4,8 @@ from glearn.trainers.trainer import Trainer
 
 
 class PolicyGradientTrainer(Trainer):
-    def __init__(self, config, policy,
-                 optimizer="sgd", learning_rate=1e-3, epsilon=0, keep_prob=1, max_grad_norm=None,
-                 **kwargs):
+    def __init__(self, config, policy, epsilon=0, keep_prob=1, max_grad_norm=None, **kwargs):
         # get basic params
-        self.optimizer = optimizer
-        self.learning_rate = learning_rate  # lambda λ
         self.epsilon = epsilon
         self.keep_prob = keep_prob
         self.max_grad_norm = max_grad_norm
@@ -17,29 +13,12 @@ class PolicyGradientTrainer(Trainer):
         super().__init__(config, policy, **kwargs)
 
     def init_optimizer(self):
-        # get loss from policy
-        loss = self.policy.get_fetch("loss", "evaluate")
-        if loss is None:
-            self.error(f"Policy ({self.policy}) does not define a 'loss' feed for 'evaluate'")
-            return
-        self.summary.add_scalar("loss", loss, "evaluate")
-
-        # TODO - loss *= discounted_rewards (gamma)
+        # get policy loss
+        loss = self.get_loss()
 
         # minimize loss
         with tf.name_scope('optimize'):
-            # create optimizer
-            if self.optimizer == "sgd":
-                optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
-
-                # self.policy.set_fetch("learning_rate", optimizer._learning_rate, "debug")
-            elif self.optimizer == "adam":
-                optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
-
-                # TODO - this is only populated later, for some reason
-                # self.policy.set_fetch("learning_rate", optimizer._lr_t, "debug")
-            else:
-                raise Exception(f"Unknown optimizer type specified in config: {self.optimizer}")
+            optimizer = self.load_optimizer()
             global_step = tf.train.get_or_create_global_step()
 
             # apply gradients, with any configured clipping
@@ -57,13 +36,6 @@ class PolicyGradientTrainer(Trainer):
 
     def prepare_feeds(self, graphs, feed_map):
         feed_map = super().prepare_feeds(graphs, feed_map)
-
-        # if graph == "optimize" or graph == "evaluate":
-        #     # should this be per epoch/episode instead of iteration?
-        #     max_lr_step = 10
-        #     lr_decay = self.lr_decay ** max(self.global_step + 1 - max_lr_step, 0.0)
-        #     learning_rate = self.learning_rate * lr_decay
-        #     feed_map["lambda"] = learning_rate
 
         if "optimize" in graphs:
             feed_map["dropout"] = self.keep_prob

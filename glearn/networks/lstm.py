@@ -3,9 +3,9 @@ from .layer import NetworkLayer
 
 
 class LSTMLayer(NetworkLayer):
-    def __init__(self, index, hidden_sizes=[128], cell_args={"forget_bias": 1},
+    def __init__(self, network, index, hidden_sizes=[128], cell_args={"forget_bias": 1},
                  embedding_lookup=False, activation=tf.nn.relu, initializer=None):
-        super().__init__(index)
+        super().__init__(network, index)
 
         self.hidden_sizes = hidden_sizes
         self.cell_args = cell_args
@@ -13,18 +13,18 @@ class LSTMLayer(NetworkLayer):
         self.activation = activation
         self.initializer = initializer
 
-    def build(self, policy, inputs, outputs=None):
+    def build(self, inputs, outputs=None):
         # get variables
-        dropout = policy.get_feed("dropout")
+        dropout = self.context.get_feed("dropout")
         if dropout is None:
             dropout = tf.placeholder(tf.float32, (), name="dropout")
-            policy.set_feed("dropout", dropout)
+            self.context.set_feed("dropout", dropout)
 
         # get configs
-        batch_size = policy.config.get("batch_size", 1)
-        timesteps = policy.config.get("timesteps", 1)
-        # timesteps = policy.input.shape[0]
-        vocabulary_size = policy.dataset.vocabulary.size  # HACK
+        batch_size = self.context.config.get("batch_size", 1)
+        timesteps = self.context.config.get("timesteps", 1)
+        # timesteps = self.context.input.shape[0]
+        vocabulary_size = self.context.dataset.vocabulary.size  # FIXME - ...better way of exposing
 
         # initializer
         initializer_seed = 1
@@ -49,9 +49,9 @@ class LSTMLayer(NetworkLayer):
                 visualize_embedded = False  # HACK - expose
                 visualize_embeddings = False
                 if visualize_embedded:
-                    policy.set_fetch("embedded", x, "debug")
+                    self.context.set_fetch("embedded", x, "debug")
                 if visualize_embeddings:
-                    policy.set_fetch("embedding", embedding, "debug")
+                    self.context.set_fetch("embedding", embedding, "debug")
 
         # first dropout here
         x = tf.nn.dropout(x, dropout)
@@ -89,11 +89,11 @@ class LSTMLayer(NetworkLayer):
         with tf.name_scope('predict'):
             predict = tf.cast(tf.argmax(y, axis=1), tf.int32)
             batched_predict = tf.reshape(predict, [batch_size, timesteps])
-            policy.set_fetch("predict", batched_predict, ["predict", "debug"])
+            self.context.set_fetch("predict", batched_predict, ["predict", "debug"])
 
             correct_prediction = tf.equal(predict, tf.reshape(outputs, [-1]))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-            policy.set_fetch("accuracy", accuracy, "evaluate")
+            self.context.set_fetch("accuracy", accuracy, "evaluate")
 
         # calculate loss and cost
         with tf.name_scope('loss'):
@@ -103,10 +103,10 @@ class LSTMLayer(NetworkLayer):
             sequence_loss = tf.contrib.seq2seq.sequence_loss(logits, outputs, weights,
                                                              average_across_timesteps=False,
                                                              average_across_batch=True)
-            policy.set_fetch("sequence_loss", sequence_loss, "evaluate")
+            self.context.set_fetch("sequence_loss", sequence_loss, "evaluate")
 
             loss = tf.reduce_sum(sequence_loss)
-            policy.set_fetch("loss", loss, "evaluate")
+            self.context.set_fetch("loss", loss, "evaluate")
         return y
 
     def fully_connected(self, x, index, hidden_size, dropout, activation):

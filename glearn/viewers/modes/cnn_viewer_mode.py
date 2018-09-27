@@ -15,14 +15,15 @@ class CNNViewerMode(ViewerMode):
     def prepare(self, trainer):
         super().prepare(trainer)
 
+        network = self.policy.network
         self.filters = self.config.find("filters")
-        count = self.policy.get_layer_count("Conv2dLayer")
+        count = network.get_layer_count("Conv2dLayer")
         n = 0
         for i in range(count):
-            layer = self.policy.get_layer("Conv2dLayer", i)
+            layer = network.get_layer("Conv2dLayer", i)
             features = layer.references["features"]
             for f in features:
-                self.policy.set_fetch(f"conv2d_{n}", f, "debug")
+                network.context.set_fetch(f"conv2d_{n}", f, "debug")
                 n += 1
 
     def view_results(self, graphs, feed_map, results):

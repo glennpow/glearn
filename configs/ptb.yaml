@@ -7,11 +7,12 @@
   policy:
     name: glearn.policies:NetworkPolicy
     args:
-      layers:
-        - name: glearn.network:LSTMLayer
-          args:
-            hidden_sizes: [650]
-            embedding_lookup: true
+      network:
+        layers:
+          - name: glearn.networks:LSTMLayer
+            args:
+              hidden_sizes: [650]
+              embedding_lookup: true
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer

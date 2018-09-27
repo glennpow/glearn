@@ -5,10 +5,11 @@
   policy:
     name: glearn.policies:NetworkPolicy
     args:
-      layers:
-        - name: glearn.network:FullyConnectedLayer
-          args:
-            hidden_sizes: [256, 256]
+      network:
+        layers:
+          - name: glearn.networks:FullyConnectedLayer
+            args:
+              hidden_sizes: [256, 256]
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer

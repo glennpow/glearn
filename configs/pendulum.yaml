@@ -2,26 +2,23 @@
   env: Pendulum-v0
   batch_size: 128
 
-  # policy:
-  #   name: glearn.policies:NetworkPolicy
-  #   args:
-  #     layers:
-  #       - name: glearn.network:FullyConnectedLayer
-  #         args:
-  #           hidden_sizes: [128, 128]
-  policy: glearn.policies:RandomPolicy  # HACK
+  policy:
+    name: glearn.policies:NetworkPolicy
+    args:
+      network:
+        layers:
+          - name: glearn.networks:FullyConnectedLayer
+            args:
+              hidden_sizes: [128, 128]
 
   trainer:
-    # name: glearn.trainers:ActorCriticTrainer
-    name: glearn.trainers:PolicyGradientTrainer
+    name: glearn.trainers:ActorCriticTrainer
     args:
-      # critic:
-      #   name: glearn.policies:NetworkPolicy
-      #   args:
-      #     layers:
-      #       - name: glearn.network:FullyConnectedLayer
-      #         args:
-      #           hidden_sizes: [128, 128]
+      critic:
+        layers:
+          - name: glearn.networks:FullyConnectedLayer
+            args:
+              hidden_sizes: [128, 128]
       optimizer: adam
       learning_rate: 2.0e-4
       episodes: 5000

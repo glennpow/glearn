@@ -5,13 +5,14 @@
   policy:
     name: glearn.policies:NetworkPolicy
     args:
-      layers:
-        - name: glearn.network:Conv2dLayer
-          args:
-            filters: [[5, 5, 32], [5, 5, 64]]
-        - name: glearn.network:FullyConnectedLayer
-          args:
-            hidden_sizes: [3136, 1024]
+      network:
+        layers:
+          - name: glearn.networks:Conv2dLayer
+            args:
+              filters: [[5, 5, 32], [5, 5, 64]]
+          - name: glearn.networks:FullyConnectedLayer
+            args:
+              hidden_sizes: [3136, 1024]
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer

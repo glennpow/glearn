@@ -1,50 +1,46 @@
 import tensorflow as tf
 from glearn.trainers.trainer import Trainer
+from glearn.networks import load_network
 
 
 class ActorCriticTrainer(Trainer):
-    def __init__(self, config, policy):
+    def __init__(self, config, policy, critic, **kwargs):
         # get basic params
-        self.learning_rate = config.get("learning_rate", 1e-3)  # lambda λ
-        self.keep_prob = config.get("keep_prob", 1)
+        self.critic_definition = critic
 
-        super().__init__(config, policy)
+        super().__init__(config, policy, **kwargs)
 
     def init_optimizer(self):
-        # # get loss from policy
-        # loss = self.policy.get_fetch("loss", "evaluate")
-        # if loss is None:
-        #     raise Exception(f"Policy ({self.policy}) does not define a 'loss' feed for 'evaluate'")
-        # self.summary.add_scalar("loss", loss, "evaluate")
+        assert hasattr(self.policy, "network")
+        policy_definition = self.config.get("policy")
+        self.target_network = load_network(self.policy, policy_definition)
 
-        # # TODO - loss *= discounted_rewards
+        self.critic_network = load_network(self.policy, self.critic_definition)
+        self.critic.build
+        critic_loss = self.critic.get_fetch("loss", "evaluate")
 
-        # # minimize loss
-        # with tf.name_scope('optimize'):
-        #     # create optimizer
-        #     optimizer_name = self.config.get("optimizer", "sgd")
-        #     if optimizer_name == "sgd":
-        #         optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
+        # get policy loss
+        loss = self.get_loss()
 
-        #         # self.policy.set_fetch("learning_rate", optimizer._learning_rate, "debug")
-        #     elif optimizer_name == "adam":
-        #         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        # minimize loss
+        with tf.name_scope('optimize'):
+            optimizer = self.load_optimizer()
+            global_step = tf.train.get_or_create_global_step()
 
-        #         # TODO - this is only populated later, for some reason
-        #         # self.policy.set_fetch("learning_rate", optimizer._lr_t, "debug")
-        #     else:
-        #         raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
-        #     global_step = tf.train.get_or_create_global_step()
+            # apply gradients, with any configured clipping
+            max_grad_norm = self.max_grad_norm
+            if max_grad_norm is None:
+                # apply unclipped gradients
+                optimize = optimizer.minimize(loss, global_step=global_step)
+            else:
+                # apply gradients with clipping
+                tvars = tf.trainable_variables()
+                grads = tf.gradients(loss, tvars)
+                grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
+                optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
+            self.policy.set_fetch("optimize", optimize, "optimize")
 
-        #     # apply gradients, with any configured clipping
-        #     max_grad_norm = self.config.get("max_grad_norm", None)
-        #     if max_grad_norm is None:
-        #         # apply unclipped gradients
-        #         optimize = optimizer.minimize(loss, global_step=global_step)
-        #     else:
-        #         # apply gradients with clipping
-        #         tvars = tf.trainable_variables()
-        #         grads = tf.gradients(loss, tvars)
-        #         grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
-        #         optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
-        #     self.policy.set_fetch("optimize", optimize, "optimize")
+    def advantage(self, Q, V):
+        # A(s, a) = Q(s, a) - V(s)
+        # how good an action is compared to the average action for a state
+        return Q - V

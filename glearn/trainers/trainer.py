@@ -12,10 +12,11 @@ from glearn.utils.profile import run_profile, open_profile
 class Trainer(Configurable):
     def __init__(self, config, policy,
                  seed=0, epochs=100, episodes=1000, max_episode_time=None,
-                 min_episode_reward=None, evaluate_interval=10):
+                 min_episode_reward=None, evaluate_interval=10, **kwargs):
         super().__init__(config)
 
         self.policy = policy
+        self.kwargs = kwargs
 
         self.batch_size = config.get("batch_size", 1)  # TODO - get from dataset/env?
 
@@ -93,6 +94,30 @@ class Trainer(Configurable):
             self.observation = self.env.reset()
             self.transitions = []
             self.episode_reward = 0
+
+    def get_loss(self):
+        # get loss from policy
+        loss = self.policy.get_fetch("loss", "evaluate")
+        if loss is None:
+            self.error(f"Policy ({self.policy}) does not define a 'loss' feed for 'evaluate'")
+            return None
+
+        # TODO - loss *= discounted_rewards (gamma)
+
+        self.summary.add_scalar("loss", loss, "evaluate")
+        return loss
+
+    def load_optimizer(self):
+        # create optimizer
+        optimizer_name = self.kwargs.get("optimizer", "sgd")
+        learning_rate = self.kwargs.get("learning_rate", 1e-3)  # lambda λ
+        if optimizer_name == "sgd":
+            optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+        elif optimizer_name == "adam":
+            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        else:
+            raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
+        return optimizer
 
     def init_optimizer(self):
         pass

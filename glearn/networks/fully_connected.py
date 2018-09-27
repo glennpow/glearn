@@ -4,19 +4,20 @@ from .layer import NetworkLayer
 
 
 class FullyConnectedLayer(NetworkLayer):
-    def __init__(self, index, hidden_sizes=[128], activation=tf.nn.relu, initializer=None):
-        super().__init__(index)
+    def __init__(self, network, index, hidden_sizes=[128], activation=tf.nn.relu,
+                 initializer=None):
+        super().__init__(network, index)
 
         self.hidden_sizes = hidden_sizes
         self.activation = activation
         self.initializer = initializer
 
-    def build(self, policy, inputs, outputs=None):
+    def build(self, inputs, outputs=None):
         # get variables
-        dropout = policy.get_feed("dropout")
+        dropout = self.context.get_feed("dropout")
         if dropout is None:
             dropout = tf.placeholder(tf.float32, (), name="dropout")
-            policy.set_feed("dropout", dropout)
+            self.context.set_feed("dropout", dropout)
 
         # initializer
         initializer_seed = 1
@@ -35,33 +36,35 @@ class FullyConnectedLayer(NetworkLayer):
             layers.append(x)
         self.references["layers"] = layers
 
+        # if inference only, then return
         if outputs is None:
             return x
 
         # create output layer
+        output_interface = outputs.interface
         i = len(self.hidden_sizes)
-        if policy.output.discrete:
-            y = self.fully_connected(x, i, policy.output.size, dropout, tf.nn.softmax)
+        if output_interface.discrete:
+            y = self.fully_connected(x, i, output_interface.size, dropout, tf.nn.softmax)
         else:
-            y = self.fully_connected(x, i, policy.output.size, dropout, None)
+            y = self.fully_connected(x, i, output_interface.size, dropout, None)
 
-        # evaluations
+        # loss evaluations
         with tf.name_scope('evaluate'):
-            if policy.output.discrete:
+            if output_interface.discrete:
                 # evaluate loss
                 logits = self.references["Z"]
                 neg_log_p = tf.nn.softmax_cross_entropy_with_logits(logits=logits,
                                                                     labels=outputs)
                 loss = tf.reduce_mean(neg_log_p)
-                policy.set_fetch("loss", loss, "evaluate")
+                self.context.set_fetch("loss", loss, "evaluate")
 
                 # TODO - stochastic discrete also
                 correct = tf.equal(tf.argmax(y, 1), tf.argmax(outputs, 1))
                 accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
-                policy.set_fetch("accuracy", accuracy, "evaluate")
+                self.context.set_fetch("accuracy", accuracy, "evaluate")
             else:
                 loss = tf.reduce_mean(tf.square(outputs - y))
-                policy.set_fetch("loss", loss, "evaluate")
+                self.context.set_fetch("loss", loss, "evaluate")
         return y
 
     def fully_connected(self, x, index, hidden_size, dropout, activation):
