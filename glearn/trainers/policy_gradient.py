@@ -20,7 +20,8 @@ class PolicyGradientTrainer(Trainer):
         # get loss from policy
         loss = self.policy.get_fetch("loss", "evaluate")
         if loss is None:
-            raise Exception(f"Policy ({self.policy}) does not define a 'loss' feed for 'evaluate'")
+            self.error(f"Policy ({self.policy}) does not define a 'loss' feed for 'evaluate'")
+            return
         self.summary.add_scalar("loss", loss, "evaluate")
 
         # TODO - loss *= discounted_rewards (gamma)
