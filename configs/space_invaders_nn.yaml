@@ -3,7 +3,12 @@
   batch_size: 128
     
   policy:
-    name: glearn.policies:CNNPolicy
+    name: glearn.policies:NetworkPolicy
+    args:
+      layers:
+        - name: glearn.network:FullyConnectedLayer
+          args:
+            hidden_sizes: [256, 256]
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
@@ -17,4 +22,4 @@
   viewer:
     name: glearn.viewers:AdvancedViewer
     args:
-        zoom: 4
+      zoom: 4

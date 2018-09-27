@@ -1,20 +1,21 @@
 import tensorflow as tf
-from glearn.utils.printing import colorize
 from glearn.utils.summary import SummaryWriter, NullSummaryWriter
+from glearn.utils.config import Configurable
 
 
-class Policy(object):
+GLOBAL_GRAPH = "*"
+
+
+class Policy(Configurable):
     def __init__(self, config):
-        self.config = config
+        super().__init__(config)
 
         self.multithreaded = config.get("multithreaded", False)  # TODO get this from dataset
 
         self.feeds = {}
         self.fetches = {}
-        self.layers = {}
-        self.results = {}
         self.summaries = {}
-        self.training = False
+        self.latest_results = {}
 
         if self.rendering:
             self.init_viewer()
@@ -26,44 +27,6 @@ class Policy(object):
             "multi-threaded" if self.multithreaded else "single-threaded",
         ]
         return f"{type(self).__name__}({', '.join(properties)})"
-
-    def log(self, *args):
-        print(*args)
-
-    def error(self, message):
-        self.log(colorize(message, "red"))
-
-    @property
-    def debugging(self):
-        return self.config.debugging
-
-    @property
-    def project(self):
-        return self.config.project
-
-    @property
-    def dataset(self):
-        return self.config.dataset
-
-    @property
-    def env(self):
-        return self.config.env
-
-    @property
-    def supervised(self):
-        return self.config.supervised
-
-    @property
-    def reinforcement(self):
-        return self.config.reinforcement
-
-    @property
-    def input(self):
-        return self.config.input
-
-    @property
-    def output(self):
-        return self.config.output
 
     @property
     def tensorboard_path(self):
@@ -101,10 +64,10 @@ class Policy(object):
         # set feed node, for graph or global (None)
         if graphs is None:
             # global graph feed
-            graphs = ["*"]
+            graphs = [GLOBAL_GRAPH]
+        # apply to specified graphs
         if not isinstance(graphs, list):
             graphs = [graphs]
-        # apply to specified graphs
         for graph in graphs:
             if graph in self.feeds:
                 graph_feeds = self.feeds[graph]
@@ -120,23 +83,26 @@ class Policy(object):
             return graph_feeds[name]
         return None
 
-    def get_feeds(self, graph=None):
+    def get_feeds(self, graphs=None):
         # get all global feeds
-        feeds = self.feeds.get("*", {})
-        if graph is not None:
+        feeds = self.feeds.get(GLOBAL_GRAPH, {})
+        if graphs is not None:
             # merge with desired graph feeds
-            feeds.update(self.feeds.get(graph, {}))
+            if not isinstance(graphs, list):
+                graphs = [graphs]
+            for graph in graphs:
+                feeds.update(self.feeds.get(graph, {}))
         return feeds
 
-    def build_feed_dict(self, mapping, graph=None):
-        feeds = self.get_feeds(graph)
+    def build_feed_dict(self, mapping, graphs=None):
+        feeds = self.get_feeds(graphs)
         feed_dict = {}
         for key, value in mapping.items():
             if key in feeds:
                 feed = feeds[key]
                 feed_dict[feed] = value
             else:
-                graph_name = "GLOBAL" if graph is None else graph
+                graph_name = GLOBAL_GRAPH if graphs is None else ", ".join(graphs)
                 self.error(f"Failed to find feed '{key}' for graph '{graph_name}'")
         return feed_dict
 
@@ -144,10 +110,10 @@ class Policy(object):
         # set fetch, for graph or global (None)
         if graphs is None:
             # global graph fetch
-            graphs = ["*"]
+            graphs = [GLOBAL_GRAPH]
+        # apply to specified graphs
         if not isinstance(graphs, list):
             graphs = [graphs]
-        # apply to specified graphs
         for graph in graphs:
             if graph in self.fetches:
                 graph_fetches = self.fetches[graph]
@@ -163,36 +129,16 @@ class Policy(object):
             return graph_fetches[name]
         return None
 
-    def get_fetches(self, graph):
+    def get_fetches(self, graphs=None):
         # get all global fetches
-        fetches = self.fetches.get("*", {})
-        if graph != "*":
+        fetches = self.fetches.get(GLOBAL_GRAPH, {})
+        if graphs is not None:
             # merge with desired graph fetches
-            fetches.update(self.fetches.get(graph, {}))
+            if not isinstance(graphs, list):
+                graphs = [graphs]
+            for graph in graphs:
+                fetches.update(self.fetches.get(graph, {}))
         return fetches
-
-    def add_layer(self, type_name, layer):
-        if type_name in self.layers:
-            type_layers = self.layers[type_name]
-        else:
-            type_layers = []
-            self.layers[type_name] = type_layers
-        type_layers.append(layer)
-
-    def get_layer(self, type_name, index=0):
-        if type_name in self.layers:
-            type_layers = self.layers[type_name]
-            if index < len(type_layers):
-                return type_layers[index]
-        return None
-
-    def get_layer_count(self, type_name=None):
-        if type_name is None:
-            return len(self.layers)
-        else:
-            if type_name in self.layers:
-                return len(self.layers[type_name])
-        return 0
 
     def init_summaries(self):
         if self.tensorboard_path is not None:
@@ -223,30 +169,28 @@ class Policy(object):
         self.set_feed("Y", outputs)
         return inputs, outputs
 
-    def prepare_default_feeds(self, graph, feed_map):
+    def prepare_default_feeds(self, graphs, feed_map):
         return feed_map
 
-    def run(self, sess, graph, feed_map, global_step=None, summary_family=None):
+    def run(self, sess, graphs, feed_map, global_step=None):
         # get configured fetches
-        fetches = self.get_fetches(graph)
+        fetches = self.get_fetches(graphs)
 
         # also fetch summaries
-        if summary_family is None:
-            summary_family = graph
-        self.summary.prepare_fetches(fetches, summary_family)
+        self.summary.prepare_fetches(fetches, graphs)
 
         if len(fetches) > 0:
             # build final feed_dict
-            feed_dict = self.build_feed_dict(feed_map, graph=graph)
+            feed_dict = self.build_feed_dict(feed_map, graphs=graphs)
 
             # run graph
             results = sess.run(fetches, feed_dict)
 
             # handle summaries
-            self.summary.process_results(results, summary_family, global_step=global_step)
+            self.summary.process_results(results, global_step=global_step)
 
             # store results
-            self.results[graph] = results
+            self.latest_results.update(results)
 
             return results
         return {}

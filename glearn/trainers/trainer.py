@@ -4,15 +4,17 @@ import atexit
 import tensorflow as tf
 import pyglet
 from glearn.datasets.dataset import Transition, transition_batch
-from glearn.utils.printing import colorize, print_tabular
-from glearn.utils.profile import open_profile
+from glearn.utils.config import Configurable
+from glearn.utils.printing import print_tabular
+from glearn.utils.profile import run_profile, open_profile
 
 
-class Trainer(object):
+class Trainer(Configurable):
     def __init__(self, config, policy,
                  seed=0, epochs=100, episodes=1000, max_episode_time=None,
                  min_episode_reward=None, evaluate_interval=10):
-        self.config = config
+        super().__init__(config)
+
         self.policy = policy
 
         self.batch_size = config.get("batch_size", 1)  # TODO - get from dataset/env?
@@ -40,44 +42,6 @@ class Trainer(object):
             "supervised" if self.supervised else "reinforcement",
         ]
         return f"{type(self).__name__}({', '.join(properties)})"
-
-    def log(self, *args):
-        print(*args)
-
-    def error(self, message):
-        self.log(colorize(message, "red"))
-
-    @property
-    def debugging(self):
-        return self.config.debugging
-
-    @property
-    def project(self):
-        return self.config.project
-
-    @property
-    def dataset(self):
-        return self.config.dataset
-
-    @property
-    def env(self):
-        return self.config.env
-
-    @property
-    def supervised(self):
-        return self.config.supervised
-
-    @property
-    def reinforcement(self):
-        return self.config.reinforcement
-
-    @property
-    def input(self):
-        return self.config.input
-
-    @property
-    def output(self):
-        return self.config.output
 
     @property
     def save_path(self):
@@ -133,21 +97,33 @@ class Trainer(object):
     def init_optimizer(self):
         pass
 
-    def prepare_feeds(self, graph, data, feed_map):
-        return self.policy.prepare_default_feeds(graph, feed_map)
+    def run(self, graphs, feed_map, global_step=None):
+        # run policy for graph with feeds
+        feed_map = self.prepare_feeds(graphs, feed_map)
+        results = self.policy.run(self.sess, graphs, feed_map, global_step=global_step)
+
+        # view results
+        self.viewer.view_results(graphs, feed_map, results)
+
+        return results
+
+    def prepare_feeds(self, graphs, feed_map):
+        return self.policy.prepare_default_feeds(graphs, feed_map)
 
     def predict(self, inputs, global_step=None):
-        # get prediction for inputs
-        feed_map = self.prepare_feeds("predict", inputs, {"X": [inputs]})
-        results = self.policy.run(self.sess, "predict", feed_map, global_step=global_step)
-        result = results["predict"][0]
+        # input as feed map
+        feed_map = {"X": [inputs]}
 
-        # debugging
+        # get desired graphs
+        graphs = ["predict"]
         if self.debugging:
-            feed_map = self.prepare_feeds("debug", inputs, feed_map)
-            self.policy.run(self.sess, "debug", feed_map, global_step=global_step)
+            graphs.append("debug")
 
-        return result
+        # evaluate graphs and extract single prediction
+        results = self.run(graphs, feed_map, global_step=global_step)
+        predict = results["predict"][0]
+
+        return predict
 
     def action(self):
         return self.predict(self.observation)
@@ -168,7 +144,7 @@ class Trainer(object):
         self.episode_reward += transition.reward
         return transition
 
-    def get_batch(self, graph):
+    def get_batch(self):
         if self.supervised:
             # supervised batch of samples
             return self.dataset.get_batch()
@@ -206,31 +182,23 @@ class Trainer(object):
                 }
             }
 
-        # get data and feed and run optimize step pass
-        data, feed_map = self.get_batch("optimize")
-        feed_map = self.prepare_feeds("optimize", data, feed_map)
-        optimize_results = self.policy.run(self.sess, "optimize", feed_map,
-                                           global_step=self.global_step)
+        # get batch data and desired graphs
+        inputs, feed_map = self.get_batch()
+
+        # run all desired graphs
+        results = self.run(["optimize"], feed_map, global_step=self.global_step)
 
         # evaluate if time to do so
         if self.evaluating:
-            # get feed and run evaluate pass
-            feed_map = self.prepare_feeds("evaluate", data, feed_map)
-            evaluate_results = self.policy.run(self.sess, "evaluate", feed_map,
-                                               global_step=self.global_step)
-
-            # # debugging
-            debug_results = None
+            graphs = ["evaluate"]
             if self.debugging:
-                feed_map = self.prepare_feeds("debug", data, feed_map)
-                debug_results = self.policy.run(self.sess, "debug", feed_map,
-                                                global_step=self.global_step)
+                graphs.append("debug")
+
+            evaluate_results = self.run(graphs, feed_map, global_step=self.global_step)
 
             # print inputs and results
             table["Inputs"] = feed_map
             table["Evaluation"] = evaluate_results
-            if debug_results is not None and len(debug_results) > 0:
-                table["Debug"] = debug_results
 
             # print tabular results
             print_tabular(table, grouped=True)
@@ -241,7 +209,7 @@ class Trainer(object):
                 save_path = self.saver.save(self.sess, self.save_path)
                 self.log(f"Saved model: {save_path}")
 
-        return data, optimize_results
+        return inputs, results
 
     def train(self, render=False, profile=False):
         self.global_step = 0
@@ -249,6 +217,9 @@ class Trainer(object):
         self.max_episode_reward = None
         self.training = True
         self.paused = False
+
+        # prepare viewer
+        self.viewer.prepare(self)
 
         # print training info
         self.print_info()
@@ -287,8 +258,8 @@ class Trainer(object):
         if profile:
             # profile training loop
             profile_path = f"{self.log_dir}/profile"
-            with tf.contrib.tfprof.ProfileContext(profile_path) as pctx:  # noqa
-                train_loop()
+            run_profile(train_loop, profile_path)
+
             # show profiling results
             open_profile(profile_path)
         else:
@@ -363,18 +334,18 @@ class Trainer(object):
     def print_info(self):
         if self.supervised:
             training_info = {
+                "Dataset": self.dataset,
                 "Trainer": self,
                 "Policy": self.policy,
-                "Dataset": self.dataset,
                 "Input": self.dataset.input,
                 "Output": self.dataset.output,
                 # TODO - get extra trainer and policy stats
             }
         else:
             training_info = {
+                "Environment": self.project,
                 "Trainer": self,
                 "Policy": self.policy,
-                "Environment": self.project,
                 "Input": self.input,
                 "Output": self.output,
                 # TODO - get extra trainer and policy stats

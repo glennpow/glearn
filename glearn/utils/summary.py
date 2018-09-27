@@ -4,7 +4,7 @@ import tensorflow as tf
 from subprocess import Popen
 
 
-SUMMARY_FETCH_ID = "__summary__"
+SUMMARY_KEY_PREFIX = "_summary"
 DEFAULT_SUBDIRECTORY = "events"
 
 
@@ -88,16 +88,31 @@ class SummaryWriter(object):
             return fetch
         return None
 
-    def prepare_fetches(self, fetches, family=None):
-        summary_fetch = self.get_fetch(family)
-        if summary_fetch is not None:
-            fetches[SUMMARY_FETCH_ID] = summary_fetch
+    def get_family_key(self, family=None):
+        if family is None:
+            return SUMMARY_KEY_PREFIX
+        return f"{SUMMARY_KEY_PREFIX}_{family}"
 
-    def process_results(self, results, family=None, global_step=None):
-        if SUMMARY_FETCH_ID in results:
-            summary = results[SUMMARY_FETCH_ID]
-            self.write(summary, family=family, global_step=global_step)
-            results.pop(SUMMARY_FETCH_ID, None)
+    def prepare_fetches(self, fetches, families=None):
+        if not isinstance(families, list):
+            families = [families]
+        for family in families:
+            fetch = self.get_fetch(family)
+            if fetch is not None:
+                fetches[self.get_family_key(family)] = fetch
+
+    def process_results(self, results, global_step=None):
+        summaries = {}
+        results_keys = list(results.keys())
+        for key in results_keys:
+            if key.startswith(SUMMARY_KEY_PREFIX):
+                family = key[len(SUMMARY_KEY_PREFIX):]
+                if len(family) == 0:
+                    family = None
+                summaries[family] = results.pop(key, None)
+        for family, summary in summaries.items():
+            if summary is not None:
+                self.write(summary, family=family, global_step=global_step)
 
     def summary_scope(self, name, family=None):
         if family is None:

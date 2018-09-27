@@ -99,6 +99,7 @@ def dataset(images_file, labels_file, config):
 
     images = load_data(images_file, 28 * 28, max_count=max_count, header_bytes=16,
                        mapping=decode_image)
+    images = np.reshape(images, [-1, 28, 28, 1])
     labels = load_data(labels_file, 1, max_count=max_count, header_bytes=8, mapping=decode_label)
 
     input_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(28, 28, 1), dtype=images.dtype)

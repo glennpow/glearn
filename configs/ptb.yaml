@@ -5,9 +5,13 @@
   multithreaded: true
 
   policy:
-    name: glearn.policies:RNNPolicy
+    name: glearn.policies:NetworkPolicy
     args:
-      hidden_sizes: [650]
+      layers:
+        - name: glearn.network:LSTMLayer
+          args:
+            hidden_sizes: [650]
+            embedding_lookup: true
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
@@ -23,3 +27,5 @@
     name: glearn.viewers:AdvancedViewer
     args:
       zoom: 1
+      modes:
+        - name: glearn.viewers.modes:RNNViewerMode

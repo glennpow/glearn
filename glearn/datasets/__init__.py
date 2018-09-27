@@ -1,6 +1,6 @@
-from glearn.datasets.mnist.mnist import train as mnist_dataset
-from glearn.datasets.ptb.ptb import train as ptb_dataset
-from glearn.datasets.digit_repeat import DigitRepeatDataset as digit_repeat_dataset
+from .mnist.mnist import train as mnist_dataset
+from .ptb.ptb import train as ptb_dataset
+from .digit_repeat import DigitRepeatDataset as digit_repeat_dataset
 
 
 def load_dataset(config):

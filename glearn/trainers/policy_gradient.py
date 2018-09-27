@@ -54,8 +54,8 @@ class PolicyGradientTrainer(Trainer):
                 optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
             self.policy.set_fetch("optimize", optimize, "optimize")
 
-    def prepare_feeds(self, graph, data, feed_map):
-        feed_map = super().prepare_feeds(graph, data, feed_map)
+    def prepare_feeds(self, graphs, feed_map):
+        feed_map = super().prepare_feeds(graphs, feed_map)
 
         # if graph == "optimize" or graph == "evaluate":
         #     # should this be per epoch/episode instead of iteration?
@@ -64,8 +64,8 @@ class PolicyGradientTrainer(Trainer):
         #     learning_rate = self.learning_rate * lr_decay
         #     feed_map["lambda"] = learning_rate
 
-        if graph == "optimize" or graph == "evaluate":
-            feed_map["dropout"] = self.keep_prob if graph == "optimize" else 1
+        if "optimize" in graphs:
+            feed_map["dropout"] = self.keep_prob
         else:
             feed_map["dropout"] = 1
         return feed_map

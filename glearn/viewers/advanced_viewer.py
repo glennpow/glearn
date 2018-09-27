@@ -1,10 +1,14 @@
 import numpy as np
 import pyglet
 from pyglet.gl import *
+from glearn.utils.config import Configurable
+from glearn.utils.reflection import get_class
 
 
-class AdvancedViewer(object):
-    def __init__(self, display=None, width=None, height=None, zoom=1):
+class AdvancedViewer(Configurable):
+    def __init__(self, config, display=None, width=None, height=None, zoom=1, modes=None):
+        super().__init__(config)
+
         self.isopen = False
         self.display = display
 
@@ -23,6 +27,13 @@ class AdvancedViewer(object):
                                            display=self.display, vsync=False, resizable=True)
         self.window.push_handlers(self)
         self.isopen = True
+
+        self.modes = []
+        if modes is not None:
+            for mode_config in modes:
+                ModeClass = get_class(mode_config)
+                mode = ModeClass(config)
+                self.modes.append(mode)
 
     def close(self):
         if self.isopen:
@@ -49,6 +60,18 @@ class AdvancedViewer(object):
 
         # Set viewport
         # glViewport(0, 0, width, height)
+
+    def prepare(self, trainer):
+        for mode in self.modes:
+            mode.prepare(trainer)
+
+    def view_results(self, graphs, feed_map, results):
+        for mode in self.modes:
+            mode.view_results(graphs, feed_map, results)
+
+    def on_key_press(self, key, modifiers):
+        for mode in self.modes:
+            mode.on_key_press(key, modifiers)
 
     def set_zoom(self, zoom):
         self.zoom = zoom

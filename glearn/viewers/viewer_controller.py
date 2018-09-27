@@ -2,12 +2,13 @@ import sys
 from collections import abc
 import numpy as np
 from glearn.utils.reflection import get_class
+from glearn.utils.config import Configurable
 
 
-class ViewerController(object):
-    def __init__(self, config, env=None):
-        self.config = config
-        self.env = env
+class ViewerController(Configurable):
+    def __init__(self, config):
+        super().__init__(config)
+
         self.listeners = []
         self.viewer = None
 
@@ -15,11 +16,11 @@ class ViewerController(object):
         if can_render:
             if config.has("viewer"):
                 ViewerClass = get_class(config.get("viewer"))
-                self.viewer = ViewerClass()
+                self.viewer = ViewerClass(config)
                 self.init_viewer()
 
-                if env is not None:
-                    env.unwrapped.viewer = self.viewer
+                if self.env is not None:
+                    self.env.unwrapped.viewer = self.viewer
 
     def get_viewer(self):
         if self.viewer is not None:
@@ -63,13 +64,18 @@ class ViewerController(object):
             return (int(self.viewer.width), int(self.viewer.height))
         return (0, 0)
 
+    def prepare(self, trainer):
+        if hasattr(self.viewer, "prepare"):
+            self.viewer.prepare(trainer)
+
+    def view_results(self, graphs, feed_map, results):
+        if hasattr(self.viewer, "view_results"):
+            self.viewer.view_results(graphs, feed_map, results)
+
     def on_key_press(self, key, modifiers):
         for listener in self.listeners:
             if hasattr(listener, "on_key_press"):
                 listener.on_key_press(key, modifiers)
-
-        # TODO - maybe don't always render after keypress...
-        self.render()
 
     def add_listener(self, listener):
         if listener not in self.listeners:

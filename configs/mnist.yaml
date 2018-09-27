@@ -1,0 +1,32 @@
+--- # MNIST
+  dataset: mnist
+  batch_size: 128
+  
+  policy:
+    name: glearn.policies:NetworkPolicy
+    args:
+      layers:
+        - name: glearn.network:Conv2dLayer
+          args:
+            filters: [[5, 5, 32], [5, 5, 64]]
+        - name: glearn.network:FullyConnectedLayer
+          args:
+            hidden_sizes: [3136, 1024]
+
+  trainer:
+    name: glearn.trainers:PolicyGradientTrainer
+    args:
+      optimizer: adam
+      learning_rate: 2.0e-4
+      epochs: 40
+      keep_prob: 0.8
+      evaluate_interval: 20
+
+  viewer:
+    name: glearn.viewers:AdvancedViewer
+    args:
+      zoom: 2
+      modes:
+        - name: glearn.viewers.modes:CNNViewerMode
+          args:
+            visualize_grid: [10, 10]

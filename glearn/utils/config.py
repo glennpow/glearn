@@ -4,8 +4,8 @@ import json
 import gym
 from glearn.datasets import load_dataset
 from glearn.utils.reflection import get_class
+from glearn.utils.printing import colorize
 from glearn.policies.interface import Interface
-from glearn.viewers import ViewerController
 
 
 TEMP_DIR = "/tmp/glearn"
@@ -13,6 +13,8 @@ TEMP_DIR = "/tmp/glearn"
 
 class Config(object):
     def __init__(self, config_path, version=None, debug=False):
+        from glearn.viewers import load_view_controller
+
         self.properties = self.load_properties(config_path)
 
         # debugging
@@ -69,7 +71,7 @@ class Config(object):
         self.tensorboard_path = f"{self.log_dir}/tensorboard/"
 
         # create render viewer controller
-        self.viewer = ViewerController(self, self.env)
+        self.viewer = load_view_controller(self)
 
         # prepare input/output interfaces, and env
         if self.supervised:
@@ -113,6 +115,28 @@ class Config(object):
     def get(self, key, default=None):
         return self.properties.get(key, default)
 
+    def find(self, key, default=None):
+        # find key in all properties
+        def _find(properties, key):
+            if key in properties:
+                return properties[key]
+            for _, v in properties.items():
+                if isinstance(v, dict):
+                    pv = _find(v, key)
+                    if pv is not None:
+                        return pv
+                elif isinstance(v, list):
+                    for lv in v:
+                        if isinstance(lv, dict):
+                            pv = _find(lv, key)
+                            if pv is not None:
+                                return pv
+            return None
+        pv = _find(self.properties, key)
+        if pv is not None:
+            return pv
+        return default
+
     @property
     def reinforcement(self):
         return self.env is not None
@@ -120,6 +144,49 @@ class Config(object):
     @property
     def supervised(self):
         return self.dataset is not None
+
+
+class Configurable(object):
+    def __init__(self, config):
+        self.config = config
+
+    def log(self, *args):
+        print(*args)
+
+    def error(self, message):
+        self.log(colorize(message, "red"))
+
+    @property
+    def debugging(self):
+        return self.config.debugging
+
+    @property
+    def project(self):
+        return self.config.project
+
+    @property
+    def dataset(self):
+        return self.config.dataset
+
+    @property
+    def env(self):
+        return self.config.env
+
+    @property
+    def supervised(self):
+        return self.config.supervised
+
+    @property
+    def reinforcement(self):
+        return self.config.reinforcement
+
+    @property
+    def input(self):
+        return self.config.input
+
+    @property
+    def output(self):
+        return self.config.output
 
 
 def load_config(identifier, version=None, debug=False, search_defaults=True):
@@ -143,7 +210,7 @@ def find_config(identifier, search_defaults=True):
 
         # is it relative to the project root?
         root = os.path.join(os.path.dirname(__file__), "..", "..")
-        options += [os.path.join(root, "configs", "experiments", p) for p in options]
+        options += [os.path.join(root, "configs", p) for p in options]
 
     for path in options:
         if os.path.exists(path):

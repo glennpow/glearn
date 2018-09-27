@@ -1,14 +1,14 @@
---- # Maze
-  env:
-    name: glearn.envs.maze:MazeEnv
-    args:
-      maze_size: [10, 10]
+--- # Ant
+  env: glearn.envs.ant:AntEnv
   batch_size: 128
 
   policy:
-    name: glearn.policies:NNPolicy
+    name: glearn.policies:NetworkPolicy
     args:
-      hidden_sizes: [128, 128]
+      layers:
+        - name: glearn.network:FullyConnectedLayer
+          args:
+            hidden_sizes: [128, 128]
   # policy: glearn.policies:RandomPolicy  # HACK
 
   trainer:

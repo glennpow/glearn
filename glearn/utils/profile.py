@@ -2,7 +2,13 @@
 
 import os
 import click
+import tensorflow as tf
 from glearn.utils.subprocess_utils import shell_call
+
+
+def run_profile(call, path):
+    with tf.contrib.tfprof.ProfileContext(path) as pctx:  # noqa
+        call()
 
 
 def open_profile(path):
