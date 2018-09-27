@@ -10,4 +10,6 @@ def load_policy(config, definition=None):
 
     PolicyClass = get_class(definition)
 
-    return PolicyClass(config)
+    policy = PolicyClass(config)
+    policy.definition = definition
+    return policy

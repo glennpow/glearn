@@ -4,5 +4,7 @@ from .conv2d import Conv2dLayer  # noqa
 from .lstm import LSTMLayer  # noqa
 
 
-def load_network(context, layer_definitions):
-    return Network(context, layer_definitions)
+def load_network(context, definition):
+    network = Network(context, definition)
+    network.definition = definition
+    return network

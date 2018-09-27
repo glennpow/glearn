@@ -1,9 +1,8 @@
 import os
 import yaml
 import json
-import gym
 from glearn.datasets import load_dataset
-from glearn.utils.reflection import get_class
+from glearn.envs import load_env
 from glearn.utils.printing import colorize
 from glearn.policies.interface import Interface
 
@@ -26,23 +25,8 @@ class Config(object):
         self.dataset = None
         if "env" in self.properties:
             # make env
-            env_name = self.properties["env"]
-            if isinstance(env_name, dict) or ":" in env_name:
-                # use EntryPoint to get env
-                EnvClass = get_class(env_name)
-                self.env = EnvClass()
-
-                if isinstance(env_name, dict):
-                    self.project = env_name['name']
-                else:
-                    self.project = env_name
-                self.project = self.project.split(":")[-1]
-            elif "-v" in env_name:
-                # use gym to get env
-                self.env = gym.make(env_name)
-                self.project = env_name
-            else:
-                raise Exception(f"Unrecognizable environment identifier: {env_name}")
+            self.env = load_env(self.properties["env"])
+            self.project = self.env.name
         elif "dataset" in self.properties:
             # make dataset
             self.dataset = load_dataset(self.properties)
