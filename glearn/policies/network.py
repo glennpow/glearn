@@ -10,7 +10,7 @@ class NetworkPolicy(Policy):
 
     def build_predict(self, inputs, outputs):
         # build network
-        self.network = load_network(self, self.network_definition)
+        self.network = load_network("policy", self, self.network_definition)
         return self.network.build(inputs, outputs)
 
     def prepare_default_feeds(self, graphs, feed_map):

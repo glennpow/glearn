@@ -20,7 +20,7 @@ class Config(object):
         self.debugging = debug
 
         # load env or dataset
-        self.seed = self.get("seed", 0)
+        self.seed = self.get("seed", 1)
         self.env = None
         self.dataset = None
         if "env" in self.properties:
@@ -171,6 +171,10 @@ class Configurable(object):
     @property
     def output(self):
         return self.config.output
+
+    @property
+    def seed(self):
+        return self.config.seed
 
 
 def load_config(identifier, version=None, debug=False, search_defaults=True):

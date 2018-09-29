@@ -62,7 +62,7 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
              for header, group in formatted.items()}
     widths = {header: np.array([np.max(f) for f in group]) + (2 * padding)
               for header, group in lcols.items()}
-    table_width = max([np.sum(w) for _, w in widths.items()])
+    table_width = max([np.sum(w) + len(w) - 1 for _, w in widths.items()])
 
     # header and table widths
     header_widths = {}
@@ -73,18 +73,25 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
             table_width = max(header_width, table_width)
 
     # Write out the data
-    equals = '=' * table_width
-    dashes = '-' * table_width
-    dotted = ('- ' * (table_width // 2 + 1))[:table_width]
+    horizontal_width = table_width + 2
+    equals = '=' * horizontal_width
+    dashes = '-' * horizontal_width
+    dotted = ('- ' * (horizontal_width // 2 + 1))[:horizontal_width]
     lines = []
     for header, group in formatted.items():
         lines.append(equals if len(lines) == 0 else dashes)
         if header is not None:
-            lines += [" " * padding + header, dotted]
+            lines += ["|" + (" " * padding + header).ljust(table_width) + "|", dotted]
         group_widths = widths[header]
         for f in group:
-            cols = [(" " * padding + f[i]).ljust(group_widths[i]) for i in range(len(f))]
-            lines.append("|".join(cols))
+            cols = []
+            n_cols = len(f)
+            col_sum = 0
+            for i in range(n_cols):
+                col_width = group_widths[i] if i < n_cols - 1 else table_width - col_sum
+                col_sum += col_width + 1
+                cols.append((" " * padding + f[i]).ljust(col_width))
+            lines.append("|" + "|".join(cols) + "|")
     lines.append(equals)
     message = '\n'.join(lines)
     if color is not None:

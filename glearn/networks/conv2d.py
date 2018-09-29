@@ -13,22 +13,11 @@ class Conv2dLayer(NetworkLayer):
         self.max_pool_k = max_pool_k
         self.padding = padding
         self.activation = activation
-        self.initializer = initializer
+        self.initializer_definition = initializer
 
     def build(self, inputs, outputs=None):
-        # get variables
-        dropout = self.context.get_feed("dropout")
-        if dropout is None:
-            dropout = tf.placeholder(tf.float32, (), name="dropout")
-            self.context.set_feed("dropout", dropout)
-
         # initializer
-        initializer_seed = 1
-        if isinstance(self.initializer, int):
-            initializer_seed = self.initializer
-            self.initializer = None
-        if self.initializer is None:
-            self.initializer = tf.contrib.layers.xavier_initializer(seed=initializer_seed)
+        initializer = self.load_initializer(self.initializer_definition)
 
         # create convolution layers
         input_channels = self.input_channels
@@ -44,8 +33,9 @@ class Conv2dLayer(NetworkLayer):
                     # create variables
                     height, width, output_channels = filter
                     W = tf.get_variable("W", (height, width, input_channels, output_channels),
-                                        initializer=self.initializer)
-                    b = tf.get_variable("b", (output_channels), initializer=self.initializer)
+                                        initializer=initializer, trainable=self.trainable)
+                    b = tf.get_variable("b", (output_channels), initializer=initializer,
+                                        trainable=self.trainable)
 
                 # conv2d and biases
                 Z = tf.nn.conv2d(x, W, strides=[1, self.strides, self.strides, 1],
@@ -74,8 +64,4 @@ class Conv2dLayer(NetworkLayer):
             return x
 
         # TODO - could extract loss components from layers, and share them
-        raise Exception("No evaluation logic available for CNN")
-
-    def prepare_default_feeds(self, graphs, feed_map):
-        feed_map["dropout"] = 1
-        return feed_map
+        raise Exception("No evaluation logic available for Conv2dLayer")

@@ -10,8 +10,7 @@ from glearn.utils.profile import run_profile, open_profile
 
 
 class Trainer(Configurable):
-    def __init__(self, config, policy,
-                 seed=0, epochs=100, episodes=1000, max_episode_time=None,
+    def __init__(self, config, policy, epochs=100, episodes=1000, max_episode_time=None,
                  min_episode_reward=None, evaluate_interval=10, **kwargs):
         super().__init__(config)
 
@@ -20,7 +19,6 @@ class Trainer(Configurable):
 
         self.batch_size = config.get("batch_size", 1)  # TODO - get from dataset/env?
 
-        self.seed = seed
         self.epochs = epochs
         self.episodes = episodes
         self.max_episode_time = max_episode_time
@@ -33,6 +31,7 @@ class Trainer(Configurable):
         self.observation = None
         self.transitions = []
         self.episode_reward = 0
+        self.batch = None
 
         if self.rendering:
             self.init_viewer()
@@ -102,30 +101,52 @@ class Trainer(Configurable):
             self.error(f"Policy ({self.policy}) does not define a 'loss' feed for 'evaluate'")
             return None
 
-        # TODO - loss *= discounted_rewards (gamma)
-
         self.summary.add_scalar("loss", loss, "evaluate")
         return loss
 
-    def load_optimizer(self):
+    def optimize_loss(self, loss=None, definition=None):
+        # default loss
+        if loss is None:
+            # get policy loss
+            loss = self.get_loss()
+
+        # default definition
+        if definition is None:
+            definition = self.kwargs
+
         # create optimizer
-        optimizer_name = self.kwargs.get("optimizer", "sgd")
-        learning_rate = self.kwargs.get("learning_rate", 1e-3)  # lambda λ
+        optimizer_name = definition.get("optimizer", "sgd")
+        learning_rate = definition.get("learning_rate", 1e-4)
         if optimizer_name == "sgd":
             optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
         elif optimizer_name == "adam":
             optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
         else:
             raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
-        return optimizer
+
+        global_step = tf.train.get_or_create_global_step()
+
+        # apply gradients, with any configured clipping
+        max_grad_norm = definition.get("max_grad_norm", None)
+        if max_grad_norm is None:
+            # apply unclipped gradients
+            optimize = optimizer.minimize(loss, global_step=global_step)
+        else:
+            # apply gradients with clipping
+            tvars = tf.trainable_variables()
+            grads = tf.gradients(loss, tvars)
+            grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
+            optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
+
+        return optimize
 
     def init_optimizer(self):
         pass
 
-    def run(self, graphs, feed_map, global_step=None):
+    def run(self, graphs, feed_map):
         # run policy for graph with feeds
         feed_map = self.prepare_feeds(graphs, feed_map)
-        results = self.policy.run(self.sess, graphs, feed_map, global_step=global_step)
+        results = self.policy.run(self.sess, graphs, feed_map)
 
         # view results
         self.viewer.view_results(graphs, feed_map, results)
@@ -135,7 +156,7 @@ class Trainer(Configurable):
     def prepare_feeds(self, graphs, feed_map):
         return self.policy.prepare_default_feeds(graphs, feed_map)
 
-    def predict(self, inputs, global_step=None):
+    def predict(self, inputs):
         # input as feed map
         feed_map = {"X": [inputs]}
 
@@ -145,7 +166,7 @@ class Trainer(Configurable):
             graphs.append("debug")
 
         # evaluate graphs and extract single prediction
-        results = self.run(graphs, feed_map, global_step=global_step)
+        results = self.run(graphs, feed_map)
         predict = results["predict"][0]
 
         return predict
@@ -160,14 +181,20 @@ class Trainer(Configurable):
         # perform action
         new_observation, reward, done, info = self.env.step(self.output.decode(action))
 
-        # record transition
+        # build and process transition
         transition = Transition(self.observation, action, reward, new_observation, done, info)
+        self.process_transition(transition)
+
+        # record transition
         self.transitions.append(transition)
 
         # update stats
         self.observation = new_observation
         self.episode_reward += transition.reward
         return transition
+
+    def process_transition(self, transition):
+        pass
 
     def get_batch(self):
         if self.supervised:
@@ -181,6 +208,12 @@ class Trainer(Configurable):
                 "Y": batch.outputs,
             }
             return batch, feed_map
+
+    def pre_optimize(self, feed_map):
+        pass
+
+    def post_optimize(self, feed_map):
+        pass
 
     def optimize(self):
         # Optimize/evaluate using a supervised or unsupervised batch
@@ -208,10 +241,16 @@ class Trainer(Configurable):
             }
 
         # get batch data and desired graphs
-        inputs, feed_map = self.get_batch()
+        self.batch, feed_map = self.get_batch()
+
+        # perform any custom optimization logic
+        self.pre_optimize(feed_map)
 
         # run all desired graphs
-        results = self.run(["optimize"], feed_map, global_step=self.global_step)
+        results = self.run(["optimize"], feed_map)
+
+        # perform any custom optimization logic
+        self.post_optimize(feed_map)
 
         # evaluate if time to do so
         if self.evaluating:
@@ -219,7 +258,7 @@ class Trainer(Configurable):
             if self.debugging:
                 graphs.append("debug")
 
-            evaluate_results = self.run(graphs, feed_map, global_step=self.global_step)
+            evaluate_results = self.run(graphs, feed_map)
 
             # print inputs and results
             table["Inputs"] = feed_map
@@ -234,7 +273,7 @@ class Trainer(Configurable):
                 save_path = self.saver.save(self.sess, self.save_path)
                 self.log(f"Saved model: {save_path}")
 
-        return inputs, results
+        return results
 
     def train(self, render=False, profile=False):
         self.global_step = 0
@@ -251,13 +290,19 @@ class Trainer(Configurable):
 
         # yield after each training iteration
         def train_yield():
+            # write summary results
+            self.policy.summary.flush(global_step=self.global_step)
+
             while True:
+                # check if training stopped
                 if not self.training:
                     return True
 
+                # render frame
                 if render:
                     self.render()
 
+                # loop while paused
                 if self.paused:
                     time.sleep(0)
                 else:
@@ -376,7 +421,7 @@ class Trainer(Configurable):
                 # TODO - get extra trainer and policy stats
             }
         print()
-        print_tabular(training_info, show_type=False)
+        print_tabular(training_info, show_type=False, color="white", bold=True)
         print()
 
     @property

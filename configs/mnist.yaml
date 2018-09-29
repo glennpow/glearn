@@ -10,7 +10,7 @@
           - name: glearn.networks:Conv2dLayer
             args:
               filters: [[5, 5, 32], [5, 5, 64]]
-          - name: glearn.networks:FullyConnectedLayer
+          - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [3136, 1024]
 

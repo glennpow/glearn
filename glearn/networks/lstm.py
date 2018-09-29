@@ -11,14 +11,11 @@ class LSTMLayer(NetworkLayer):
         self.cell_args = cell_args
         self.embedding_lookup = embedding_lookup
         self.activation = activation
-        self.initializer = initializer
+        self.initializer_definition = initializer
 
     def build(self, inputs, outputs=None):
         # get variables
-        dropout = self.context.get_feed("dropout")
-        if dropout is None:
-            dropout = tf.placeholder(tf.float32, (), name="dropout")
-            self.context.set_feed("dropout", dropout)
+        dropout = self.context.get_or_create_feed("dropout")
 
         # get configs
         batch_size = self.context.config.get("batch_size", 1)
@@ -27,14 +24,11 @@ class LSTMLayer(NetworkLayer):
         vocabulary_size = self.context.dataset.vocabulary.size  # FIXME - ...better way of exposing
 
         # initializer
-        initializer_seed = 1
-        if isinstance(self.initializer, int):
-            initializer_seed = self.initializer
-            self.initializer = None
-        if self.initializer is None:
-            init_scale = 0.05  # TODO - expose
-            self.initializer = tf.random_uniform_initializer(-init_scale, init_scale,
-                                                             seed=initializer_seed)
+        if self.initializer_definition is None:
+            SCALE = 0.05  # TODO - expose
+            initializer = tf.random_uniform_initializer(-SCALE, SCALE, seed=self.seed)
+        else:
+            initializer = self.load_initializer(self.initializer_definition)
 
         # process inputs into embeddings
         x = inputs
@@ -42,7 +36,7 @@ class LSTMLayer(NetworkLayer):
             with tf.device("/cpu:0"):
                 # default initializer
                 embedding = tf.get_variable("embedding", [vocabulary_size, self.hidden_sizes[0]],
-                                            initializer=self.initializer)
+                                            initializer=initializer, trainable=self.trainable)
                 x = tf.nn.embedding_lookup(embedding, x)
 
                 # debugging fetches
@@ -82,8 +76,7 @@ class LSTMLayer(NetworkLayer):
             return x
 
         # create output layer
-        y = self.fully_connected(x, self.hidden_sizes[-1], vocabulary_size,
-                                 dropout, tf.nn.softmax)
+        y = self.dense(x, 1, vocabulary_size, dropout, tf.nn.softmax, initializer)
 
         # calculate prediction and accuracy
         with tf.name_scope('predict'):
@@ -108,29 +101,3 @@ class LSTMLayer(NetworkLayer):
             loss = tf.reduce_sum(sequence_loss)
             self.context.set_fetch("loss", loss, "evaluate")
         return y
-
-    def fully_connected(self, x, index, hidden_size, dropout, activation):
-        scope = f"fc_{self.index}_{index}"
-        with tf.name_scope(scope):
-            # create variables
-            with tf.variable_scope(scope):
-                W = tf.get_variable("W", (x.shape[1], hidden_size),
-                                    initializer=self.initializer)
-                b = tf.get_variable("b", (hidden_size, ), initializer=self.initializer)
-
-            # weights and biases
-            Z = tf.matmul(x, W)
-            Z = tf.add(Z, b)
-
-            # activation
-            if activation is not None:
-                self.references["Z"] = Z
-                A = activation(Z)
-            else:
-                A = Z
-
-            # dropout
-            if dropout is not None:
-                self.references["undropped"] = A
-                A = tf.nn.dropout(A, dropout)
-        return A

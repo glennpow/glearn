@@ -12,9 +12,11 @@ class SummaryWriter(object):
     def __init__(self, path):
         self.path = path
 
-        self.simple_values = {}
         self.summaries = {}
         self.summary_fetches = {}
+        self.summary_families = []
+        self.summary_results = {}
+        self.simple_values = {}
         self.writers = {}
         self.server = None
 
@@ -49,9 +51,8 @@ class SummaryWriter(object):
             family_values = {}
             self.simple_values[family] = family_values
         family_values[name] = value
-
-    def clear_simple_values(self, family=None):
-        self.simple_values.pop(family, None)
+        if family not in self.summary_families:
+            self.summary_families.append(family)
 
     def add_scalar(self, name, tensor, family=None):
         # HACK - avoiding family being repeated twice in tensorboard tag
@@ -101,18 +102,20 @@ class SummaryWriter(object):
             if fetch is not None:
                 fetches[self.get_family_key(family)] = fetch
 
-    def process_results(self, results, global_step=None):
-        summaries = {}
+    def process_results(self, results):
         results_keys = list(results.keys())
         for key in results_keys:
             if key.startswith(SUMMARY_KEY_PREFIX):
                 family = key[len(SUMMARY_KEY_PREFIX):]
                 if len(family) == 0:
                     family = None
-                summaries[family] = results.pop(key, None)
-        for family, summary in summaries.items():
-            if summary is not None:
-                self.write(summary, family=family, global_step=global_step)
+                family_results = results.pop(key, None)
+                if family in self.summary_results:
+                    raise Exception(f"Clobbering summary results: '{family}'")
+                else:
+                    self.summary_results[family] = family_results
+                    if family not in self.summary_families:
+                        self.summary_families.append(family)
 
     def summary_scope(self, name, family=None):
         if family is None:
@@ -120,34 +123,42 @@ class SummaryWriter(object):
         # return f"{family}/{family}/{name}"  # HACK - see above
         return f"{family}/{name}"
 
-    def write(self, results, family=None, global_step=None):
-        # get writer
-        path = os.path.abspath(self.path)
-        if family is None:
-            path = os.path.join(path, DEFAULT_SUBDIRECTORY)
-        else:
-            path = os.path.join(path, family)
-        if family in self.writers:
-            writer = self.writers[family]
-        else:
-            writer = tf.summary.FileWriter(path, **self.kwargs)
-            self.writers[family] = writer
+    def flush(self, global_step=None):
+        # flush summary buffers
+        for family in self.summary_families:
+            # get writer
+            path = os.path.abspath(self.path)
+            if family is None:
+                path = os.path.join(path, DEFAULT_SUBDIRECTORY)
+            else:
+                path = os.path.join(path, family)
+            if family in self.writers:
+                writer = self.writers[family]
+            else:
+                writer = tf.summary.FileWriter(path, **self.kwargs)
+                self.writers[family] = writer
 
-        # write results
-        writer.add_summary(results, global_step=global_step)
+            # write results
+            if family in self.summary_results:
+                summary = self.summary_results[family]
+                writer.add_summary(summary, global_step=global_step)
 
-        # write simple values
-        if family in self.simple_values:
-            family_values = self.simple_values[family]
-            summary_values = []
-            for name, value in family_values.items():
-                tag = self.summary_scope(name, family)
-                summary_values.append(tf.Summary.Value(tag=tag, simple_value=value))
-            simple_summary = tf.Summary(value=summary_values)
-            writer.add_summary(simple_summary, global_step=global_step)
+            # write simple values
+            if family in self.simple_values:
+                family_values = self.simple_values[family]
+                summary_values = []
+                for name, value in family_values.items():
+                    tag = self.summary_scope(name, family)
+                    summary_values.append(tf.Summary.Value(tag=tag, simple_value=value))
+                simple_summary = tf.Summary(value=summary_values)
+                writer.add_summary(simple_summary, global_step=global_step)
 
-        # flush writer
-        writer.flush()
+            # flush writer
+            writer.flush()
+        # reset buffers
+        self.summary_families = []
+        self.simple_values = {}
+        self.summary_results = {}
 
 
 class NullSummaryWriter(object):
@@ -163,9 +174,6 @@ class NullSummaryWriter(object):
     def add_simple_value(self, **kwargs):
         pass
 
-    def clear_simple_values(self, **kwargs):
-        pass
-
     def add_scalar(self, **kwargs):
         return None
 
@@ -175,5 +183,11 @@ class NullSummaryWriter(object):
     def get_fetch(self, **kwargs):
         return None
 
-    def write(self, **kwargs):
+    def prepare_fetches(self, **kwargs):
+        pass
+
+    def process_results(self, **kwargs):
+        pass
+
+    def flush(self, **kwargs):
         pass

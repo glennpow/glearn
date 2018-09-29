@@ -1,3 +1,4 @@
+import tensorflow as tf
 from glearn.utils.config import Configurable
 
 
@@ -10,7 +11,6 @@ class NetworkContext(Configurable):
 
         self.feeds = {}
         self.fetches = {}
-        self.summaries = {}
         self.latest_results = {}
 
     def set_feed(self, name, value, graphs=None):
@@ -28,6 +28,19 @@ class NetworkContext(Configurable):
                 graph_feeds = {}
                 self.feeds[graph] = graph_feeds
             graph_feeds[name] = value
+
+    def create_feed(self, name, graphs=None, shape=(), dtype=tf.float32):
+        # create placeholder and set as feed
+        ph = tf.placeholder(dtype, shape, name=name)
+        self.set_feed(name, ph, graphs)
+        return ph
+
+    def get_or_create_feed(self, name, graphs=None, shape=(), dtype=tf.float32):
+        # get feed or create if none found
+        ph = self.get_feed(name)
+        if ph is None:
+            return self.create_feed(name, graphs, shape, dtype)
+        return ph
 
     def get_feed(self, name, graph=None):
         # find feed node for graph name
@@ -77,9 +90,10 @@ class NetworkContext(Configurable):
 
     def get_fetch(self, name, graph=None):
         # find feed node for graph name
-        graph_fetches = self.get_fetches(graph)
-        if name in graph_fetches:
-            return graph_fetches[name]
+        for g, graph_fetches in self.fetches.items():
+            if g == GLOBAL_GRAPH or g == graph:
+                if name in graph_fetches:
+                    return graph_fetches[name]
         return None
 
     def get_fetches(self, graphs=None):
@@ -93,12 +107,9 @@ class NetworkContext(Configurable):
                 fetches.update(self.fetches.get(graph, {}))
         return fetches
 
-    def run(self, sess, graphs, feed_map, global_step=None):
+    def run(self, sess, graphs, feed_map):
         # get configured fetches
         fetches = self.get_fetches(graphs)
-
-        # also fetch summaries
-        self.summary.prepare_fetches(fetches, graphs)
 
         if len(fetches) > 0:
             # build final feed_dict
@@ -106,9 +117,6 @@ class NetworkContext(Configurable):
 
             # run graph
             results = sess.run(fetches, feed_dict)
-
-            # handle summaries
-            self.summary.process_results(results, global_step=global_step)
 
             # store results
             self.latest_results.update(results)

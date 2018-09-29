@@ -1,10 +1,11 @@
 from .network import Network
-from .fully_connected import FullyConnectedLayer  # noqa
+from .dense import DenseLayer  # noqa
 from .conv2d import Conv2dLayer  # noqa
 from .lstm import LSTMLayer  # noqa
+from .distribution import DistributionLayer  # noqa
 
 
-def load_network(context, definition):
-    network = Network(context, definition)
+def load_network(name, context, definition, trainable=True):
+    network = Network(name, context, definition, trainable=trainable)
     network.definition = definition
     return network

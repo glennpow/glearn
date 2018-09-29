@@ -64,13 +64,31 @@ class Policy(NetworkContext):
         if self.summary is not None:
             self.summary.stop()
 
+    def create_default_feeds(self):
+        if self.supervised:
+            inputs = self.dataset.get_inputs()
+            outputs = self.dataset.get_outputs()
+        else:
+            inputs = tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
+            outputs = tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
+
+        # add reference to interfaces
+        inputs.interface = self.input
+        outputs.interface = self.output
+
+        # set feeds
+        self.set_feed("X", inputs)
+        self.set_feed("Y", outputs)
+
+        # set fetches
+        self.set_fetch("X", inputs, ["evaluate", "debug"])
+        self.set_fetch("Y", outputs, "evaluate")
+        return inputs, outputs
+
     def build_model(self):
         # create input placeholders
         with tf.name_scope('feeds'):
             inputs, outputs = self.create_default_feeds()
-
-            self.set_fetch("X", inputs, ["evaluate", "debug"])
-            self.set_fetch("Y", outputs, "evaluate")
 
         # build main prediction model
         y = self.build_predict(inputs, outputs)
@@ -84,21 +102,25 @@ class Policy(NetworkContext):
     def reset(self):
         pass
 
-    def create_default_feeds(self):
-        if self.supervised:
-            inputs = self.dataset.get_inputs()
-            outputs = self.dataset.get_outputs()
-        else:
-            inputs = tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
-            outputs = tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
-        inputs.interface = self.input
-        outputs.interface = self.output
-        self.set_feed("X", inputs)
-        self.set_feed("Y", outputs)
-        return inputs, outputs
-
     def prepare_default_feeds(self, graphs, feed_map):
         return feed_map
+
+    def get_fetches(self, graphs=None):
+        fetches = super().get_fetches(graphs)
+
+        # also fetch summaries
+        self.summary.prepare_fetches(fetches, graphs)
+
+        return fetches
+
+    def run(self, sess, graphs, feed_map):
+        results = super().run(sess, graphs, feed_map)
+
+        # process summaries
+        if len(results) > 0:
+            self.summary.process_results(results)
+
+        return results
 
     @property
     def viewer(self):

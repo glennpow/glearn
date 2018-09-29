@@ -7,7 +7,7 @@
     args:
       network:
         layers:
-          - name: glearn.networks:FullyConnectedLayer
+          - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [128, 128]
   # policy: glearn.policies:RandomPolicy  # HACK
