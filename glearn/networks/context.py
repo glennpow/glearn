@@ -2,7 +2,7 @@ import tensorflow as tf
 from glearn.utils.config import Configurable
 
 
-GLOBAL_GRAPH = "*"
+GLOBAL_FEED_GRAPH = "*"
 
 
 class NetworkContext(Configurable):
@@ -17,7 +17,7 @@ class NetworkContext(Configurable):
         # set feed node, for graph or global (None)
         if graphs is None:
             # global graph feed
-            graphs = [GLOBAL_GRAPH]
+            graphs = [GLOBAL_FEED_GRAPH]
         # apply to specified graphs
         if not isinstance(graphs, list):
             graphs = [graphs]
@@ -51,7 +51,7 @@ class NetworkContext(Configurable):
 
     def get_feeds(self, graphs=None):
         # get all global feeds
-        feeds = self.feeds.get(GLOBAL_GRAPH, {})
+        feeds = self.feeds.get(GLOBAL_FEED_GRAPH, {})
         if graphs is not None:
             # merge with desired graph feeds
             if not isinstance(graphs, list):
@@ -68,18 +68,17 @@ class NetworkContext(Configurable):
                 feed = feeds[key]
                 feed_dict[feed] = value
             else:
-                graph_name = GLOBAL_GRAPH if graphs is None else ", ".join(graphs)
+                graph_name = GLOBAL_FEED_GRAPH if graphs is None else ", ".join(graphs)
                 self.error(f"Failed to find feed '{key}' for graph '{graph_name}'")
         return feed_dict
 
     def set_fetch(self, name, value, graphs=None):
-        # set fetch, for graph or global (None)
+        # set fetch for graphs (defaults to name)
         if graphs is None:
-            # global graph fetch
-            graphs = [GLOBAL_GRAPH]
-        # apply to specified graphs
-        if not isinstance(graphs, list):
+            graphs = [name]
+        elif not isinstance(graphs, list):
             graphs = [graphs]
+        # apply to specified graphs
         for graph in graphs:
             if graph in self.fetches:
                 graph_fetches = self.fetches[graph]
@@ -89,22 +88,21 @@ class NetworkContext(Configurable):
             graph_fetches[name] = value
 
     def get_fetch(self, name, graph=None):
-        # find feed node for graph name
+        # find feed node for graph (defaults to name)
+        if graph is None:
+            graph = name
         for g, graph_fetches in self.fetches.items():
-            if g == GLOBAL_GRAPH or g == graph:
-                if name in graph_fetches:
-                    return graph_fetches[name]
+            if g == graph and name in graph_fetches:
+                return graph_fetches[name]
         return None
 
-    def get_fetches(self, graphs=None):
-        # get all global fetches
-        fetches = self.fetches.get(GLOBAL_GRAPH, {})
-        if graphs is not None:
-            # merge with desired graph fetches
-            if not isinstance(graphs, list):
-                graphs = [graphs]
-            for graph in graphs:
-                fetches.update(self.fetches.get(graph, {}))
+    def get_fetches(self, graphs):
+        # get all fetches for specified graphs
+        if not isinstance(graphs, list):
+            graphs = [graphs]
+        fetches = {}
+        for graph in graphs:
+            fetches.update(self.fetches.get(graph, {}))
         return fetches
 
     def run(self, sess, graphs, feed_map):

@@ -15,7 +15,7 @@ class PolicyGradientTrainer(Trainer):
         # minimize loss
         with tf.name_scope('optimize'):
             optimize = self.optimize_loss()
-            self.policy.set_fetch("optimize", optimize, "optimize")
+            self.policy.set_fetch("optimize", optimize)
 
             # get accuracy from policy
             accuracy = self.policy.get_fetch("accuracy", "evaluate")

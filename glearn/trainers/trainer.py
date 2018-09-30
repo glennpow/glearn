@@ -1,6 +1,7 @@
 import os
 import time
 import atexit
+import numpy as np
 import tensorflow as tf
 import pyglet
 from glearn.datasets.dataset import Transition, transition_batch
@@ -143,7 +144,13 @@ class Trainer(Configurable):
     def init_optimizer(self):
         pass
 
-    def run(self, graphs, feed_map):
+    def prepare_feeds(self, graphs, feed_map):
+        return self.policy.prepare_default_feeds(graphs, feed_map)
+
+    def run(self, graphs, feed_map={}):
+        if not isinstance(graphs, list):
+            graphs = [graphs]
+
         # run policy for graph with feeds
         feed_map = self.prepare_feeds(graphs, feed_map)
         results = self.policy.run(self.sess, graphs, feed_map)
@@ -153,8 +160,14 @@ class Trainer(Configurable):
 
         return results
 
-    def prepare_feeds(self, graphs, feed_map):
-        return self.policy.prepare_default_feeds(graphs, feed_map)
+    def fetch(self, name, feed_map={}, squeeze=False):
+        # shortcut to fetch a single graph/value
+        results = self.run(name, feed_map)
+        fetch_result = results[name]
+
+        if squeeze:
+            fetch_result = np.squeeze(fetch_result)
+        return fetch_result
 
     def predict(self, inputs):
         # input as feed map
@@ -167,9 +180,7 @@ class Trainer(Configurable):
 
         # evaluate graphs and extract single prediction
         results = self.run(graphs, feed_map)
-        predict = results["predict"][0]
-
-        return predict
+        return results["predict"][0]
 
     def action(self):
         return self.predict(self.observation)
@@ -243,14 +254,8 @@ class Trainer(Configurable):
         # get batch data and desired graphs
         self.batch, feed_map = self.get_batch()
 
-        # perform any custom optimization logic
-        self.pre_optimize(feed_map)
-
         # run all desired graphs
         results = self.run(["optimize"], feed_map)
-
-        # perform any custom optimization logic
-        self.post_optimize(feed_map)
 
         # evaluate if time to do so
         if self.evaluating:
