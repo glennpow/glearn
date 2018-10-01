@@ -4,7 +4,9 @@ from .layer import NetworkLayer
 
 class Conv2dLayer(NetworkLayer):
     def __init__(self, network, index, filters, input_channels=None, strides=1, max_pool_k=2,
-                 padding="SAME", activation=tf.nn.relu, initializer=None):
+                 padding="SAME", activation=tf.nn.relu,
+                 weights_initializer=None,
+                 biases_initializer=None):
         super().__init__(network, index)
 
         self.filters = filters
@@ -13,11 +15,15 @@ class Conv2dLayer(NetworkLayer):
         self.max_pool_k = max_pool_k
         self.padding = padding
         self.activation = activation
-        self.initializer_definition = initializer
+        self.weights_initializer = weights_initializer
+        self.biases_initializer = biases_initializer
 
     def build(self, inputs, outputs=None):
-        # initializer
-        initializer = self.load_initializer(self.initializer_definition)
+        # initializers
+        weights_initializer = self.load_initializer(self.weights_initializer,
+                                                    tf.contrib.layers.xavier_initializer())
+        biases_initializer = self.load_initializer(self.biases_initializer,
+                                                   tf.constant_initializer(0.0))
 
         # create convolution layers
         input_channels = self.input_channels
@@ -33,8 +39,10 @@ class Conv2dLayer(NetworkLayer):
                     # create variables
                     height, width, output_channels = filter
                     W = tf.get_variable("W", (height, width, input_channels, output_channels),
-                                        initializer=initializer, trainable=self.trainable)
-                    b = tf.get_variable("b", (output_channels), initializer=initializer,
+                                        initializer=weights_initializer,
+                                        trainable=self.trainable)
+                    b = tf.get_variable("b", (output_channels),
+                                        initializer=biases_initializer,
                                         trainable=self.trainable)
 
                 # conv2d and biases

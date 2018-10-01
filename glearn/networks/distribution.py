@@ -7,33 +7,39 @@ class DistributionLayer(NetworkLayer):
     def __init__(self, network, index, distribution="normal",
                  mean_activation=tf.nn.tanh, mean_scale=1,
                  sigma_activation=tf.nn.softplus, sigma_scale=1,
-                 initializer=None):
+                 weights_initializer=None, biases_initializer=None):
         super().__init__(network, index)
 
         self.mean_activation = mean_activation
         self.mean_scale = mean_scale
         self.sigma_activation = sigma_activation
         self.sigma_scale = sigma_scale
-        self.initializer_definition = initializer
+        self.weights_initializer = weights_initializer
+        self.biases_initializer = biases_initializer
 
     def build(self, inputs, outputs=None):
         # get variables
         dropout = self.context.get_or_create_feed("dropout")
 
         # initializer
-        initializer = self.load_initializer(self.initializer_definition)
+        weights_initializer = self.load_initializer(self.weights_initializer)
+        biases_initializer = self.load_initializer(self.biases_initializer)
 
         # create dense layer for mu
         input_size = np.prod(inputs.shape[1:])
         x = tf.reshape(inputs, (-1, input_size))
         output_size = self.context.output.size
-        mu = self.dense(x, 0, output_size, dropout, self.mean_activation, initializer)
+        mu = self.dense(x, 0, output_size, dropout, self.mean_activation,
+                        weights_initializer=weights_initializer,
+                        biases_initializer=biases_initializer)
         if self.mean_scale != 1:
             mu *= self.mean_scale
         self.references["mu"] = mu
 
         # create dense layer for sigma
-        sigma = self.dense(x, 1, output_size, dropout, self.sigma_activation, initializer)
+        sigma = self.dense(x, 1, output_size, dropout, self.sigma_activation,
+                           weights_initializer=weights_initializer,
+                           biases_initializer=biases_initializer)
         if self.sigma_scale != 1:
             sigma *= self.sigma_scale
         self.references["sigma"] = sigma

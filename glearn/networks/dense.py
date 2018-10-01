@@ -5,26 +5,30 @@ from .layer import NetworkLayer
 
 class DenseLayer(NetworkLayer):
     def __init__(self, network, index, hidden_sizes=[128], activation=tf.nn.relu,
-                 initializer=None):
+                 weights_initializer=None, biases_initializer=None):
         super().__init__(network, index)
 
         self.hidden_sizes = hidden_sizes
         self.activation = activation
-        self.initializer_definition = initializer
+        self.weights_initializer = weights_initializer
+        self.biases_initializer = biases_initializer
 
     def build(self, inputs, outputs=None):
         # get variables
         dropout = self.context.get_or_create_feed("dropout")
 
-        # initializer
-        self.initializer = self.load_initializer(self.initializer_definition)
+        # initializers
+        weights_initializer = self.load_initializer(self.weights_initializer)
+        biases_initializer = self.load_initializer(self.biases_initializer)
 
         # create fully connected layers
         input_size = np.prod(inputs.shape[1:])
         x = tf.reshape(tf.cast(inputs, tf.float32), (-1, input_size))
         layers = []
         for i, hidden_size in enumerate(self.hidden_sizes):
-            x = self.dense(x, i, hidden_size, dropout, self.activation)
+            x = self.dense(x, i, hidden_size, dropout, self.activation,
+                           weights_initializer=weights_initializer,
+                           biases_initializer=biases_initializer)
             layers.append(x)
         self.references["layers"] = layers
 
@@ -36,9 +40,13 @@ class DenseLayer(NetworkLayer):
         output_interface = outputs.interface
         i = len(self.hidden_sizes)
         if output_interface.discrete:
-            y = self.dense(x, i, output_interface.size, dropout, tf.nn.softmax)
+            y = self.dense(x, i, output_interface.size, dropout, tf.nn.softmax,
+                           weights_initializer=weights_initializer,
+                           biases_initializer=biases_initializer)
         else:
-            y = self.dense(x, i, output_interface.size, dropout, None)
+            y = self.dense(x, i, output_interface.size, dropout, None,
+                           weights_initializer=weights_initializer,
+                           biases_initializer=biases_initializer)
 
         # loss evaluations
         with tf.name_scope('evaluate'):

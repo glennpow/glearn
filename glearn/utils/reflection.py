@@ -1,9 +1,11 @@
 import pkg_resources
 
 
-def get_function(identifier, default_kwargs=None):
-    # parse identifier as string or dict
-    if isinstance(identifier, str):
+def get_function(identifier, **default_kwargs):
+    # parse identifier as callable or string or dict
+    if callable(identifier):
+        name = None
+    elif isinstance(identifier, str):
         name = identifier
     elif isinstance(identifier, dict):
         name = identifier['name']
@@ -15,10 +17,16 @@ def get_function(identifier, default_kwargs=None):
     else:
         raise ValueError(f"Unkown class or function identifier: {identifier}")
 
-    # get entry point, and if necessary wrap with args
-    entry_point = pkg_resources.EntryPoint.parse('x={}'.format(name))
-    result = entry_point.load(False)
-    if default_kwargs is not None and len(default_kwargs) > 0:
+    if name is None:
+        # just call identifier
+        result = identifier
+    else:
+        # get entry point, and if necessary wrap with args
+        entry_point = pkg_resources.EntryPoint.parse('x={}'.format(name))
+        result = entry_point.load(False)
+
+    # default arguments wrapper
+    if len(default_kwargs) > 0:
         def result_wrapper(*args, **kwargs):
             actual_kwargs = default_kwargs.copy()
             actual_kwargs.update(kwargs)
@@ -28,5 +36,5 @@ def get_function(identifier, default_kwargs=None):
         return result
 
 
-def get_class(identifier, default_kwargs=None):
-    return get_function(identifier, default_kwargs=default_kwargs)
+def get_class(identifier, **default_kwargs):
+    return get_function(identifier, **default_kwargs)

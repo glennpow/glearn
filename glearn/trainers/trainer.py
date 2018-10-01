@@ -230,26 +230,30 @@ class Trainer(Configurable):
         # Optimize/evaluate using a supervised or unsupervised batch
         self.global_step += 1
         self.evaluating = self.global_step % self.evaluate_interval == 0
+        current_time = time.time()
+        train_elapsed_time = current_time - self.train_start_time
+        step_elapsed_time = current_time = self.step_start_time
+        stats = {
+            "global step": self.global_step,
+            "training time": train_elapsed_time,
+            "steps/second": self.global_step / train_elapsed_time,
+        }
 
         # log info for current iteration
         if self.supervised:
-            table = {
-                f"Epoch: {self.epoch}": {
-                    "global step": self.global_step,
-                    "epoch step": self.epoch_step,
-                    "epoch time": self.epoch_time,
-                }
-            }
+            stats.update({
+                "epoch step": self.epoch_step,
+                "epoch time": step_elapsed_time,
+            })
+            table = {f"Epoch: {self.epoch}": stats}
         else:
-            table = {
-                f"Episode: {self.episode}": {
-                    "global step": self.global_step,
-                    "episode steps": self.episode_step,
-                    "episode time": self.episode_time,
-                    "reward": self.episode_reward,
-                    "max reward": self.max_episode_reward,
-                }
-            }
+            stats.update({
+                "episode steps": self.episode_step,
+                "episode time": step_elapsed_time,
+                "reward": self.episode_reward,
+                "max reward": self.max_episode_reward,
+            })
+            table = {f"Episode: {self.episode}": stats}
 
         # get batch data and desired graphs
         self.batch, feed_map = self.get_batch()
@@ -282,10 +286,11 @@ class Trainer(Configurable):
 
     def train(self, render=False, profile=False):
         self.global_step = 0
-        # self.episode_rewards = []
         self.max_episode_reward = None
         self.training = True
         self.paused = False
+        self.train_start_time = time.time()
+        self.step_start_time = self.train_start_time
 
         # prepare viewer
         self.viewer.prepare(self)
@@ -346,12 +351,9 @@ class Trainer(Configurable):
         for epoch in range(self.epochs):
             self.dataset.reset()
             self.epoch = epoch
-            tic = time.time()
 
             for step in range(self.dataset.epoch_size):
                 # epoch time
-                toc = time.time()
-                self.epoch_time = toc - tic
                 self.epoch_step = step + 1
 
                 self.optimize()
@@ -365,7 +367,6 @@ class Trainer(Configurable):
             # start current episode
             self.episode = episode
             self.reset()
-            tic = time.time()
             self.episode_step = 0
 
             while True:
@@ -378,11 +379,11 @@ class Trainer(Configurable):
                 self.episode_step += 1
 
                 # episode time
-                toc = time.time()
-                self.episode_time = toc - tic
+                current_time = time.time()
+                episode_time = current_time - self.step_start_time
                 if self.max_episode_time is not None:
                     # episode timeout
-                    if self.episode_time > self.max_episode_time:
+                    if episode_time > self.max_episode_time:
                         done = True
 
                 # episode performance
@@ -393,7 +394,6 @@ class Trainer(Configurable):
                         done = True
 
                 if done:
-                    # self.episode_rewards.append(self.episode_reward)
                     if self.max_episode_reward is None \
                        or self.episode_reward > self.max_episode_reward:
                         self.max_episode_reward = self.episode_reward

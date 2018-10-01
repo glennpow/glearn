@@ -4,14 +4,14 @@ from .layer import NetworkLayer
 
 class LSTMLayer(NetworkLayer):
     def __init__(self, network, index, hidden_sizes=[128], cell_args={"forget_bias": 1},
-                 embedding_lookup=False, activation=tf.nn.relu, initializer=None):
+                 embedding_lookup=False, activation=tf.nn.relu, embedding_initializer=None):
         super().__init__(network, index)
 
         self.hidden_sizes = hidden_sizes
         self.cell_args = cell_args
         self.embedding_lookup = embedding_lookup
         self.activation = activation
-        self.initializer_definition = initializer
+        self.embedding_initializer = embedding_initializer
 
     def build(self, inputs, outputs=None):
         # get variables
@@ -24,11 +24,11 @@ class LSTMLayer(NetworkLayer):
         vocabulary_size = self.context.dataset.vocabulary.size  # FIXME - ...better way of exposing
 
         # initializer
-        if self.initializer_definition is None:
+        if self.embedding_initializer is None:
             SCALE = 0.05  # TODO - expose
-            initializer = tf.random_uniform_initializer(-SCALE, SCALE, seed=self.seed)
+            embedding_initializer = tf.random_uniform_initializer(-SCALE, SCALE, seed=self.seed)
         else:
-            initializer = self.load_initializer(self.initializer_definition)
+            embedding_initializer = self.load_initializer(self.embedding_initializer)
 
         # process inputs into embeddings
         x = inputs
@@ -36,7 +36,8 @@ class LSTMLayer(NetworkLayer):
             with tf.device("/cpu:0"):
                 # default initializer
                 embedding = tf.get_variable("embedding", [vocabulary_size, self.hidden_sizes[0]],
-                                            initializer=initializer, trainable=self.trainable)
+                                            initializer=embedding_initializer,
+                                            trainable=self.trainable)
                 x = tf.nn.embedding_lookup(embedding, x)
 
                 # debugging fetches
@@ -75,8 +76,8 @@ class LSTMLayer(NetworkLayer):
         if outputs is None:
             return x
 
-        # create output layer
-        y = self.dense(x, 1, vocabulary_size, dropout, tf.nn.softmax, initializer)
+        # create output layer  (TODO - just get this out of here...)
+        y = self.dense(x, 1, vocabulary_size, dropout, tf.nn.softmax)
 
         # calculate prediction and accuracy
         with tf.name_scope('predict'):
