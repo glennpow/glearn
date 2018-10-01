@@ -74,14 +74,17 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
 
     # Write out the data
     horizontal_width = table_width + 2
-    equals = '=' * horizontal_width
-    dashes = '-' * horizontal_width
-    dotted = ('- ' * (horizontal_width // 2 + 1))[:horizontal_width]
+    equals = '═' * table_width
+    top = "┌" + equals + "┐"
+    bottom = "└" + equals + "┘"
+    dashes = "├" + ('─' * table_width) + "┤"
+    # dotted = "│" + ('░ ' * (horizontal_width // 2 + 1))[:horizontal_width - 2] + "│"
+    dotted = "│" + ('░' * table_width) + "│"
     lines = []
     for header, group in formatted.items():
-        lines.append(equals if len(lines) == 0 else dashes)
+        lines.append(top if len(lines) == 0 else dashes)
         if header is not None:
-            lines += ["|" + (" " * padding + header).ljust(table_width) + "|", dotted]
+            lines += ["│" + (" " * padding + header).ljust(table_width) + "│", dotted]
         group_widths = widths[header]
         for f in group:
             cols = []
@@ -91,8 +94,8 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
                 col_width = group_widths[i] if i < n_cols - 1 else table_width - col_sum
                 col_sum += col_width + 1
                 cols.append((" " * padding + f[i]).ljust(col_width))
-            lines.append("|" + "|".join(cols) + "|")
-    lines.append(equals)
+            lines.append("│" + "│".join(cols) + "│")
+    lines.append(bottom)
     message = '\n'.join(lines)
     if color is not None:
         message = colorize(message, color, bold=bold)
