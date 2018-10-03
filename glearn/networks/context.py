@@ -69,7 +69,7 @@ class NetworkContext(Configurable):
                 feed_dict[feed] = value
             else:
                 graph_name = GLOBAL_FEED_GRAPH if graphs is None else ", ".join(graphs)
-                self.error(f"Failed to find feed '{key}' for graph '{graph_name}'")
+                self.error(f"Failed to find feed '{key}' for graph: {graph_name}")
         return feed_dict
 
     def set_fetch(self, name, value, graphs=None):
@@ -114,6 +114,11 @@ class NetworkContext(Configurable):
             feed_dict = self.build_feed_dict(feed_map, graphs=graphs)
 
             # run graph
+            # if self.debugging:  # TODO - debug levels
+            #     grs = ", ".join(graphs)
+            #     fds = ", ".join(list(feed_map.keys()))
+            #     fts = ", ".join(list(fetches.keys()))
+            #     print(f"Network run graphs: ({grs}), feeding: ({fds}), fetching: ({fts})")
             results = sess.run(fetches, feed_dict)
 
             # store results

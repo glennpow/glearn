@@ -50,6 +50,7 @@ class SummaryWriter(object):
         else:
             family_values = {}
             self.simple_values[family] = family_values
+        print(f"simple({name})")
         family_values[name] = value
         if family not in self.summary_families:
             self.summary_families.append(family)
@@ -59,6 +60,7 @@ class SummaryWriter(object):
         # summary = tf.summary.scalar(name, tensor, family=family)
         if family is not None:
             name = f"{family}/{name}"
+        print(f"scalar({name})")
         summary = tf.summary.scalar(name, tensor, family=None)
 
         if family in self.summaries:
@@ -70,7 +72,11 @@ class SummaryWriter(object):
         return summary
 
     def add_histogram(self, name, values, family=None):
-        summary = tf.summary.histogram(name, values, family=family)
+        # HACK - avoiding family being repeated twice in tensorboard tag
+        # summary = tf.summary.histogram(name, values, family=family)
+        if family is not None:
+            name = f"{family}/{name}"
+        summary = tf.summary.histogram(name, values, family=None)
 
         if family in self.summaries:
             family_summaries = self.summaries[family]

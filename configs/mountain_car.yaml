@@ -1,5 +1,5 @@
---- # Pendulum
-  env: Pendulum-v0
+--- # Mountain Car
+  env: MountainCarContinuous-v0
   batch_size: 128
 
   policy:
@@ -20,7 +20,7 @@
     args:
       critic:
         optimizer: adam
-        learning_rate: 2.0e-4
+        learning_rate: 0.00046415888336127773
         layers:
           - name: glearn.networks:DenseLayer
             args:
@@ -31,7 +31,8 @@
               activation: null
       optimizer: adam
       learning_rate: 1.0e-4
-      gamma: 0.95
+      ent_coef: 2.782559402207126e-05
+      gamma: 0.98999999999999999
       episodes: 5000
       keep_prob: 0.8
       epsilon: [1, 0.1, 10]

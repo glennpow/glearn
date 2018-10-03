@@ -17,10 +17,10 @@ class PolicyGradientTrainer(Trainer):
             optimize = self.optimize_loss()
             self.policy.set_fetch("optimize", optimize)
 
-            # get accuracy from policy
-            accuracy = self.policy.get_fetch("accuracy", "evaluate")
-            if accuracy is not None:
-                self.summary.add_scalar("accuracy", accuracy, "evaluate")
+        # get accuracy summary from policy
+        accuracy = self.policy.get_fetch("accuracy", "evaluate")
+        if accuracy is not None:
+            self.summary.add_scalar("accuracy", accuracy, "evaluate")
 
     def prepare_feeds(self, graphs, feed_map):
         feed_map = super().prepare_feeds(graphs, feed_map)

@@ -35,8 +35,8 @@ class NetworkLayer(object):
             # use default initializer
             return default
         else:
-            # check if initializer already loaded  (HACK)
-            if "tensorflow.python.ops.init_ops" in str(type(definition)):
+            # check if initializer already loaded
+            if callable(definition):
                 return definition
 
             # load initializer constructor and call

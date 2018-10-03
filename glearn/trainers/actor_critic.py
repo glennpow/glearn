@@ -2,12 +2,15 @@ import numpy as np
 import tensorflow as tf
 from glearn.trainers.trainer import Trainer
 from glearn.networks import load_network
+from glearn.utils.collections import intersects
 
 
 class ActorCriticTrainer(Trainer):
-    def __init__(self, config, policy, critic, gamma=0.95, **kwargs):
+    def __init__(self, config, policy, critic, ent_coef=1e-5, gamma=0.95, **kwargs):
         # get basic params
         self.critic_definition = critic
+        self.normalize_advantage = False  # TODO
+        self.ent_coef = ent_coef
         self.gamma = gamma
 
         super().__init__(config, policy, **kwargs)
@@ -16,8 +19,14 @@ class ActorCriticTrainer(Trainer):
         assert(self.reinforcement)
 
     def init_optimizer(self):
-        # build critic network
+        self.init_critic()
+
+        self.init_actor()
+
+    def init_critic(self):
         policy = self.policy
+
+        # build critic network
         with tf.name_scope('critic'):
             self.critic_network = load_network("critic", policy, self.critic_definition)
             critic_inputs = policy.get_feed("X")
@@ -33,33 +42,24 @@ class ActorCriticTrainer(Trainer):
             # discounted_reward = reward + gamma * critic_value  # this happens out of graph now
             discounted_reward = policy.create_feed("discounted_reward", ["advantage"], (None, 1))
             advantage = discounted_reward - critic_value
+            if self.normalize_advantage:  # aborghi implementation
+                advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
             policy.set_fetch("advantage", advantage)
 
             # critic loss minimizes advantage
             critic_loss = tf.reduce_mean(tf.square(advantage))
-            self.summary.add_scalar("critic_loss", critic_loss, "evaluate")
-            # policy.set_fetch("critic_loss", critic_loss, "evaluate")
+            policy.set_fetch("critic_loss", critic_loss, "evaluate")
 
             # optimize loss
             critic_optimize = self.optimize_loss(critic_loss, self.critic_definition)
             policy.set_fetch("critic_optimize", critic_optimize)
 
-        # build duplicate "old" actor network
-        with tf.name_scope('old_actor'):
-            # duplicate policy network
-            assert hasattr(policy, "network")
-            actor_network = policy.network
-            actor_definition = actor_network.definition
-            self.old_actor_network = load_network("old_actor", policy, actor_definition,
-                                                  trainable=False)
-            actor_inputs = policy.get_feed("X")
-            self.old_actor_network.build(actor_inputs)
+        # summaries
+        self.summary.add_scalar("critic_loss", critic_loss, "evaluate")
 
-            # build old actor update
-            actor_vars = actor_network.get_variables()
-            old_actor_vars = self.old_actor_network.get_variables()
-            actor_update = [oldp.assign(p) for p, oldp in zip(actor_vars, old_actor_vars)]
-            policy.set_fetch("actor_update", actor_update)
+    def init_actor(self):
+        policy = self.policy
+        self.actor_network = policy.network
 
         # build actor optimization
         with tf.name_scope('optimize'):
@@ -68,32 +68,33 @@ class ActorCriticTrainer(Trainer):
             past_advantage = policy.create_feed("past_advantage", "optimize", (None, 1))
             # past_advantage = advantage
 
-            # surrogate loss
-            # old_actor_prob = self.old_actor_network.prob(past_action) + 1e-5
-            # ratio = actor_network.prob(past_action) / old_actor_prob
-            actor_log_prob = actor_network.log_prob(past_action)
-            old_actor_log_prob = self.old_actor_network.log_prob(past_action)
-            ratio = tf.exp(actor_log_prob - old_actor_log_prob)
-            surr = ratio * past_advantage
+            # actor loss
+            actor_distribution = policy.network.get_distribution()
+            actor_neg_logp = -actor_distribution.log_prob(past_action)
+            entropy_factor = self.ent_coef * actor_distribution.entropy()
+            actor_loss = actor_neg_logp * past_advantage - entropy_factor
+            actor_loss = tf.reduce_mean(actor_loss)
+            policy.set_fetch("actor_loss", actor_loss, "evaluate")
 
-            # clipped surrogate objective
-            EPSILON = 0.2
-            clipped_surr = tf.clip_by_value(ratio, 1. - EPSILON, 1. + EPSILON) * past_advantage
-            actor_loss = -tf.reduce_mean(tf.minimum(surr, clipped_surr))
-            self.summary.add_scalar("loss", actor_loss, "evaluate")
-            # policy.set_fetch("actor_loss", actor_loss, "evaluate")
-
-            # optimize the surrogate loss
+            # optimize the actor loss
             optimize = self.optimize_loss(actor_loss)
             policy.set_fetch("optimize", optimize)
 
-    def prepare_feeds(self, graphs, feed_map):
-        if "advantage" in graphs or "critic_optimize" in graphs:
-            # build critic feed map with rewards
-            reward = [e.discounted_reward for e in self.batch.info["transitions"]]
-            feed_map["discounted_reward"] = np.array(reward)[:, np.newaxis]
+        # add summaries
+        self.summary.add_scalar("loss", actor_loss, "evaluate")
 
-        elif "optimize" in graphs:
+    def prepare_feeds(self, graphs, feed_map):
+        if intersects(["advantage", "critic_optimize"], graphs):
+            # build critic feed map with rewards
+            if self.batch is not None:
+                reward = [e.discounted_reward for e in self.batch.info["transitions"]]
+                feed_map["discounted_reward"] = np.array(reward)[:, np.newaxis]
+            else:
+                shape = np.shape(feed_map["X"])[:-1] + (1,)
+                feed_map["discounted_reward"] = np.zeros(shape)
+
+        # print(f"intersects-optimize ({graphs})...")
+        if intersects("optimize", graphs):
             feed_map["past_action"] = self.batch.outputs
             feed_map["past_advantage"] = self.past_advantage
 

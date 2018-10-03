@@ -14,6 +14,7 @@ COLOR_NUMBERS = dict(
     crimson=38
 )
 MAX_TABULAR_WIDTH = 120
+SQUEEZE_ARRAYS = True
 
 
 def colorize(string, color, bold=False, highlight=False):
@@ -36,6 +37,9 @@ def _format_type(value):
     else:
         if isinstance(value, abc.Iterable):
             typename = f"{typename}{np.shape(value)}"
+        value = np.array(value)
+        if SQUEEZE_ARRAYS:
+            value = np.squeeze(value)
         value = f"{value}".split('\n')[0]
     if len(value) > MAX_TABULAR_WIDTH:
         value = value[:MAX_TABULAR_WIDTH]
@@ -73,12 +77,10 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
             table_width = max(header_width, table_width)
 
     # Write out the data
-    horizontal_width = table_width + 2
     equals = '═' * table_width
     top = "┌" + equals + "┐"
     bottom = "└" + equals + "┘"
     dashes = "├" + ('─' * table_width) + "┤"
-    # dotted = "│" + ('░ ' * (horizontal_width // 2 + 1))[:horizontal_width - 2] + "│"
     dotted = "│" + ('░' * table_width) + "│"
     lines = []
     for header, group in formatted.items():

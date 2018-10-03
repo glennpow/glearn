@@ -22,8 +22,10 @@ class DistributionLayer(NetworkLayer):
         dropout = self.context.get_or_create_feed("dropout")
 
         # initializer
-        weights_initializer = self.load_initializer(self.weights_initializer)
-        biases_initializer = self.load_initializer(self.biases_initializer)
+        weights_initializer = self.load_initializer(self.weights_initializer,
+                                                    default=tf.contrib.layers.xavier_initializer())
+        biases_initializer = self.load_initializer(self.biases_initializer,
+                                                   default=tf.contrib.layers.xavier_initializer())
 
         # create dense layer for mu
         input_size = np.prod(inputs.shape[1:])

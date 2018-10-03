@@ -41,6 +41,13 @@ class Network(object):
                 return len(self.layers[layer_type])
         return 0
 
+    def get_distribution(self):
+        # HACK - look for distribution layer
+        layer = self.get_layer("DistributionLayer")
+        if layer is not None:
+            return layer.references["distribution"]
+        return None
+
     def get_variables(self):
         return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
 
@@ -53,7 +60,7 @@ class Network(object):
             # create and link network layers
             y = self.tail
             layer_definitions = self.definition.get("layers", [])
-            optimizes = self.trainable and self.definition.get("optimizes", True)
+            optimizes = self.trainable and self.definition.get("optimizes", True)  # HACK
             layer_count = len(layer_definitions)
             for i, layer_config in enumerate(layer_definitions):
                 layer = load_layer(self, i, layer_config)
@@ -69,13 +76,3 @@ class Network(object):
             for layer in type_layers:
                 feed_map = layer.prepare_default_feeds(graphs, feed_map)
         return feed_map
-
-    def prob(self, output):
-        # HACK - figure better way of exposing this
-        distribution = self.get_layer("DistributionLayer")
-        return distribution.prob(output)
-
-    def log_prob(self, output):
-        # HACK - figure better way of exposing this
-        distribution = self.get_layer("DistributionLayer")
-        return distribution.log_prob(output)
