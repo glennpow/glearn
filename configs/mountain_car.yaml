@@ -12,8 +12,6 @@
             args:
               hidden_sizes: [200]
           - name: glearn.networks:DistributionLayer
-            args:
-              mean_scale: 2
 
   trainer:
     name: glearn.trainers:ActorCriticTrainer
