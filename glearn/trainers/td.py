@@ -6,9 +6,8 @@ from glearn.utils.collections import intersects
 
 class TDTrainer(Trainer):
     def __init__(self, config, policy, gamma=0.95, normalize_advantage=False, **kwargs):
-        # get basic params
-        self.normalize_advantage = normalize_advantage  # TODO - try this out?
         self.gamma = gamma
+        self.normalize_advantage = normalize_advantage  # TODO - try this out?
 
         super().__init__(config, policy, **kwargs)
 
@@ -17,9 +16,6 @@ class TDTrainer(Trainer):
 
         # build advantage and value optimization
         with tf.name_scope('td'):
-            # reward = policy.create_feed("reward", ["value_optimize", "optimize"], (None,))
-            # gamma = tf.constant(self.gamma, name="gamma")
-
             # calculate advantage, using discounted rewards
             # discounted_reward = reward + gamma * value  # this happens out of graph now
             discounted_reward = policy.create_feed("discounted_reward", ["advantage"], (None, 1))
@@ -34,6 +30,8 @@ class TDTrainer(Trainer):
 
         # summaries
         self.summary.add_scalar("value_loss", value_loss, "evaluate")
+        self.summary.add_scalar("advantage", tf.reduce_mean(advantage), "evaluate")
+        self.summary.add_scalar("advantage_abs", tf.reduce_mean(tf.abs(advantage)), "evaluate")
         return value_loss
 
     def prepare_feeds(self, graphs, feed_map):

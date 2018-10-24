@@ -1,5 +1,6 @@
 import tensorflow as tf
-from glearn.networks.layer import load_layer
+from glearn.networks.layers.layer import load_layer
+from glearn.networks.layers.distributions.distribution import DistributionLayer
 
 
 class Network(object):
@@ -9,7 +10,7 @@ class Network(object):
         self.definition = definition
         self.trainable = trainable
 
-        self.layers = {}
+        self.layers = []
         self.head = None
         self.tail = None
 
@@ -18,35 +19,33 @@ class Network(object):
         return self.context.seed
 
     def add_layer(self, layer):
-        layer_type = layer.layer_type
-        if layer_type in self.layers:
-            type_layers = self.layers[layer_type]
-        else:
-            type_layers = []
-            self.layers[layer_type] = type_layers
-        type_layers.append(layer)
+        self.layers.append(layer)
 
-    def get_layer(self, layer_type, index=0):
-        if layer_type in self.layers:
-            type_layers = self.layers[layer_type]
-            if index < len(type_layers):
-                return type_layers[index]
+    def get_layer(self, layer_type=None, index=0):
+        i = 0
+        for layer in self.layers:
+            if layer_type is None or isinstance(layer, layer_type):
+                if i == index:
+                    return layer
+                i += 1
         return None
 
-    def get_layer_count(self, layer_type=None):
+    def get_layers(self, layer_type=None):
         if layer_type is None:
-            return len(self.layers)
-        else:
-            if layer_type in self.layers:
-                return len(self.layers[layer_type])
-        return 0
+            return self.layers
+        layers = []
+        for layer in self.layers:
+            if isinstance(layer, layer_type):
+                layers.append(layer)
+        return layers
 
     def get_distribution(self):
-        # HACK - look for distribution layer
-        layer = self.get_layer("DistributionLayer")
-        if layer is not None:
-            return layer.references["distribution"]
-        return None
+        # HACK - look for distribution layer (FIXME)
+        layer = self.get_layer(DistributionLayer)
+        # if layer is not None:
+        #     return layer.references["distribution"]
+        # return None
+        return layer
 
     def get_variables(self):
         return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
@@ -72,7 +71,6 @@ class Network(object):
 
     def prepare_default_feeds(self, graphs, feed_map):
         # add default feed values
-        for layer_type, type_layers in self.layers.items():
-            for layer in type_layers:
-                feed_map = layer.prepare_default_feeds(graphs, feed_map)
+        for layer in self.layers:
+            feed_map = layer.prepare_default_feeds(graphs, feed_map)
         return feed_map

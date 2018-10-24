@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 import pyglet
 from glearn.datasets.dataset import Transition, transition_batch
+from glearn.utils.collections import intersects
 from glearn.utils.config import Configurable
 from glearn.utils.printing import print_tabular
 from glearn.utils.profile import run_profile, open_profile
@@ -12,7 +13,7 @@ from glearn.utils.profile import run_profile, open_profile
 
 class Trainer(Configurable):
     def __init__(self, config, policy, epochs=100, episodes=1000, max_episode_time=None,
-                 min_episode_reward=None, evaluate_interval=10, **kwargs):
+                 min_episode_reward=None, evaluate_interval=10, epsilon=0, keep_prob=1, **kwargs):
         super().__init__(config)
 
         self.policy = policy
@@ -25,6 +26,8 @@ class Trainer(Configurable):
         self.max_episode_time = max_episode_time
         self.min_episode_reward = min_episode_reward
         self.evaluate_interval = evaluate_interval
+        self.epsilon = epsilon
+        self.keep_prob = keep_prob
 
         self.global_step = 0
         self.epoch_step = 0
@@ -105,7 +108,7 @@ class Trainer(Configurable):
         self.summary.add_scalar("loss", loss, "evaluate")
         return loss
 
-    def optimize_loss(self, loss=None, definition=None):
+    def optimize_loss(self, loss_name="optimize", loss=None, definition=None):
         # default loss
         if loss is None:
             # get policy loss
@@ -115,37 +118,49 @@ class Trainer(Configurable):
         if definition is None:
             definition = self.kwargs
 
-        # create optimizer
-        optimizer_name = definition.get("optimizer", "sgd")
-        learning_rate = definition.get("learning_rate", 1e-4)
-        if optimizer_name == "sgd":
-            optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-        elif optimizer_name == "adam":
-            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-        else:
-            raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
+        with tf.name_scope(loss_name):
+            # create optimizer
+            optimizer_name = definition.get("optimizer", "sgd")
+            learning_rate = definition.get("learning_rate", 1e-4)
+            if optimizer_name == "sgd":
+                optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+            elif optimizer_name == "adam":
+                optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+            else:
+                raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
 
-        global_step = tf.train.get_or_create_global_step()
+            global_step = tf.train.get_or_create_global_step()
 
-        # apply gradients, with any configured clipping
-        max_grad_norm = definition.get("max_grad_norm", None)
-        if max_grad_norm is None:
-            # apply unclipped gradients
-            optimize = optimizer.minimize(loss, global_step=global_step)
-        else:
-            # apply gradients with clipping
-            tvars = tf.trainable_variables()
-            grads = tf.gradients(loss, tvars)
-            grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
-            optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
+            # apply gradients, with any configured clipping
+            max_grad_norm = definition.get("max_grad_norm", None)
+            if max_grad_norm is None:
+                # apply unclipped gradients
+                optimize = optimizer.minimize(loss, global_step=global_step)
+            else:
+                # apply gradients with clipping
+                tvars = tf.trainable_variables()
+                grads = tf.gradients(loss, tvars)
+                grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
+                optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
+
+            self.policy.set_fetch(loss_name, optimize)
 
         return optimize
 
     def init_optimizer(self):
-        pass
+        # get accuracy summary from policy
+        accuracy = self.policy.get_fetch("accuracy", "evaluate")
+        if accuracy is not None:
+            self.summary.add_scalar("accuracy", accuracy, "evaluate")
 
     def prepare_feeds(self, graphs, feed_map):
-        return self.policy.prepare_default_feeds(graphs, feed_map)
+        self.policy.prepare_default_feeds(graphs, feed_map)
+
+        if intersects(["policy_optimize", "value_optimize"], graphs):
+            feed_map["dropout"] = self.keep_prob
+        else:
+            feed_map["dropout"] = 1
+        return feed_map
 
     def run(self, graphs, feed_map={}):
         if not isinstance(graphs, list):
@@ -183,7 +198,20 @@ class Trainer(Configurable):
         return results["predict"][0]
 
     def action(self):
-        return self.predict(self.observation)
+        # decaying epsilon-greedy
+        # FIXME - should this be per epoch/episode instead of iteration?
+        epsilon = self.epsilon
+        if isinstance(epsilon, list):
+            t = min(1, self.global_step / epsilon[2])
+            epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
+
+        # get action
+        if np.random.random() < epsilon:
+            # choose epsilon-greedy random action  (TODO - could implement this in tf)
+            return self.output.sample()
+        else:
+            # choose optimal policy action
+            return self.predict(self.observation)
 
     def rollout(self):
         # get action
@@ -259,7 +287,7 @@ class Trainer(Configurable):
         self.batch, feed_map = self.get_batch()
 
         # run all desired graphs
-        results = self.run(["optimize"], feed_map)
+        results = self.run(["policy_optimize"], feed_map)
 
         # evaluate if time to do so
         if self.evaluating:

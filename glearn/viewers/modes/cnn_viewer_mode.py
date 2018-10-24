@@ -1,6 +1,7 @@
 import numpy as np
 import pyglet
 from glearn.viewers.modes.viewer_mode import ViewerMode
+from glearn.networks.layers.conv2d import Conv2dLayer
 
 
 class CNNViewerMode(ViewerMode):
@@ -17,10 +18,9 @@ class CNNViewerMode(ViewerMode):
 
         network = self.policy.network
         self.filters = self.config.find("filters")
-        count = network.get_layer_count("Conv2dLayer")
+        conv3d_layers = network.get_layers(Conv2dLayer)
         n = 0
-        for i in range(count):
-            layer = network.get_layer("Conv2dLayer", i)
+        for layer in conv3d_layers:
             features = layer.references["features"]
             for f in features:
                 network.context.set_fetch(f"conv2d_{n}", f, "debug")

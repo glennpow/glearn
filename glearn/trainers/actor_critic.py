@@ -20,53 +20,77 @@ class ActorCriticTrainer(TDTrainer):
 
         self.init_actor()
 
+        super().init_optimizer()
+
     def init_critic(self):
         policy = self.policy
 
         # build critic network
-        with tf.name_scope('critic'):
+        with tf.name_scope('value'):
             self.critic_network = load_network("critic", policy, self.critic_definition)
             critic_inputs = policy.get_feed("X")
             critic_value = self.critic_network.build(critic_inputs)
             policy.set_fetch("value", critic_value)
 
         value_loss = self.init_value_loss(critic_value)
+        self.summary.add_scalar("value", tf.reduce_mean(critic_value), "evaluate")
 
         # build advantage and critic optimization
-        with tf.name_scope('value_optimize'):
-            # optimize loss
-            value_optimize = self.optimize_loss(value_loss, self.critic_definition)
-            policy.set_fetch("value_optimize", value_optimize)
+        self.optimize_loss("value_optimize", value_loss, self.critic_definition)
 
     def init_actor(self):
         policy = self.policy
-        self.actor_network = policy.network
+        assert hasattr(policy, "network")
+        self.policy_network = policy.network
 
-        # build actor optimization
-        with tf.name_scope('optimize'):
+        # build policy optimization
+        entropy_loss = None
+        with tf.name_scope('policy_optimize'):
             action_shape = (None,) + self.output.shape
-            past_action = policy.create_feed("past_action", "optimize", action_shape)
-            past_advantage = policy.create_feed("past_advantage", "optimize", (None, 1))
-            # past_advantage = advantage
+            past_action = policy.create_feed("past_action", "policy_optimize", action_shape)
+            past_advantage = policy.create_feed("past_advantage", "policy_optimize", (None, 1))
 
-            # actor loss
-            actor_distribution = policy.network.get_distribution()
-            actor_neg_logp = -actor_distribution.log_prob(past_action)
-            entropy_factor = self.ent_coef * actor_distribution.entropy()
-            policy_loss = actor_neg_logp * past_advantage - entropy_factor
+            # policy loss
+            policy_distribution = policy.network.get_distribution()
+            neg_logp = -policy_distribution.log_prob(past_action)
+            policy_loss = neg_logp * past_advantage
+
+            # entropy exploration factor
+            if self.ent_coef > 0:
+                entropy = policy_distribution.entropy()
+                policy.set_fetch("entropy", entropy, "evaluate")
+                entropy_loss = -self.ent_coef * entropy
+                policy_loss += entropy_loss
+
+            # L2 distribution loss
+            l2_loss = None
+            if "l2_loss" in policy_distribution.references:
+                l2_loss = policy_distribution.references["l2_loss"]
+                policy_loss += l2_loss
+
             policy_loss = tf.reduce_mean(policy_loss)
             policy.set_fetch("policy_loss", policy_loss, "evaluate")
 
-            # optimize the actor loss
-            policy_optimize = self.optimize_loss(policy_loss)
-            policy.set_fetch("optimize", policy_optimize)
+        # optimize the policy loss
+        self.optimize_loss("policy_optimize", policy_loss)
 
         # add summaries
-        self.summary.add_scalar("loss", policy_loss, "evaluate")
+        if entropy_loss is not None:
+            self.summary.add_scalar("entropy_loss", tf.reduce_mean(entropy_loss), "evaluate")
+            self.summary.add_scalar("entropy", tf.reduce_mean(entropy), "evaluate")
+        # if hasattr(policy_distribution, "stddev"):
+        #     action_stddev = tf.reduce_mean(tf.squeeze(policy_distribution.stddev()))
+        #     self.summary.add_scalar("action_stddev", action_stddev, "evaluate")
+        self.summary.add_scalar("policy_loss", policy_loss, "evaluate")
+        # mu = policy_distribution.references["mu"]
+        # sigma = policy_distribution.references["sigma"]
+        # self.summary.add_scalar("mu", tf.reduce_mean(mu), "evaluate")
+        # self.summary.add_scalar("sigma", tf.reduce_mean(sigma), "evaluate")
+        # if l2_loss is not None:
+        #     self.summary.add_scalar("l2_loss", l2_loss, "evaluate")
 
     def prepare_feeds(self, graphs, feed_map):
-        # print(f"intersects-optimize ({graphs})...")
-        if intersects("optimize", graphs):
+        if intersects("policy_optimize", graphs):
             feed_map["past_action"] = self.batch.outputs
             feed_map["past_advantage"] = self.past_advantage
 
@@ -76,15 +100,14 @@ class ActorCriticTrainer(TDTrainer):
         if not isinstance(graphs, list):
             graphs = [graphs]
 
-        is_optimize = "optimize" in graphs
+        is_optimize = "policy_optimize" in graphs
         if is_optimize:
             # get advantage
             self.past_advantage = super().fetch("advantage", feed_map)
 
-        results = super().run(graphs, feed_map)
+            # optimize critic value network as well
+            graphs += ["value_optimize"]
 
-        if is_optimize:
-            # optimize critic
-            super().run("value_optimize", feed_map)
+        results = super().run(graphs, feed_map)
 
         return results

@@ -11,14 +11,14 @@
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [200]
-          - name: glearn.networks:DistributionLayer
+          - name: glearn.networks:NormalDistributionLayer
 
   trainer:
     name: glearn.trainers:ActorCriticTrainer
     args:
       critic:
         optimizer: adam
-        learning_rate: 0.00046415888336127773
+        learning_rate: 0.01  # 0.00046415888336127773
         layers:
           - name: glearn.networks:DenseLayer
             args:
@@ -28,8 +28,8 @@
               hidden_sizes: [1]
               activation: null
       optimizer: adam
-      learning_rate: 1.0e-4
-      ent_coef: 2.782559402207126e-05
+      learning_rate: 0.001 # 1.0e-4
+      ent_coef: 2.0e-2  # 2.782559402207126e-05
       gamma: 0.98999999999999999
       episodes: 5000
       keep_prob: 0.8
