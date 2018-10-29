@@ -36,8 +36,8 @@
               hidden_sizes: [1]
               activation: null
       optimizer: adam
-      learning_rate: 0.01 # 1.0e-4
-      gamma: 0.95
+      learning_rate: 1.0e-3
+      gamma: 0.99
       ent_coef: 1.0e-4
       episodes: 5000
       keep_prob: 0.8

@@ -32,6 +32,7 @@ class TDTrainer(Trainer):
         self.summary.add_scalar("value_loss", value_loss, "evaluate")
         self.summary.add_scalar("advantage", tf.reduce_mean(advantage), "evaluate")
         self.summary.add_scalar("advantage_abs", tf.reduce_mean(tf.abs(advantage)), "evaluate")
+        self.summary.add_scalar("reward", tf.reduce_mean(discounted_reward), "evaluate")
         return value_loss
 
     def prepare_feeds(self, graphs, feed_map):

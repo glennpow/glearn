@@ -74,7 +74,7 @@ def load_data(path, element_size, max_count=None, header_bytes=0, mapping=None):
 
 def dataset(images_file, labels_file, config):
     """Download and parse MNIST dataset."""
-    directory = os.path.dirname(__file__)
+    directory = os.path.expanduser(os.path.join(os.path.dirname(__file__), "../../../data/mnist"))
     images_file = download(directory, images_file)
     labels_file = download(directory, labels_file)
 
