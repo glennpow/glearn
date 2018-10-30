@@ -2,6 +2,7 @@ import collections
 import os
 import tensorflow as tf
 from glearn.datasets.sequence import Vocabulary, SequenceDataset
+from glearn.utils.path import script_relpath
 
 
 raw_data = None
@@ -29,7 +30,7 @@ def _file_to_word_ids(filename, vocabulary):
 
 
 def ptb_raw_data():
-    data_path = os.path.expanduser(os.path.join(os.path.dirname(__file__), "../../../data/ptb"))
+    data_path = script_relpath("../../data/ptb")
     train_path = os.path.join(data_path, "ptb.train.txt")
     valid_path = os.path.join(data_path, "ptb.valid.txt")
     test_path = os.path.join(data_path, "ptb.test.txt")
