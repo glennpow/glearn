@@ -4,15 +4,16 @@ import json
 from glearn.datasets import load_dataset
 from glearn.envs import load_env
 from glearn.utils.printing import colorize
+from glearn.utils.path import script_relpath
 from glearn.policies.interface import Interface
+from glearn.viewers import load_view_controller
 
 
 TEMP_DIR = "/tmp/glearn"
 
 
 class Config(object):
-    def __init__(self, config_path, version=None, debug=False):
-        from glearn.viewers import load_view_controller
+    def __init__(self, config_path, version=None, render=False, debug=False):
 
         self.properties = self.load_properties(config_path)
 
@@ -39,7 +40,7 @@ class Config(object):
             next_version = 1
             self.log_dir = f"{TEMP_DIR}/{self.project}/{next_version}"
             self.load_path = None
-            self.save_path = None
+            self.save_path = f"{self.log_dir}/model.ckpt"
         elif version.isdigit():
             version = int(version)
             next_version = version + 1
@@ -55,7 +56,7 @@ class Config(object):
         self.tensorboard_path = f"{self.log_dir}/tensorboard/"
 
         # create render viewer controller
-        self.viewer = load_view_controller(self)
+        self.viewer = load_view_controller(self, render=render)
 
         # prepare input/output interfaces, and env
         if self.supervised:
@@ -177,13 +178,13 @@ class Configurable(object):
         return self.config.seed
 
 
-def load_config(identifier, version=None, debug=False, search_defaults=True):
+def load_config(identifier, version=None, render=False, debug=False, search_defaults=True):
     # locate the desired config
     config_path = find_config(identifier, search_defaults=search_defaults)
     if config_path is None or not os.path.exists(config_path):
         raise ValueError(f"Failed to locate config using identifier: '{identifier}'")
 
-    return Config(config_path, version=version, debug=debug)
+    return Config(config_path, version=version, render=render, debug=debug)
 
 
 def find_config(identifier, search_defaults=True):
@@ -197,7 +198,7 @@ def find_config(identifier, search_defaults=True):
             options.append(f"{identifier}.yaml")
 
         # is it relative to the project root?
-        root = os.path.join(os.path.dirname(__file__), "..", "..")
+        root = script_relpath("../..")
         options += [os.path.join(root, "configs", p) for p in options]
 
     for path in options:

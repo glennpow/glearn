@@ -1,4 +1,3 @@
-import sys
 from collections import abc
 import numpy as np
 from glearn.utils.reflection import get_class
@@ -6,21 +5,22 @@ from glearn.utils.config import Configurable
 
 
 class ViewerController(Configurable):
-    def __init__(self, config):
+    def __init__(self, config, render=True):
         super().__init__(config)
 
         self.listeners = []
         self.viewer = None
 
-        can_render = sys.stdout.isatty()
-        if can_render:
-            if config.has("viewer"):
+        if render and config.has("viewer"):
+            try:
                 ViewerClass = get_class(config.get("viewer"))
                 self.viewer = ViewerClass(config)
                 self.init_viewer()
 
                 if self.env is not None:
                     self.env.unwrapped.viewer = self.viewer
+            except Exception as e:
+                print(f"Failed to load viewer: {e}")
 
     def get_viewer(self):
         if self.viewer is not None:
@@ -67,6 +67,10 @@ class ViewerController(Configurable):
     def prepare(self, trainer):
         if hasattr(self.viewer, "prepare"):
             self.viewer.prepare(trainer)
+
+    def render(self):
+        if self.viewer is not None and hasattr(self.viewer, "render"):
+            self.viewer.render()
 
     def view_results(self, graphs, feed_map, results):
         if hasattr(self.viewer, "view_results"):

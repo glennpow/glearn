@@ -2,11 +2,12 @@ import os
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
+from glearn.utils.path import script_relpath
 
 
 class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
-        asset_path = os.path.join(os.path.dirname(__file__), 'assets', 'ant.xml')
+        asset_path = script_relpath('assets/ant.xml')
         mujoco_env.MujocoEnv.__init__(self, asset_path, 5)
         utils.EzPickle.__init__(self)
 

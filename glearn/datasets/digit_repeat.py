@@ -2,7 +2,7 @@ from glearn.datasets.sequence import Vocabulary, SequenceDataset
 
 
 class DigitRepeatDataset(SequenceDataset):
-    def __init__(self, config, digits=10, repeat=100):
+    def __init__(self, config, mode="train", digits=10, repeat=100):
         batch_size = config.get("batch_size", 5)
         timesteps = config.get("timesteps", 1)
 

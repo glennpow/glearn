@@ -114,11 +114,6 @@ def dataset(images_file, labels_file, config):
                    batch_size=batch_size)
 
 
-def train(config):
-    """tf.data.Dataset object for MNIST training data."""
-    return dataset('train-images-idx3-ubyte', 'train-labels-idx1-ubyte', config)
-
-
-def test(config):
-    """tf.data.Dataset object for MNIST test data."""
-    return dataset('t10k-images-idx3-ubyte', 't10k-labels-idx1-ubyte', config)
+def mnist_dataset(config, mode="train"):
+    prefix = "train" if mode == "train" else "t10k"
+    return dataset(f'{prefix}-images-idx3-ubyte', f'{prefix}-labels-idx1-ubyte', config)

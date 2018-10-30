@@ -1,3 +1,4 @@
+# for some inputs/vars/operations use --> with tf.device('/cpu:0'):
 # figure out TD and PolicyGradient inheritance
 X replace GaussianLayer with CategoricalLayer
 # gather multiple episodes (5+)

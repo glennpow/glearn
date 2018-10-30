@@ -53,13 +53,10 @@ def build_dataset(index, config):
     return SequenceDataset("PTB", raw_data[index], raw_data[3], batch_size, timesteps)
 
 
-def train(config):
-    return build_dataset(0, config)
-
-
-def validate(config):
-    return build_dataset(1, config)
-
-
-def test(config):
-    return build_dataset(2, config)
+def ptb_dataset(config, mode="train"):
+    index = 0
+    if mode == "validate":
+        index = 1
+    elif mode == "test":
+        index = 2
+    return build_dataset(index, config)

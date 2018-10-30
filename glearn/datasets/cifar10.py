@@ -103,44 +103,39 @@ def _build_dataset(config, images, labels, one_hot=False):
                    epoch_size=None, optimize_batch=True, info={"class_names": names})
 
 
-def train(config):
+def cifar10_dataset(config, mode="train"):
     _maybe_download_and_extract()
 
-    # Pre-allocate the arrays for the images and class-numbers for efficiency.
-    images_shape = [NUM_TRAINING_IMAGES, IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNELS]
-    images = np.zeros(shape=images_shape, dtype=float)
-    labels_shape = [NUM_TRAINING_IMAGES]
-    labels = np.zeros(shape=labels_shape, dtype=int)
+    if mode == "test":
+        images, labels = _load_data(filename="test_batch")
+    else:
+        # Pre-allocate the arrays for the images and class-numbers for efficiency.
+        images_shape = [NUM_TRAINING_IMAGES, IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNELS]
+        images = np.zeros(shape=images_shape, dtype=float)
+        labels_shape = [NUM_TRAINING_IMAGES]
+        labels = np.zeros(shape=labels_shape, dtype=int)
 
-    # Begin-index for the current batch.
-    begin = 0
+        # Begin-index for the current batch.
+        begin = 0
 
-    # For each data-file.
-    for i in range(NUM_TRAINING_FILES):
-        # Load the images and class-numbers from the data-file.
-        images_batch, labels_batch = _load_data(filename="data_batch_" + str(i + 1))
+        # For each data-file.
+        for i in range(NUM_TRAINING_FILES):
+            # Load the images and class-numbers from the data-file.
+            images_batch, labels_batch = _load_data(filename="data_batch_" + str(i + 1))
 
-        # Number of images in this batch.
-        num_images = len(images_batch)
+            # Number of images in this batch.
+            num_images = len(images_batch)
 
-        # End-index for the current batch.
-        end = begin + num_images
+            # End-index for the current batch.
+            end = begin + num_images
 
-        # Store the images into the array.
-        images[begin:end, :] = images_batch
+            # Store the images into the array.
+            images[begin:end, :] = images_batch
 
-        # Store the class-numbers into the array.
-        labels[begin:end] = labels_batch
+            # Store the class-numbers into the array.
+            labels[begin:end] = labels_batch
 
-        # The begin-index for the next batch is the current end-index.
-        begin = end
-
-    return _build_dataset(config, images, labels)
-
-
-def test(config):
-    _maybe_download_and_extract()
-
-    images, labels = _load_data(filename="test_batch")
+            # The begin-index for the next batch is the current end-index.
+            begin = end
 
     return _build_dataset(config, images, labels)

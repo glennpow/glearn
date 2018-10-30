@@ -3,18 +3,19 @@ from .layer import NetworkLayer
 
 
 class Conv2dLayer(NetworkLayer):
-    def __init__(self, network, index, filters, input_channels=None, strides=1, max_pool_k=2,
-                 padding="SAME", activation=tf.nn.relu,
-                 weights_initializer=None,
-                 biases_initializer=None):
+    def __init__(self, network, index, filters, input_channels=None, strides=1, padding="SAME",
+                 activation=tf.nn.relu, max_pool_k=2, max_pool_strides=2, lrn=None,
+                 weights_initializer=None, biases_initializer=None):
         super().__init__(network, index)
 
         self.filters = filters
         self.input_channels = input_channels
         self.strides = strides
-        self.max_pool_k = max_pool_k
         self.padding = padding
         self.activation = activation
+        self.max_pool_k = max_pool_k
+        self.max_pool_strides = max_pool_strides
+        self.lrn = lrn
         self.weights_initializer = weights_initializer
         self.biases_initializer = biases_initializer
 
@@ -57,11 +58,23 @@ class Conv2dLayer(NetworkLayer):
                 else:
                     A = Z
 
+                # local response normalization (before max pooling)
+                lrn_order = None
+                if self.lrn is not None:
+                    lrn_order, lrn_bias, lrn_alpha, lrn_beta = self.lrn
+                    if lrn_order:
+                        A = tf.nn.lrn(A, bias=lrn_bias, alpha=lrn_alpha, beta=lrn_beta)
+
                 # max pooling
                 if self.max_pool_k is not None:
                     self.references["unpooled"] = A
                     ksize = [1, self.max_pool_k, self.max_pool_k, 1]
-                    A = tf.nn.max_pool(Z, ksize=ksize, strides=ksize, padding=self.padding)
+                    strides = [1, self.max_pool_strides, self.max_pool_strides, 1]
+                    A = tf.nn.max_pool(Z, ksize=ksize, strides=strides, padding=self.padding)
+
+                # local response normalization (after max pooling)
+                if lrn_order is False:
+                    A = tf.nn.lrn(A, bias=lrn_bias, alpha=lrn_alpha, beta=lrn_beta)
 
                 features.append(A)
                 x = A

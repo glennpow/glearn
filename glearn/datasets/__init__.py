@@ -1,18 +1,18 @@
-from .mnist import train as mnist_dataset
-from .cifar10 import train as cifar10_dataset
-from .ptb import train as ptb_dataset
+from .mnist import mnist_dataset
+from .cifar10 import cifar10_dataset
+from .ptb import ptb_dataset
 from .digit_repeat import DigitRepeatDataset as digit_repeat_dataset
 
 
-def load_dataset(config):
+def load_dataset(config, mode="train"):
     name = config.get("dataset", None)
 
     if name == "mnist":
-        return mnist_dataset(config)
+        return mnist_dataset(config, mode=mode)
     if name == "cifar10":
-        return cifar10_dataset(config)
+        return cifar10_dataset(config, mode=mode)
     if name == "ptb":
-        return ptb_dataset(config)
+        return ptb_dataset(config, mode=mode)
     if name == "digit_repeat":
-        return digit_repeat_dataset(config)
+        return digit_repeat_dataset(config, mode=mode)
     return None

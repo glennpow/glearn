@@ -1,6 +1,4 @@
 import numpy as np
-import pyglet
-from pyglet.gl import *
 from glearn.utils.config import Configurable
 from glearn.utils.reflection import get_class
 
@@ -8,6 +6,8 @@ from glearn.utils.reflection import get_class
 class AdvancedViewer(Configurable):
     def __init__(self, config, display=None, width=None, height=None, zoom=1, modes=None):
         super().__init__(config)
+
+        import pyglet
 
         self.isopen = False
         self.display = display
@@ -44,22 +44,24 @@ class AdvancedViewer(Configurable):
         self.close()
 
     def initialize_gl(self):
+        import pyglet.gl as gl
+
         # Set clear color
-        glClearColor(0, 0, 0, 0)
+        gl.glClearColor(0, 0, 0, 0)
 
         # Set antialiasing
-        glEnable(gl.GL_LINE_SMOOTH)
-        glEnable(gl.GL_POLYGON_SMOOTH)
-        glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
+        gl.glEnable(gl.GL_LINE_SMOOTH)
+        gl.glEnable(gl.GL_POLYGON_SMOOTH)
+        gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
 
         # Set alpha blending
-        glEnable(gl.GL_BLEND)
-        glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+        gl.glEnable(gl.GL_BLEND)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
         # gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
 
         # Set viewport
-        # glViewport(0, 0, width, height)
+        # gl.glViewport(0, 0, width, height)
 
     def prepare(self, trainer):
         for mode in self.modes:
@@ -102,6 +104,8 @@ class AdvancedViewer(Configurable):
         self.set_main_image(arr)
 
     def add_image(self, name, values, x=0, y=0, width=None, height=None):
+        import pyglet
+
         # get image data
         rows, cols, chans = values.shape
         if width is None:
@@ -135,6 +139,8 @@ class AdvancedViewer(Configurable):
 
     def add_label(self, name, message, x=0, y=0, anchor_x='left', anchor_y='bottom',
                   font_name='Times New Roman', font_size=16, **kwargs):
+        import pyglet
+
         label = pyglet.text.Label(message, x=x, y=y, anchor_x=anchor_x, anchor_y=anchor_y,
                                   font_name=font_name, font_size=font_size, **kwargs)
         self.labels[name] = label

@@ -2,9 +2,13 @@
 
 import os
 import argparse
-from rcall import meta
-from glearn.train import train as local_train, remote_train
+from glearn.train import train as local_train
 from glearn.utils.subprocess_utils import parse_command_args
+
+try:
+    from rcall import meta
+except ModuleNotFoundError:
+    meta = None
 
 
 def main():
@@ -40,6 +44,10 @@ train.usage = train_usage
 
 
 def deploy(args):
+    if meta is None:
+        print("The deploy command is not supported without the 'rcall' package")
+        return
+
     config_path = args.config
     backend = args.backend
 
@@ -48,7 +56,7 @@ def deploy(args):
 
     meta.call(
         backend=backend,
-        fn=remote_train,
+        fn=local_train,
         kwargs=dict(config_path=config_path),
         log_relpath=job_name,
         job_name=job_name,

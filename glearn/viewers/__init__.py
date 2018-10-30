@@ -1,6 +1,4 @@
-from glearn.viewers.advanced_viewer import AdvancedViewer  # noqa
-
-
-def load_view_controller(config):
+def load_view_controller(config, render=True):
     from glearn.viewers.viewer_controller import ViewerController
-    return ViewerController(config)
+
+    return ViewerController(config, render=render)

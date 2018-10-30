@@ -25,7 +25,7 @@
       evaluate_interval: 10
 
   viewer:
-    name: glearn.viewers:AdvancedViewer
+    name: glearn.viewers.advanced_viewer:AdvancedViewer
     args:
       zoom: 1
       modes:
