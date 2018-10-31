@@ -47,8 +47,9 @@ class ActorCriticTrainer(TDTrainer):
         entropy_loss = None
         with tf.name_scope('policy_optimize'):
             action_shape = (None,) + self.output.shape
-            past_action = policy.create_feed("past_action", "policy_optimize", action_shape)
-            past_advantage = policy.create_feed("past_advantage", "policy_optimize", (None, 1))
+            graphs = ["policy_optimize", "evaluate"]
+            past_action = policy.create_feed("past_action", graphs, action_shape)
+            past_advantage = policy.create_feed("past_advantage", graphs, (None, 1))
 
             # policy loss
             policy_distribution = policy.network.get_distribution()
@@ -90,24 +91,25 @@ class ActorCriticTrainer(TDTrainer):
         #     self.summary.add_scalar("l2_loss", l2_loss, "evaluate")
 
     def prepare_feeds(self, graphs, feed_map):
-        if intersects("policy_optimize", graphs):
+        # print(f"prepare_feeds({graphs})")
+        if intersects(["policy_optimize", "evaluate"], graphs):
             feed_map["past_action"] = self.batch.outputs
             feed_map["past_advantage"] = self.past_advantage
 
         return super().prepare_feeds(graphs, feed_map)
 
-    def run(self, graphs, feed_map={}):
+    def run(self, graphs, feed_map={}, **kwargs):
         if not isinstance(graphs, list):
             graphs = [graphs]
 
-        is_optimize = "policy_optimize" in graphs
-        if is_optimize:
+        if intersects(["policy_optimize", "evaluate"], graphs):
             # get advantage
             self.past_advantage = super().fetch("advantage", feed_map)
 
+        if "policy_optimize" in graphs:
             # optimize critic value network as well
             graphs += ["value_optimize"]
 
-        results = super().run(graphs, feed_map)
+        results = super().run(graphs, feed_map, **kwargs)
 
         return results
