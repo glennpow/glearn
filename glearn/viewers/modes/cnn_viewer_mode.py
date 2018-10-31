@@ -81,14 +81,16 @@ class CNNViewerMode(ViewerMode):
         for row in range(grid[0]):
             for col in range(grid[1]):
                 index = row * grid[1] + col
+                if index >= len(inputs):
+                    break
                 input_image = inputs[index] * 255
                 x = col * width
                 y = row * height
                 image[y:y + height, x:x + width] = input_image
 
-                action = self.output.decode(predict[index])
+                action = self.dataset.decipher(predict[index])
                 action_s = f"{action}"
-                correct = action == self.output.decode(outputs[index])
+                correct = action == self.dataset.decipher(outputs[index])
                 color = (0, 255, 0, 255) if correct else (255, 0, 0, 255)
                 lx = x + width
                 ly = image_size[0] - (y + height)

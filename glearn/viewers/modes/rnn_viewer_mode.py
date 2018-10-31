@@ -50,14 +50,18 @@ class RNNViewerMode(ViewerMode):
 
         # show labels with targets/predictions
         num_labels = 1
-        vocabulary = self.dataset.vocabulary  # HACK
-        input = self.output.decode(results["X"])
-        input_batch = vocabulary.decode(input[:num_labels])
-        target = self.output.decode(results["Y"])
-        target_batch = vocabulary.decode(target[:num_labels])
-        predict = self.output.decode(results["predict"])
-        predict_batch = vocabulary.decode(predict[:num_labels])
+        input_batch = self.dataset.decipher(results["X"][:num_labels])
+        target_batch = self.dataset.decipher(results["Y"][:num_labels])
+        predict_batch = self.dataset.decipher(results["predict"][:num_labels])
+        # vocabulary = self.dataset.vocabulary  # HACK
+        # input = self.dataset.decode(results["X"])
+        # input_batch = vocabulary.decode(input[:num_labels])
+        # target = self.output.decode(results["Y"])
+        # target_batch = vocabulary.decode(target[:num_labels])
+        # predict = self.output.decode(results["predict"])
+        # predict_batch = vocabulary.decode(predict[:num_labels])
         # predict_batch = np.reshape(predict_batch, [num_labels, self.timesteps])
+
         for i in range(num_labels):
             input_seq = " ".join([str(x) for x in input_batch[i]])
             target_seq = " ".join([str(x) for x in target_batch[i]])

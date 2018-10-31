@@ -1,6 +1,7 @@
 import os
 import time
 import atexit
+import random
 import numpy as np
 import tensorflow as tf
 import pyglet
@@ -162,7 +163,7 @@ class Trainer(Configurable):
             feed_map["dropout"] = 1
         return feed_map
 
-    def run(self, graphs, feed_map={}):
+    def run(self, graphs, feed_map={}, render=True):
         if not isinstance(graphs, list):
             graphs = [graphs]
 
@@ -171,7 +172,8 @@ class Trainer(Configurable):
         results = self.policy.run(self.sess, graphs, feed_map)
 
         # view results
-        self.viewer.view_results(graphs, feed_map, results)
+        if render:
+            self.viewer.view_results(graphs, feed_map, results)
 
         return results
 
@@ -235,10 +237,10 @@ class Trainer(Configurable):
     def process_transition(self, transition):
         pass
 
-    def get_batch(self):
+    def get_batch(self, mode="train"):
         if self.supervised:
             # supervised batch of samples
-            return self.dataset.get_batch()
+            return self.dataset.get_batch(mode=mode)
         else:
             # unsupervised experience replay batch of samples
             batch = transition_batch(self.transitions[:self.batch_size])
@@ -295,11 +297,29 @@ class Trainer(Configurable):
             if self.debugging:
                 graphs.append("debug")
 
-            evaluate_results = self.run(graphs, feed_map)
+            # get batch data and desired graphs
+            total_evaluate_results = {}
+            epoch_size = self.dataset.reset(mode="test") if self.supervised else 1
+            report_step = random.randrange(epoch_size)
+            report_feed_map = None
+            for step in range(epoch_size):
+                print(f"Evaluating: {step}/{epoch_size}", end="\r", flush=True)
+
+                reporting = step == report_step
+                self.batch, feed_map = self.get_batch(mode="test")
+                if reporting:
+                    report_feed_map = feed_map
+
+                evaluate_results = self.run(graphs, feed_map, render=reporting)
+                for k, v in evaluate_results.items():
+                    if k in total_evaluate_results:
+                        total_evaluate_results[k] += v
+                    else:
+                        total_evaluate_results[k] = v
 
             # print inputs and results
-            table["Inputs"] = feed_map
-            table["Evaluation"] = evaluate_results
+            table["Inputs"] = report_feed_map
+            table["Evaluation"] = {k: v / epoch_size for k, v in total_evaluate_results.items()}
 
             # print tabular results
             print_tabular(table, grouped=True)
@@ -377,10 +397,10 @@ class Trainer(Configurable):
     def train_supervised_loop(self, train_yield):
         # supervised learning
         for epoch in range(self.epochs):
-            self.dataset.reset()
+            epoch_size = self.dataset.reset()
             self.epoch = epoch
 
-            for step in range(self.dataset.epoch_size):
+            for step in range(epoch_size):
                 # epoch time
                 self.epoch_step = step + 1
 

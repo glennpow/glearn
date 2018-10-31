@@ -1,4 +1,3 @@
-import sys
 import os
 import urllib.request
 import tarfile
@@ -6,18 +5,8 @@ import zipfile
 
 
 def _print_download_progress(count, block_size, total_size):
-    # Percentage completion.
-    pct_complete = float(count * block_size) / total_size
-
-    # Limit it because rounding errors may cause it to exceed 100%.
-    pct_complete = min(1.0, pct_complete)
-
-    # Status-message
-    msg = "\r- Download progress: {0:.1%}".format(pct_complete)
-
-    # Print it.
-    sys.stdout.write(msg)
-    sys.stdout.flush()
+    pct_complete = min(1, float(count * block_size) / total_size)
+    print(f"Download progress: {pct_complete:.1%}", end="", flush=True)
 
 
 def download(base_url, filename, download_dir):

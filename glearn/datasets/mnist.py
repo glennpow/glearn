@@ -41,7 +41,13 @@ def check_labels_file_header(filename):
                                                                            f.name))
 
 
-def download(directory, filename):
+# def _maybe_download_and_extract(filename):
+#     url = 'https://storage.googleapis.com/cvdf-datasets/mnist/' + filename + '.gz'
+#     directory = script_relpath("../../data/mnist")
+#     maybe_download_and_extract(url=url, download_dir=directory)
+
+
+def _maybe_download_and_extract(directory, filename):
     """Download (and unzip) a file from the MNIST dataset if not already done."""
     filepath = os.path.join(directory, filename)
     if tf.gfile.Exists(filepath):
@@ -49,8 +55,8 @@ def download(directory, filename):
     if not tf.gfile.Exists(directory):
         tf.gfile.MakeDirs(directory)
     # CVDF mirror of http://yann.lecun.com/exdb/mnist/
-    url = 'https://storage.googleapis.com/cvdf-datasets/mnist/' + filename + '.gz'
     _, zipped_filepath = tempfile.mkstemp(suffix='.gz')
+    url = 'https://storage.googleapis.com/cvdf-datasets/mnist/' + filename + '.gz'
     print('Downloading %s to %s' % (url, zipped_filepath))
     urllib.request.urlretrieve(url, zipped_filepath)
     with gzip.open(zipped_filepath, 'rb') as f_in, \
@@ -73,11 +79,11 @@ def load_data(path, element_size, max_count=None, header_bytes=0, mapping=None):
         return data
 
 
-def dataset(images_file, labels_file, config):
+def _load_data(images_file, labels_file, config):
     """Download and parse MNIST dataset."""
     directory = script_relpath("../../data/mnist")
-    images_file = download(directory, images_file)
-    labels_file = download(directory, labels_file)
+    images_file = _maybe_download_and_extract(directory, images_file)
+    labels_file = _maybe_download_and_extract(directory, labels_file)
 
     check_image_file_header(images_file)
     check_labels_file_header(labels_file)
@@ -95,25 +101,24 @@ def dataset(images_file, labels_file, config):
         label = label.flatten()
         return label
 
-    batch_size = config.get("batch_size", 128)
     max_count = config.get("max_count", None)
 
     images = load_data(images_file, 28 * 28, max_count=max_count, header_bytes=16,
                        mapping=decode_image)
     images = np.reshape(images, [-1, 28, 28, 1])
     labels = load_data(labels_file, 1, max_count=max_count, header_bytes=8, mapping=decode_label)
-
-    input_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(28, 28, 1), dtype=images.dtype)
-    output_space = gym.spaces.Discrete(10)
-
-    # TODO fix HACK - Producer like PTB, which iterates all batches in an epoch...
-
-    return Dataset("MNIST", inputs=images, outputs=labels,
-                   optimize_batch=True,  # HACK fix above
-                   input_space=input_space, output_space=output_space,
-                   batch_size=batch_size)
+    return images, labels
 
 
 def mnist_dataset(config, mode="train"):
-    prefix = "train" if mode == "train" else "t10k"
-    return dataset(f'{prefix}-images-idx3-ubyte', f'{prefix}-labels-idx1-ubyte', config)
+    data = {}
+    data["train"] = _load_data(f'train-images-idx3-ubyte', f'train-labels-idx1-ubyte', config)
+    data["test"] = _load_data(f't10k-images-idx3-ubyte', f't10k-labels-idx1-ubyte', config)
+
+    batch_size = config.get("batch_size", 128)
+    output_space = gym.spaces.Discrete(10)
+
+    # TODO fix HACK - Producer like PTB, which iterates all batches in an epoch (optimize_batch)...
+
+    return Dataset("MNIST", data, batch_size, output_space=output_space,
+                   optimize_batch=True)  # HACK - optimize_batch

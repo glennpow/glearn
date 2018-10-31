@@ -34,18 +34,24 @@ class Interface(object):
             return self.space.sample()
 
     def encode(self, value):
+        result = value
+
         # handle discrete values
         if self.discrete:
             discretized = np.zeros(self.shape)
             discretized[value] = 1
-            return discretized
-        return value
+            result = discretized
+
+        return result
 
     def decode(self, value):
+        result = value
+
         # handle discrete values
         if self.discrete:
             if self.deterministic:
-                return np.argmax(value)
+                result = np.argmax(value)
             else:
-                return np.random.choice(range(len(value)), p=value)
-        return value
+                result = np.random.choice(range(len(value)), p=value)
+
+        return result

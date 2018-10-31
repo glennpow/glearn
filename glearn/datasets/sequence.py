@@ -11,72 +11,84 @@ class Vocabulary(object):
         self.size = len(self.words)
         self.word_to_ids = dict(zip(words, range(len(words))))
 
-    def encode(self, word):
+    def encipher(self, word):
         if isinstance(word, str):
             return self.word_to_ids.get(word, None)
         elif isinstance(word, abc.Iterable):
             # TODO omit Nones...
-            return [self.encode(w) for w in word]
+            return [self.encipher(w) for w in word]
         else:
             print(f"Unknown vocabulary word type: {word} ({type(word)})")
             return None
 
-    def decode(self, id):
+    def decipher(self, id):
         if isinstance(id, int) or np.isscalar(id):
             if id < self.size:
                 return self.words[id]
         elif isinstance(id, abc.Iterable):
             # TODO omit Nones...
-            return [self.decode(i) for i in id]
+            return [self.decipher(i) for i in id]
         else:
             print(f"Unknown vocabulary word ID type: {id} ({type(id)})")
             return None
 
 
 class SequenceDataset(Dataset):
-    def __init__(self, name, raw_data, vocabulary, batch_size, timesteps):
+    def __init__(self, name, data, batch_size, vocabulary, timesteps):
+        self.vocabulary = vocabulary
+
         tfdtype = tf.int32  # HACK - can we infer?
         npdtype = np.int32  # HACK ?
 
-        # sequence producer
-        with tf.name_scope(name, values=[raw_data, batch_size, timesteps]):
-            # tensor of data
-            tensor_data = tf.convert_to_tensor(raw_data, name="raw_data", dtype=tfdtype)
-            # length of data tensor
-            num_samples = tf.size(tensor_data)
-            # number of batches in data
-            num_batches = num_samples // batch_size
+        producer_data = {}
+        for mode, raw_data in data.items():
+            # sequence producer
+            with tf.name_scope(name, values=[raw_data, batch_size, timesteps]):
+                # tensor of data
+                tensor_data = tf.convert_to_tensor(raw_data, name="raw_data", dtype=tfdtype)
+                # length of data tensor
+                num_samples = tf.size(tensor_data)
+                # number of batches in data
+                num_batches = num_samples // batch_size
 
-            # make sure data subdivides into batches evenly
-            data = tf.reshape(tensor_data[0: batch_size * num_batches],
-                              [batch_size, num_batches])
+                # make sure data subdivides into batches evenly
+                batched_data = tf.reshape(tensor_data[0: batch_size * num_batches],
+                                          [batch_size, num_batches])
 
-            # number of unrolled batches in an epoch
-            epoch_size = (num_batches - 1) // timesteps
-            assertion = tf.assert_positive(epoch_size,
-                                           message="Decrease batch_size or timesteps")
-            # assert valid data?
-            with tf.control_dependencies([assertion]):
-                epoch_size = tf.identity(epoch_size, name="epoch_size")
+                # number of unrolled batches in an epoch
+                epoch_size = (num_batches - 1) // timesteps
+                assertion = tf.assert_positive(epoch_size,
+                                               message="Decrease batch_size or timesteps")
+                # assert valid data?
+                with tf.control_dependencies([assertion]):
+                    epoch_size = tf.identity(epoch_size, name="epoch_size")
 
-            i = tf.train.range_input_producer(epoch_size, shuffle=False).dequeue()
+                i = tf.train.range_input_producer(epoch_size, shuffle=False).dequeue()
 
-            x = tf.strided_slice(data, [0, i * timesteps],
-                                 [batch_size, (i + 1) * timesteps])
-            x.set_shape([batch_size, timesteps])
+                x = tf.strided_slice(batched_data, [0, i * timesteps],
+                                     [batch_size, (i + 1) * timesteps])
+                x.set_shape([batch_size, timesteps])
 
-            y = tf.strided_slice(data, [0, i * timesteps + 1],
-                                 [batch_size, (i + 1) * timesteps + 1])
-            y.set_shape([batch_size, timesteps])
+                y = tf.strided_slice(batched_data, [0, i * timesteps + 1],
+                                     [batch_size, (i + 1) * timesteps + 1])
+                y.set_shape([batch_size, timesteps])
 
-        self.vocabulary = vocabulary
+                producer_data[mode] = (x, y)
 
         input_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=npdtype)
         output_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=npdtype)
 
         # calculate this outside TF
-        raw_epoch_size = ((len(raw_data) // batch_size) - 1) // timesteps
+        # import ipdb; ipdb.set_trace()  # HACK DEBUGGING !!!
+        raw_epoch_size = ((len(data["train"]) // batch_size) - 1) // timesteps
 
-        super().__init__(name, inputs=x, outputs=y, input_space=input_space,
-                         output_space=output_space, batch_size=batch_size,
-                         epoch_size=raw_epoch_size)
+        super().__init__(name, producer_data, batch_size, input_space=input_space,
+                         output_space=output_space, epoch_size=raw_epoch_size)
+
+    def encipher(self, value):
+        label = self.vocabulary.encipher(value)
+        return self.output.encode(label)
+
+    def decipher(self, value):
+        label = self.output.decode(value)
+        return self.vocabulary.decipher(label)

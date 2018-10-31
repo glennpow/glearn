@@ -5,9 +5,6 @@ from glearn.datasets.sequence import Vocabulary, SequenceDataset
 from glearn.utils.path import script_relpath
 
 
-raw_data = None
-
-
 def _read_words(filename):
     with tf.gfile.GFile(filename, "r") as f:
         return f.read().replace("\n", "<eos>").split()
@@ -25,11 +22,10 @@ def _build_vocab(filename):
 
 def _file_to_word_ids(filename, vocabulary):
     data = _read_words(filename)
-    # return [vocabulary.get_word_id(word) for word in data if word in vocabulary.words]
-    return vocabulary.encode(data)
+    return vocabulary.encipher(data)
 
 
-def ptb_raw_data():
+def _load_data():
     data_path = script_relpath("../../data/ptb")
     train_path = os.path.join(data_path, "ptb.train.txt")
     valid_path = os.path.join(data_path, "ptb.valid.txt")
@@ -42,21 +38,15 @@ def ptb_raw_data():
     return train_data, valid_data, test_data, vocabulary
 
 
-def build_dataset(index, config):
-    global raw_data
-    if raw_data is None:
-        raw_data = ptb_raw_data()
+def ptb_dataset(config, mode="train"):
+    train_data, valid_data, test_data, vocabulary = _load_data()
+    data = {
+        "train": train_data,
+        "validate": valid_data,
+        "test": test_data,
+    }
 
     batch_size = config.get("batch_size", 20)
     timesteps = config.get("timesteps", 35)
 
-    return SequenceDataset("PTB", raw_data[index], raw_data[3], batch_size, timesteps)
-
-
-def ptb_dataset(config, mode="train"):
-    index = 0
-    if mode == "validate":
-        index = 1
-    elif mode == "test":
-        index = 2
-    return build_dataset(index, config)
+    return SequenceDataset("PTB", data, batch_size, vocabulary, timesteps)
