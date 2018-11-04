@@ -1,3 +1,4 @@
+import sys
 from collections import abc, OrderedDict
 import numpy as np
 
@@ -28,22 +29,11 @@ def colorize(string, color, bold=False, highlight=False):
     return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
 
 
-def _format_type(value):
-    typename = type(value).__name__
-    if isinstance(value, str):
-        pass
-    elif np.isscalar(value):
-        value = f"{value:.5g}"
-    else:
-        if isinstance(value, abc.Iterable):
-            typename = f"{typename}{np.shape(value)}"
-        value = np.array(value)
-        if SQUEEZE_ARRAYS:
-            value = np.squeeze(value)
-        value = f"{value}".split('\n')[0]
-    if len(value) > MAX_TABULAR_WIDTH:
-        value = value[:MAX_TABULAR_WIDTH]
-    return typename, value
+def print_update(message, color=None, bold=False, highlight=False):
+    if color is not None or bold or highlight:
+        message = colorize(message, color, bold=bold, highlight=highlight)
+    print(message, end="\r", flush=True)
+    sys.stdout.write("\033[K")
 
 
 def print_tabular(values, grouped=False, color=None, bold=False, show_type=True, padding=2):
@@ -55,7 +45,7 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
         group_format = []
         formatted[header] = group_format
         for (key, val) in group.items():
-            ftype, fval = _format_type(val)
+            ftype, fval = _format_tabular_data(val)
             if show_type:
                 group_format.append([key, fval, ftype])
             else:
@@ -99,6 +89,24 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
             lines.append("│" + "│".join(cols) + "│")
     lines.append(bottom)
     message = '\n'.join(lines)
-    if color is not None:
+    if color is not None or bold:
         message = colorize(message, color, bold=bold)
     print(message)
+
+
+def _format_tabular_data(value):
+    typename = type(value).__name__
+    if isinstance(value, str):
+        pass
+    elif np.isscalar(value):
+        value = f"{value:.5g}"
+    else:
+        if isinstance(value, abc.Iterable):
+            typename = f"{typename}{np.shape(value)}"
+        value = np.array(value)
+        if SQUEEZE_ARRAYS:
+            value = np.squeeze(value)
+        value = f"{value}".split('\n')[0]
+    if len(value) > MAX_TABULAR_WIDTH:
+        value = value[:MAX_TABULAR_WIDTH]
+    return typename, value

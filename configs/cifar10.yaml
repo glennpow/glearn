@@ -24,10 +24,12 @@
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
     args:
-      optimizer: adam
-      learning_rate: 2.0e-4
-      epochs: 750
-      keep_prob: 0.8
+      optimizer: sgd
+      learning_rate: 0.1
+      lr_decay: 0.1
+      lr_decay_epochs: 350
+      epochs: 1500
+      # keep_prob: 0.8
       evaluate_interval: 20
 
   viewer:

@@ -8,7 +8,7 @@ import pyglet
 from glearn.datasets.dataset import Transition, transition_batch
 from glearn.utils.collections import intersects
 from glearn.utils.config import Configurable
-from glearn.utils.printing import print_tabular
+from glearn.utils.printing import print_update, print_tabular
 from glearn.utils.profile import run_profile, open_profile
 
 
@@ -119,18 +119,28 @@ class Trainer(Configurable):
         if definition is None:
             definition = self.kwargs
 
+        global_step = tf.train.get_or_create_global_step()
+
         with tf.name_scope(loss_name):
+            learning_rate = definition.get("learning_rate", 1e-4)
+
+            # learning rate decay
+            lr_decay = definition.get("lr_decay", None)
+            if lr_decay is not None:
+                lr_decay_epochs = definition.get("lr_decay_epochs", 1)
+                epoch_size = self.dataset.get_epoch_size(mode="train")
+                decay_steps = int(lr_decay_epochs * epoch_size)
+                learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps,
+                                                           lr_decay, staircase=True)
+
             # create optimizer
             optimizer_name = definition.get("optimizer", "sgd")
-            learning_rate = definition.get("learning_rate", 1e-4)
             if optimizer_name == "sgd":
                 optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
             elif optimizer_name == "adam":
                 optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
             else:
                 raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
-
-            global_step = tf.train.get_or_create_global_step()
 
             # apply gradients, with any configured clipping
             max_grad_norm = definition.get("max_grad_norm", None)
@@ -145,6 +155,8 @@ class Trainer(Configurable):
                 optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
 
             self.policy.set_fetch(loss_name, optimize)
+
+        self.summary.add_scalar("learning_rate", learning_rate, loss_name)
 
         return optimize
 
@@ -269,6 +281,9 @@ class Trainer(Configurable):
             "steps/second": self.global_step / train_elapsed_time,
         }
 
+        print_update(f"Optimizing | Epoch: {self.epoch} | Step: {self.epoch_step} | "
+                     f"Global Step: {self.global_step} | Eval. Steps: {self.evaluate_interval}")
+
         # log info for current iteration
         if self.supervised:
             stats.update({
@@ -303,7 +318,7 @@ class Trainer(Configurable):
             report_step = random.randrange(epoch_size)
             report_feed_map = None
             for step in range(epoch_size):
-                print(f"Evaluating: {step}/{epoch_size}", end="\r", flush=True)
+                print_update(f"Evaluating | Progress: {step}/{epoch_size}")
 
                 reporting = step == report_step
                 self.batch, feed_map = self.get_batch(mode="test")

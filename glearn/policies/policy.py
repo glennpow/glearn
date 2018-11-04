@@ -58,7 +58,7 @@ class Policy(NetworkContext):
 
     def start_summaries(self, sess):
         if self.summary is not None:
-            self.summary.start(graph=sess.graph, server=self.debugging)
+            self.summary.start(graph=sess.graph, server=True)
 
     def stop_summaries(self, sess):
         if self.summary is not None:

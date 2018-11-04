@@ -91,7 +91,6 @@ class ActorCriticTrainer(TDTrainer):
         #     self.summary.add_scalar("l2_loss", l2_loss, "evaluate")
 
     def prepare_feeds(self, graphs, feed_map):
-        # print(f"prepare_feeds({graphs})")
         if intersects(["policy_optimize", "evaluate"], graphs):
             feed_map["past_action"] = self.batch.outputs
             feed_map["past_advantage"] = self.past_advantage
