@@ -35,8 +35,8 @@ class PPOTrainer(ActorCriticTrainer):
             # past_advantage = advantage
 
             # surrogate loss
-            policy_distribution = self.policy_network.get_distribution()
-            old_policy_distribution = self.old_policy_network.get_distribution()
+            policy_distribution = self.policy_network.get_distribution_layer()
+            old_policy_distribution = self.old_policy_network.get_distribution_layer()
             policy_log_prob = policy_distribution.log_prob(past_action)
             old_policy_log_prob = old_policy_distribution.log_prob(past_action)
             ratio = tf.exp(policy_log_prob - old_policy_log_prob)

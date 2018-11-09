@@ -13,6 +13,7 @@
             args:
               hidden_sizes: [650]
               embedding_lookup: true
+        loss: glearn.networks.losses:sequence_loss
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer

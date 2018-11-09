@@ -52,7 +52,7 @@ class ActorCriticTrainer(TDTrainer):
             past_advantage = policy.create_feed("past_advantage", graphs, (None, 1))
 
             # policy loss
-            policy_distribution = policy.network.get_distribution()
+            policy_distribution = policy.network.get_distribution_layer()
             neg_logp = -policy_distribution.log_prob(past_action)
             policy_loss = neg_logp * past_advantage
 

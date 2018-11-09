@@ -18,7 +18,7 @@ class NormalDistributionLayer(DistributionLayer):
         self.biases_initializer = biases_initializer
         self.l2_loss_coef = l2_loss_coef
 
-    def build(self, inputs, outputs=None):
+    def build(self, inputs):
         # get variables
         dropout = self.context.get_or_create_feed("dropout")
 
@@ -66,14 +66,7 @@ class NormalDistributionLayer(DistributionLayer):
         # action clipping
         # x = tf.clip_by_value(x, -2, 2)  # HACK
 
-        # if inference only, then return
-        if outputs is None:
-            return x
-
-        # kl_divergence = tf.reduce_sum(distributions.kl(q_z, self.distribution), 1) ??
-
-        # TODO - could extract loss components from layers, and share them
-        raise Exception("No evaluation logic available for NormalDistributionLayer")
+        return x
 
     def prepare_default_feeds(self, graphs, feed_map):
         feed_map["dropout"] = 1

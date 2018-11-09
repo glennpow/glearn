@@ -19,7 +19,7 @@ class Conv2dLayer(NetworkLayer):
         self.weights_initializer = weights_initializer
         self.biases_initializer = biases_initializer
 
-    def build(self, inputs, outputs=None):
+    def build(self, inputs):
         # initializers
         weights_initializer = self.load_initializer(self.weights_initializer,
                                                     tf.contrib.layers.xavier_initializer())
@@ -81,8 +81,4 @@ class Conv2dLayer(NetworkLayer):
                 input_channels = output_channels
         self.references["features"] = features
 
-        if outputs is None:
-            return x
-
-        # TODO - could extract loss components from layers, and share them
-        raise Exception("No evaluation logic available for Conv2dLayer")
+        return x

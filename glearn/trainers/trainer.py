@@ -20,7 +20,7 @@ class Trainer(Configurable):
         self.policy = policy
         self.kwargs = kwargs
 
-        self.batch_size = config.get("batch_size", 1)  # TODO - get from dataset/env?
+        self.batch_size = config.get("batch_size", 1)
 
         self.epochs = epochs
         self.episodes = episodes
@@ -99,7 +99,7 @@ class Trainer(Configurable):
             self.transitions = []
             self.episode_reward = 0
 
-    def get_loss(self):
+    def get_default_loss(self):
         # get loss from policy
         loss = self.policy.get_fetch("loss", "evaluate")
         if loss is None:
@@ -109,11 +109,19 @@ class Trainer(Configurable):
         self.summary.add_scalar("loss", loss, "evaluate")
         return loss
 
-    def optimize_loss(self, loss_name="optimize", loss=None, definition=None):
-        # default loss
+    def add_loss(self, loss, collection="optimize"):
+        name = f"loss_{collection}"
+        tf.add_to_collection(name, loss)
+
+    def get_total_loss(self, collection="optimize"):
+        # add up all losses
+        name = f"loss_{collection}"
+        return tf.add_n(tf.get_collection(name), name=name)
+
+    def optimize_loss(self, name="optimize", loss=None, definition=None):
         if loss is None:
-            # get policy loss
-            loss = self.get_loss()
+            # get default policy loss
+            loss = self.get_default_loss()
 
         # default definition
         if definition is None:
@@ -121,7 +129,7 @@ class Trainer(Configurable):
 
         global_step = tf.train.get_or_create_global_step()
 
-        with tf.name_scope(loss_name):
+        with tf.name_scope(name):
             learning_rate = definition.get("learning_rate", 1e-4)
 
             # learning rate decay
@@ -154,9 +162,9 @@ class Trainer(Configurable):
                 grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
                 optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
 
-            self.policy.set_fetch(loss_name, optimize)
+            self.policy.set_fetch(name, optimize)
 
-        self.summary.add_scalar("learning_rate", learning_rate, loss_name)
+        self.summary.add_scalar("learning_rate", learning_rate, name)
 
         return optimize
 
@@ -269,9 +277,49 @@ class Trainer(Configurable):
         pass
 
     def optimize(self):
-        # Optimize/evaluate using a supervised or unsupervised batch
+        # Optimize using a supervised or unsupervised batch
         self.global_step += 1
-        self.evaluating = self.global_step % self.evaluate_interval == 0
+
+        print_update(f"Optimizing | Epoch: {self.epoch} | Step: {self.epoch_step} | "
+                     f"Global Step: {self.global_step} | Eval. Steps: {self.evaluate_interval}")
+
+        # get batch data and desired graphs
+        self.batch, feed_map = self.get_batch()
+
+        # run all desired graphs
+        return self.run(["policy_optimize"], feed_map)
+
+    @property
+    def evaluating(self):
+        return self.global_step % self.evaluate_interval == 0
+
+    def evaluate(self):
+        # Evaluate using the test dataset
+        graphs = ["evaluate"]
+        if self.debugging:
+            graphs.append("debug")
+
+        # get batch data and desired graphs
+        total_evaluate_results = {}
+        epoch_size = self.dataset.reset(mode="test") if self.supervised else 1
+        report_step = random.randrange(epoch_size)
+        report_feed_map = None
+        for step in range(epoch_size):
+            print_update(f"Evaluating | Progress: {step}/{epoch_size}")
+
+            reporting = step == report_step
+            self.batch, feed_map = self.get_batch(mode="test")
+            if reporting:
+                report_feed_map = feed_map
+
+            evaluate_results = self.run(graphs, feed_map, render=reporting)
+            for k, v in evaluate_results.items():
+                if k in total_evaluate_results:
+                    total_evaluate_results[k] += v
+                else:
+                    total_evaluate_results[k] = v
+
+        # log info for current iteration
         current_time = time.time()
         train_elapsed_time = current_time - self.train_start_time
         step_elapsed_time = current_time = self.step_start_time
@@ -280,11 +328,6 @@ class Trainer(Configurable):
             "training time": train_elapsed_time,
             "steps/second": self.global_step / train_elapsed_time,
         }
-
-        print_update(f"Optimizing | Epoch: {self.epoch} | Step: {self.epoch_step} | "
-                     f"Global Step: {self.global_step} | Eval. Steps: {self.evaluate_interval}")
-
-        # log info for current iteration
         if self.supervised:
             stats.update({
                 "epoch step": self.epoch_step,
@@ -300,52 +343,18 @@ class Trainer(Configurable):
             })
             table = {f"Episode: {self.episode}": stats}
 
-        # get batch data and desired graphs
-        self.batch, feed_map = self.get_batch()
+        # print inputs and results
+        table["Inputs"] = report_feed_map
+        table["Evaluation"] = {k: v / epoch_size for k, v in total_evaluate_results.items()}
 
-        # run all desired graphs
-        results = self.run(["policy_optimize"], feed_map)
+        # print tabular results
+        print_tabular(table, grouped=True)
+        print()
 
-        # evaluate if time to do so
-        if self.evaluating:
-            graphs = ["evaluate"]
-            if self.debugging:
-                graphs.append("debug")
-
-            # get batch data and desired graphs
-            total_evaluate_results = {}
-            epoch_size = self.dataset.reset(mode="test") if self.supervised else 1
-            report_step = random.randrange(epoch_size)
-            report_feed_map = None
-            for step in range(epoch_size):
-                print_update(f"Evaluating | Progress: {step}/{epoch_size}")
-
-                reporting = step == report_step
-                self.batch, feed_map = self.get_batch(mode="test")
-                if reporting:
-                    report_feed_map = feed_map
-
-                evaluate_results = self.run(graphs, feed_map, render=reporting)
-                for k, v in evaluate_results.items():
-                    if k in total_evaluate_results:
-                        total_evaluate_results[k] += v
-                    else:
-                        total_evaluate_results[k] = v
-
-            # print inputs and results
-            table["Inputs"] = report_feed_map
-            table["Evaluation"] = {k: v / epoch_size for k, v in total_evaluate_results.items()}
-
-            # print tabular results
-            print_tabular(table, grouped=True)
-            print()
-
-            # save model
-            if self.save_path is not None:
-                save_path = self.saver.save(self.sess, self.save_path)
-                self.log(f"Saved model: {save_path}")
-
-        return results
+        # save model
+        if self.save_path is not None:
+            save_path = self.saver.save(self.sess, self.save_path)
+            self.log(f"Saved model: {save_path}")
 
     def train(self, render=False, profile=False):
         self.global_step = 0
@@ -419,7 +428,12 @@ class Trainer(Configurable):
                 # epoch time
                 self.epoch_step = step + 1
 
+                # optimize batch
                 self.optimize()
+
+                # evaluate if time to do so
+                if self.evaluating:
+                    self.evaluate()
 
                 if train_yield():
                     return
@@ -467,6 +481,10 @@ class Trainer(Configurable):
 
                     # optimize after episode
                     self.optimize()
+
+                    # evaluate if time to do so
+                    if self.evaluating:
+                        self.evaluate()
                     break
 
     def print_info(self):

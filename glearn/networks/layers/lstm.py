@@ -13,9 +13,9 @@ class LSTMLayer(NetworkLayer):
         self.activation = activation
         self.embedding_initializer = embedding_initializer
 
-    def build(self, inputs, outputs=None):
+    def build(self, inputs):
         # get variables
-        dropout = self.context.get_or_create_feed("dropout")
+        self.dropout = self.context.get_or_create_feed("dropout")
 
         # get configs
         batch_size = self.context.config.get("batch_size", 1)
@@ -49,17 +49,17 @@ class LSTMLayer(NetworkLayer):
                     self.context.set_fetch("embedding", embedding, "debug")
 
         # first dropout here
-        x = tf.nn.dropout(x, dropout)
+        x = tf.nn.dropout(x, self.dropout)
 
         # define lstm cell(s)
         if len(self.hidden_sizes) == 1:
             cell = tf.contrib.rnn.BasicLSTMCell(self.hidden_sizes[0], **self.cell_args)
-            cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=dropout)
+            cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self.dropout)
         else:
             cells = []
             for hidden_size in self.hidden_sizes:
                 cell = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, **self.cell_args)
-                cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=dropout)
+                cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self.dropout)
                 cells.append(cell)
             cell = tf.contrib.rnn.MultiRNNCell(cells)
 
@@ -71,34 +71,25 @@ class LSTMLayer(NetworkLayer):
         x, state = tf.nn.static_rnn(cell, x, initial_state=initial_state)
 
         # reshape for output
-        x = tf.reshape(tf.concat(x, 1), [-1, self.hidden_sizes[-1]])
+        y = tf.reshape(tf.concat(x, 1), [-1, self.hidden_sizes[-1]])
+        self.references["hidden"] = y
 
-        if outputs is None:
-            return x
+        return y
 
-        # create output layer  (TODO - just get this out of here...)
-        y = self.dense(x, 1, vocabulary_size, dropout, tf.nn.softmax)
+    def build_predict(self, y):
+        # get configs
+        batch_size = self.context.config.get("batch_size", 1)
+        timesteps = self.context.config.get("timesteps", 1)
+        vocabulary_size = self.context.dataset.vocabulary.size
+
+        # create output layer
+        y = self.dense(y, vocabulary_size, self.dropout, tf.nn.softmax)
+        self.references["eye"] = y
 
         # calculate prediction and accuracy
-        with tf.name_scope('predict'):
-            predict = tf.cast(tf.argmax(y, axis=1), tf.int32)
-            batched_predict = tf.reshape(predict, [batch_size, timesteps])
-            self.context.set_fetch("predict", batched_predict, ["predict", "debug"])
+        y = tf.cast(tf.argmax(y, axis=1), tf.int32)
 
-            correct_prediction = tf.equal(predict, tf.reshape(outputs, [-1]))
-            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-            self.context.set_fetch("accuracy", accuracy, "evaluate")
+        self.references["unbatched"] = y
+        y = tf.reshape(y, [batch_size, timesteps])
 
-        # calculate loss and cost
-        with tf.name_scope('loss'):
-            logits_shape = [batch_size, timesteps, vocabulary_size]
-            logits = tf.reshape(self.references["Z"], logits_shape)
-            weights = tf.ones([batch_size, timesteps])  # , dtype=self.input.dtype)
-            sequence_loss = tf.contrib.seq2seq.sequence_loss(logits, outputs, weights,
-                                                             average_across_timesteps=False,
-                                                             average_across_batch=True)
-            self.context.set_fetch("sequence_loss", sequence_loss, "evaluate")
-
-            loss = tf.reduce_sum(sequence_loss)
-            self.context.set_fetch("loss", loss, "evaluate")
         return y

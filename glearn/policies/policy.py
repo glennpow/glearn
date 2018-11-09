@@ -64,42 +64,50 @@ class Policy(NetworkContext):
         if self.summary is not None:
             self.summary.stop()
 
-    def create_default_feeds(self):
-        if self.supervised:
-            inputs = self.dataset.get_inputs()
-            outputs = self.dataset.get_outputs()
-        else:
-            inputs = tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
-            outputs = tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
-
-        # add reference to interfaces
-        inputs.interface = self.input
-        outputs.interface = self.output
-
-        # set feeds
-        self.set_feed("X", inputs)
-        self.set_feed("Y", outputs)
-
-        # set fetches
-        self.set_fetch("X", inputs, ["evaluate", "debug"])
-        self.set_fetch("Y", outputs, "evaluate")
-        return inputs, outputs
-
     def build_model(self):
-        # create input placeholders
-        with tf.name_scope('feeds'):
-            inputs, outputs = self.create_default_feeds()
+        # create input/output nodes
+        self.build_inputs()
 
         # build main prediction model
-        y = self.build_predict(inputs, outputs)
+        self.build_predict()
 
-        # store prediction
-        self.set_fetch("predict", y, ["predict", "evaluate"])
+        # build loss
+        self.build_loss()
 
-    def build_predict(self, inputs, outputs):
+    def build_inputs(self):
+        with tf.name_scope('feeds'):
+            if self.supervised:
+                inputs = self.dataset.get_inputs()
+                outputs = self.dataset.get_outputs()
+            else:
+                inputs = tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
+                outputs = tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
+
+            # add reference to interfaces
+            inputs.interface = self.input
+            outputs.interface = self.output
+
+            # set feeds
+            self.set_feed("X", inputs)
+            self.set_feed("Y", outputs)
+
+            # set fetches
+            self.set_fetch("X", inputs, ["evaluate", "debug"])
+            self.set_fetch("Y", outputs, "evaluate")
+
+        self.inputs = inputs
+        self.outputs = outputs
+
+    def build_predict(self):
+        # override
+        pass
+
+    def build_loss(self):
+        # override
         pass
 
     def reset(self):
+        # override
         pass
 
     def prepare_default_feeds(self, graphs, feed_map):

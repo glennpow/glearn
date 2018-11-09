@@ -12,6 +12,7 @@ class NetworkLayer(object):
     def __init__(self, network, index):
         self.network = network
         self.index = index
+        self.dense_count = 0
         self.references = {}
 
     @property
@@ -43,16 +44,24 @@ class NetworkLayer(object):
             initializer_function = get_function(definition)
             return initializer_function(seed=self.seed)
 
-    def build(self, inputs, outputs=None):
-        pass
+    def build(self, inputs):
+        # override
+        return inputs
+
+    def build_predict(self, y):
+        # override
+        return y
 
     def prepare_default_feeds(self, graphs, feed_map):
+        # override
         return feed_map
 
-    def dense(self, x, index, hidden_size, dropout=None, activation=None,
+    def dense(self, x, hidden_size, dropout=None, activation=None,
               weights_initializer=None, biases_initializer=None):
         # create common single dense layer
-        scope = f"dense_{self.index}_{index}"
+        dense_index = self.dense_count
+        self.dense_count += 1
+        scope = f"dense_{self.index}_{dense_index}"
         with tf.name_scope(scope):
             # create variables
             with tf.variable_scope(scope):

@@ -12,7 +12,7 @@ class CategoricalDistributionLayer(DistributionLayer):
         self.weights_initializer = weights_initializer
         self.biases_initializer = biases_initializer
 
-    def build(self, inputs, outputs=None):
+    def build(self, inputs):
         # get variables
         dropout = self.context.get_or_create_feed("dropout")
 
@@ -28,7 +28,7 @@ class CategoricalDistributionLayer(DistributionLayer):
         output_size = self.categories
         if not isinstance(output_size, int):
             output_size = self.context.output.size
-        x = self.dense(x, 0, output_size, dropout, None,
+        x = self.dense(x, output_size, dropout, None,
                        weights_initializer=weights_initializer,
                        biases_initializer=biases_initializer)
 
@@ -41,12 +41,7 @@ class CategoricalDistributionLayer(DistributionLayer):
         x = x.sample(1, seed=self.seed)
         # x = tf.squeeze(x, axis=0)  # TODO FIXME?
 
-        # if inference only, then return
-        if outputs is None:
-            return x
-
-        # TODO - could extract loss components from layers, and share them
-        raise Exception("No evaluation logic available for CategoricalDistributionLayer")
+        return x
 
     def prepare_default_feeds(self, graphs, feed_map):
         feed_map["dropout"] = 1
@@ -63,9 +58,9 @@ class DiscretizedDistributionLayer(CategoricalDistributionLayer):
         self.low = low
         self.high = high
 
-    def build(self, inputs, outputs=None):
+    def build(self, inputs):
         # get categorical outputs
-        x = super().build(inputs, outputs=outputs)
+        x = super().build(inputs)
 
         # wrap categorical outputs in bijector which converts into discretized range
         self.bijector = DiscretizedBijector(self.divs, self.low, self.high)
@@ -77,14 +72,6 @@ class DiscretizedDistributionLayer(CategoricalDistributionLayer):
         x = x.sample(1, seed=self.seed)
 
         return x
-
-    # def prob(self, output):
-    #     category = self.bijector._inverse(output)
-    #     return self.distribution.prob(category)
-
-    # def log_prob(self, output):
-    #     category = self.bijector._inverse(output)
-    #     return self.distribution.log_prob(category)
 
 
 class DiscretizedBijector(tf.contrib.distributions.bijectors.Bijector):

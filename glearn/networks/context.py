@@ -87,12 +87,12 @@ class NetworkContext(Configurable):
                 self.fetches[graph] = graph_fetches
             graph_fetches[name] = value
 
-    def get_fetch(self, name, graph=None):
+    def get_fetch(self, name, graphs=None):
         # find feed node for graph (defaults to name)
-        if graph is None:
-            graph = name
-        for g, graph_fetches in self.fetches.items():
-            if g == graph and name in graph_fetches:
+        if graphs is not None and not isinstance(graphs, list):
+            graphs = [graphs]
+        for graph, graph_fetches in self.fetches.items():
+            if (graphs is None or graph in graphs) and name in graph_fetches:
                 return graph_fetches[name]
         return None
 
