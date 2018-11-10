@@ -118,7 +118,5 @@ def mnist_dataset(config, mode="train"):
     batch_size = config.get("batch_size", 128)
     output_space = gym.spaces.Discrete(10)
 
-    # TODO fix HACK - Producer like PTB, which iterates all batches in an epoch (optimize_batch)...
-
-    return Dataset("MNIST", data, batch_size, output_space=output_space,
-                   optimize_batch=True)  # HACK - optimize_batch
+    # TODO fix HACK - use a producer like PTB
+    return Dataset("MNIST", data, batch_size, output_space=output_space)

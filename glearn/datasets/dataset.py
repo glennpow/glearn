@@ -33,7 +33,7 @@ def transition_batch(transitions):
 
 class Dataset(object):
     def __init__(self, name, data, batch_size, input_space=None, output_space=None,
-                 epoch_size=None, optimize_batch=False):
+                 epoch_size=None, producer=False):
         self.name = name
         self.data = data
         self.batch_size = batch_size
@@ -57,7 +57,7 @@ class Dataset(object):
                 self.epoch_size[k] = epoch_size
             self.total_samples[k] = self.epoch_size[k] * batch_size
 
-        self.optimize_batch = optimize_batch
+        self.producer = producer
         self.heads = {}
 
         self.reset()
@@ -80,18 +80,16 @@ class Dataset(object):
         return self.get_epoch_size(mode=mode)
 
     def get_inputs(self, mode="train"):
-        if self.optimize_batch:
-            return tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
-        else:
-            # FIXME - this doesn't work for test/validation
+        if self.producer:
             return self.data[mode][0]
+        else:
+            return tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
 
     def get_outputs(self, mode="train"):
-        if self.optimize_batch:
-            return tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
-        else:
-            # FIXME - this producer method doesn't work for test/validation modes
+        if self.producer:
             return self.data[mode][1]
+        else:
+            return tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
 
     def get_epoch_size(self, mode="train"):
         if mode in self.epoch_size:
@@ -99,9 +97,11 @@ class Dataset(object):
         return 0
 
     def get_batch(self, mode="train"):
-        if self.optimize_batch:
-            # return individual batches instead (HACK)
-            # should iterate over batch count here, but rather just remove this param entirely.
+        if self.producer:
+            # the tensorflow producer will handle batching itself
+            return self, {}
+        else:
+            # return individual batches instead of producer
             batch = self.build_batch(mode=mode)
             feed_map = {
                 "X": batch.inputs,
@@ -109,9 +109,6 @@ class Dataset(object):
             }
             # dataset = tf.data.Dataset.from_tensor_slices(batch)
             return batch, feed_map
-        else:
-            # the tensorflow producer will handle batching itself
-            return self, {}
 
     def build_batch(self, mode="train"):
         inputs = self.data[mode][0]

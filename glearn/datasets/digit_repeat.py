@@ -1,3 +1,4 @@
+import numpy as np
 from glearn.datasets.sequence import Vocabulary, SequenceDataset
 
 
@@ -19,4 +20,4 @@ class DigitRepeatDataset(SequenceDataset):
             for j in range(digits):
                 for k in range(j):
                     data.append(j)
-        return data
+        return np.array(data, np.int32)

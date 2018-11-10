@@ -84,10 +84,14 @@ class LSTMLayer(NetworkLayer):
 
         # create output layer
         y = self.dense(y, vocabulary_size, self.dropout, tf.nn.softmax)
-        self.references["eye"] = y
+        self.references["prob"] = y
+        self.context.set_fetch("prob", y, "evaluate")
 
         # calculate prediction and accuracy
-        y = tf.cast(tf.argmax(y, axis=1), tf.int32)
+        y = tf.argmax(y, axis=1)
+        self.context.set_fetch("arg_max", y, "evaluate")
+        y = tf.cast(y, tf.int32)
+        self.context.set_fetch("int_predict", y, "evaluate")
 
         self.references["unbatched"] = y
         y = tf.reshape(y, [batch_size, timesteps])

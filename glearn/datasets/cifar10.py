@@ -114,6 +114,6 @@ def cifar10_dataset(config):
     batch_size = config.get("batch_size", 128)
     label_names = _load_label_names()
 
-    # TODO fix HACK - Producer like PTB, which iterates all batches in an epoch (optimize_batch)...
+    # TODO fix HACK - use a producer like PTB...
     return LabeledDataset("CIFAR-10", data, batch_size, output_space=output_space,
-                          epoch_size=None, optimize_batch=True, label_names=label_names)
+                          epoch_size=None, label_names=label_names)
