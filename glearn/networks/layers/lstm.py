@@ -82,18 +82,9 @@ class LSTMLayer(NetworkLayer):
         timesteps = self.context.config.get("timesteps", 1)
         vocabulary_size = self.context.dataset.vocabulary.size
 
-        # create output layer
+        # create output layer and convert to batched sequences
         y = self.dense(y, vocabulary_size, self.dropout, tf.nn.softmax)
-        self.references["prob"] = y
-        self.context.set_fetch("prob", y, "evaluate")
-
-        # calculate prediction and accuracy
-        y = tf.argmax(y, axis=1)
-        self.context.set_fetch("arg_max", y, "evaluate")
-        y = tf.cast(y, tf.int32)
-        self.context.set_fetch("int_predict", y, "evaluate")
-
-        self.references["unbatched"] = y
+        y = tf.cast(tf.argmax(y, axis=1), tf.int32)
         y = tf.reshape(y, [batch_size, timesteps])
 
         return y

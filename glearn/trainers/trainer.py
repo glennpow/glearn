@@ -303,24 +303,28 @@ class Trainer(Configurable):
             graphs.append("debug")
 
         # get batch data and desired graphs
-        total_evaluate_results = {}
+        averaged_results = {}
         epoch_size = self.dataset.reset(mode="test") if self.supervised else 1
         report_step = random.randrange(epoch_size)
+        report_results = None
         report_feed_map = None
         for step in range(epoch_size):
             print_update(f"Evaluating | Progress: {step}/{epoch_size}")
 
             reporting = step == report_step
             self.batch, feed_map = self.get_batch(mode="test")
-            if reporting:
-                report_feed_map = feed_map
 
-            evaluate_results = self.run(graphs, feed_map, render=reporting)
-            for k, v in evaluate_results.items():
-                if k in total_evaluate_results:
-                    total_evaluate_results[k] += v
-                else:
-                    total_evaluate_results[k] = v
+            results = self.run(graphs, feed_map, render=reporting)
+
+            if reporting:
+                report_results = results
+                report_feed_map = feed_map
+            for k, v in results.items():
+                if self.policy.is_fetch(k, "evaluate"):
+                    if k in averaged_results:
+                        averaged_results[k] += v
+                    else:
+                        averaged_results[k] = v
 
         # log info for current iteration
         current_time = time.time()
@@ -346,9 +350,13 @@ class Trainer(Configurable):
             })
             table = {f"Episode: {self.episode}": stats}
 
+        # average evaluate results
+        averaged_results = {k: v / epoch_size for k, v in averaged_results.items()}
+        report_results.update(averaged_results)
+
         # print inputs and results
         table["Inputs"] = report_feed_map
-        table["Evaluation"] = {k: v / epoch_size for k, v in total_evaluate_results.items()}
+        table["Evaluation"] = report_results
 
         # print tabular results
         print_tabular(table, grouped=True)
@@ -498,7 +506,6 @@ class Trainer(Configurable):
                 "Policy": self.policy,
                 "Input": self.dataset.input,
                 "Output": self.dataset.output,
-                # TODO - get extra trainer and policy stats
             }
         else:
             training_info = {
@@ -507,7 +514,6 @@ class Trainer(Configurable):
                 "Policy": self.policy,
                 "Input": self.input,
                 "Output": self.output,
-                # TODO - get extra trainer and policy stats
             }
         print()
         print_tabular(training_info, show_type=False, color="white", bold=True)

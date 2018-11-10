@@ -92,8 +92,8 @@ class Policy(NetworkContext):
             self.set_feed("Y", outputs)
 
             # set fetches
-            self.set_fetch("X", inputs, ["evaluate", "debug"])
-            self.set_fetch("Y", outputs, "evaluate")
+            self.set_fetch("X", inputs, "debug")
+            self.set_fetch("Y", outputs, "debug")
 
         self.inputs = inputs
         self.outputs = outputs

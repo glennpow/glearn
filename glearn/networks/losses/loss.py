@@ -5,7 +5,7 @@ def simple_loss(network, outputs):
     # get variables
     context = network.context
     output_interface = context.output
-    predict = context.get_fetch("predict")
+    predict = network.head
     logits = network.get_output_layer().references["Z"]
 
     if output_interface.discrete:

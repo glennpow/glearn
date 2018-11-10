@@ -13,7 +13,7 @@ class NetworkPolicy(Policy):
         self.network = load_network("policy", self, self.network_definition)
         predict = self.network.build(self.inputs)
 
-        self.set_fetch("predict", predict, ["predict", "evaluate", "debug"])
+        self.set_fetch("predict", predict, "debug")
 
     def build_loss(self):
         # build loss
