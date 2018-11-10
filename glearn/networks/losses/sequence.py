@@ -22,7 +22,7 @@ def sequence_loss(network, outputs, prefix=None, graphs="evaluate"):
     loss = tf.reduce_sum(sequence_loss)
 
     # calculate accuracy
-    correct_prediction = tf.equal(predict, tf.reshape(outputs, [-1]))
+    correct_prediction = tf.equal(tf.reshape(predict, [-1]), tf.reshape(outputs, [-1]))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     return loss, accuracy

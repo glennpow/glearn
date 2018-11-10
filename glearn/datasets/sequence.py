@@ -79,7 +79,6 @@ class SequenceDataset(Dataset):
         output_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=npdtype)
 
         # calculate this outside TF
-        # import ipdb; ipdb.set_trace()  # HACK DEBUGGING !!!
         raw_epoch_size = ((len(data["train"]) // batch_size) - 1) // timesteps
 
         super().__init__(name, producer_data, batch_size, input_space=input_space,

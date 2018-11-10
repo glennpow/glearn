@@ -6,12 +6,17 @@ class DigitRepeatDataset(SequenceDataset):
         batch_size = config.get("batch_size", 5)
         timesteps = config.get("timesteps", 1)
 
+        modes = ["train", "test"]
+        data = {mode: self._generate_data(digits, repeat) for mode in modes}
+
+        vocabulary = Vocabulary(range(digits))
+
+        super().__init__("Counter", data, batch_size, vocabulary, timesteps)
+
+    def _generate_data(self, digits, repeat):
         data = []
         for i in range(repeat):
             for j in range(digits):
                 for k in range(j):
                     data.append(j)
-
-        vocabulary = Vocabulary(range(digits))
-
-        super().__init__("Counter", data, vocabulary, batch_size, timesteps)
+        return data

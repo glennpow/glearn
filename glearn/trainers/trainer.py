@@ -280,7 +280,10 @@ class Trainer(Configurable):
         # Optimize using a supervised or unsupervised batch
         self.global_step += 1
 
-        print_update(f"Optimizing | Epoch: {self.epoch} | Step: {self.epoch_step} | "
+        iteration_name = "Epoch" if self.supervised else "Episode"
+        iteration = self.epoch if self.supervised else self.episode
+        step = self.epoch_step if self.supervised else self.episode_step
+        print_update(f"Optimizing | {iteration_name}: {iteration} | Step: {step} | "
                      f"Global Step: {self.global_step} | Eval. Steps: {self.evaluate_interval}")
 
         # get batch data and desired graphs

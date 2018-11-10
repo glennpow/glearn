@@ -32,7 +32,7 @@ class NormalDistributionLayer(DistributionLayer):
         input_size = np.prod(inputs.shape[1:])
         x = tf.reshape(inputs, (-1, input_size))
         output_size = self.context.output.size
-        mu = self.dense(x, 0, output_size, dropout, None,
+        mu = self.dense(x, output_size, dropout, None,
                         weights_initializer=weights_initializer,
                         biases_initializer=biases_initializer)
 
@@ -48,7 +48,7 @@ class NormalDistributionLayer(DistributionLayer):
         self.references["mu"] = mu
 
         # create dense layer for sigma with scaling
-        sigma = self.dense(x, 1, output_size, dropout, self.sigma_activation,
+        sigma = self.dense(x, output_size, dropout, self.sigma_activation,
                            weights_initializer=weights_initializer,
                            biases_initializer=biases_initializer)
         if self.sigma_scale != 1:
