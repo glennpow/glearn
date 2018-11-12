@@ -20,10 +20,10 @@
     args:
       optimizer: adam
       learning_rate: 2.0e-4
-      epochs: 60
+      epochs: 200
       keep_prob: 0.5
       max_grad_norm: 5
-      evaluate_interval: 6
+      evaluate_interval: 20
 
   viewer:
     name: glearn.viewers.advanced_viewer:AdvancedViewer

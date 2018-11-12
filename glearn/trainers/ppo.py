@@ -53,7 +53,8 @@ class PPOTrainer(ActorCriticTrainer):
             policy.set_fetch("policy_loss", policy_loss, "evaluate")
 
         # optimize the surrogate loss
-        self.optimize_loss("policy_optimize", policy_loss)
+        self.add_loss(policy_loss, "policy_optimize")
+        self.optimize_loss("policy_optimize")
 
         # summaries
         self.summary.add_scalar("loss", policy_loss, "evaluate")

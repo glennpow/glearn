@@ -36,7 +36,8 @@ class ActorCriticTrainer(TDTrainer):
         self.summary.add_scalar("value", tf.reduce_mean(critic_value), "evaluate")
 
         # build advantage and critic optimization
-        self.optimize_loss("value_optimize", value_loss, self.critic_definition)
+        self.add_loss(value_loss, "value_optimize")
+        self.optimize_loss("value_optimize", self.critic_definition)
 
     def init_actor(self):
         policy = self.policy
@@ -59,7 +60,7 @@ class ActorCriticTrainer(TDTrainer):
             # entropy exploration factor
             if self.ent_coef > 0:
                 entropy = policy_distribution.entropy()
-                policy.set_fetch("entropy", entropy, "evaluate")
+                policy.set_fetch("entropy", entropy, "debug")
                 entropy_loss = -self.ent_coef * entropy
                 policy_loss += entropy_loss
 
@@ -70,10 +71,11 @@ class ActorCriticTrainer(TDTrainer):
                 policy_loss += l2_loss
 
             policy_loss = tf.reduce_mean(policy_loss)
-            policy.set_fetch("policy_loss", policy_loss, "evaluate")
+            policy.set_fetch("policy_loss", policy_loss, "debug")
 
         # optimize the policy loss
-        self.optimize_loss("policy_optimize", policy_loss)
+        self.add_loss(policy_loss, "policy_optimize")
+        self.optimize_loss("policy_optimize")
 
         # add summaries
         if entropy_loss is not None:

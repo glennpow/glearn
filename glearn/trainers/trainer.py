@@ -99,16 +99,6 @@ class Trainer(Configurable):
             self.transitions = []
             self.episode_reward = 0
 
-    def get_default_loss(self):
-        # get loss from policy
-        loss = self.policy.get_fetch("loss", "evaluate")
-        if loss is None:
-            self.error(f"Policy ({self.policy}) does not define a 'loss' feed for 'evaluate'")
-            return None
-
-        self.summary.add_scalar("loss", loss, "evaluate")
-        return loss
-
     def add_loss(self, loss, collection="optimize"):
         name = f"loss_{collection}"
         tf.add_to_collection(name, loss)
@@ -116,12 +106,18 @@ class Trainer(Configurable):
     def get_total_loss(self, collection="optimize"):
         # add up all losses
         name = f"loss_{collection}"
-        return tf.add_n(tf.get_collection(name), name=name)
+        losses = tf.get_collection(name)
+        if len(losses) > 1:
+            return tf.add_n(losses, name=name)
+        elif len(losses) == 1:
+            return losses[0]
+        return None
 
-    def optimize_loss(self, name="optimize", loss=None, definition=None):
+    def optimize_loss(self, collection="optimize", definition=None):
+        loss = self.get_total_loss(collection=collection)
+
         if loss is None:
-            # get default policy loss
-            loss = self.get_default_loss()
+            raise Exception(f"No losses found for collection: {collection}")
 
         # default definition
         if definition is None:
@@ -129,7 +125,7 @@ class Trainer(Configurable):
 
         global_step = tf.train.get_or_create_global_step()
 
-        with tf.name_scope(name):
+        with tf.name_scope(collection):
             learning_rate = definition.get("learning_rate", 1e-4)
 
             # learning rate decay
@@ -162,9 +158,9 @@ class Trainer(Configurable):
                 grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
                 optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
 
-            self.policy.set_fetch(name, optimize)
+            self.policy.set_fetch(collection, optimize)
 
-        self.summary.add_scalar("learning_rate", learning_rate, name)
+        self.summary.add_scalar("learning_rate", learning_rate, collection)
 
         return optimize
 
@@ -320,7 +316,8 @@ class Trainer(Configurable):
                 report_results = results
                 report_feed_map = feed_map
             for k, v in results.items():
-                if self.policy.is_fetch(k, "evaluate"):
+                if self.policy.is_fetch(k, "evaluate") and \
+                   (isinstance(v, float) or isinstance(v, int)):
                     if k in averaged_results:
                         averaged_results[k] += v
                     else:

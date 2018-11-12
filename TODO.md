@@ -1,3 +1,4 @@
+# refactor loss (probably needs to be in trainer, use policy.get_logits() or something)
 # for some inputs/vars/operations use --> with tf.device('/cpu:0'):
 # fix everaging of evaluation summary results
 # figure out TD and PolicyGradient inheritance
