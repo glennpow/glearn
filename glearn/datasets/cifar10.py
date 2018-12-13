@@ -9,6 +9,7 @@ from glearn.utils.path import script_relpath
 
 DATA_PATH = script_relpath("../../data/cifar10/")
 DATA_URL = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
+DATA_PARENT = "cifar-10-batches-py"
 
 IMAGE_SIZE = 32
 IMAGE_CHANNELS = 3
@@ -21,7 +22,7 @@ NUM_TRAINING_IMAGES = NUM_TRAINING_FILES * IMAGES_PER_FILE
 
 
 def _get_file_path(filename=""):
-    return os.path.join(DATA_PATH, filename)
+    return os.path.join(DATA_PATH, DATA_PARENT, filename)
 
 
 def _unpickle(filename):
