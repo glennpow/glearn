@@ -40,8 +40,6 @@ def maybe_download_and_extract(url, download_dir):
     # If it exists then we assume it has also been extracted,
     # otherwise we need to download and extract it now.
     if not os.path.exists(file_path):
-        print("ERROR SHOULDNT DOWNLOAD")
-        return
         # Check if the download directory exists, otherwise create it.
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
