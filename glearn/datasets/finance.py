@@ -35,7 +35,7 @@ class StockData(object):
         compact: only latest 100 datapoints, else up to 20 years of history
         datatype: "json" (default) or "csv"
 
-        Example Result:
+        Example API Response:
         {
             "Meta Data": {
                 "1. Information": "Daily Prices (open, high, low, close) and Volumes",
@@ -86,39 +86,47 @@ class StockData(object):
         self.raw_data = cache.block(cache_path, fetch, expires=expires)
 
         # extract processed data
-        self.metadata = self.raw_data["Meta Data"]
-
-    def _extract(self, series):
-        points = self.raw_data["Time Series (Daily)"]
-        dates = list(points.keys())
-        dates.sort()
-        values = np.float32([points[date][series] for date in dates])
-        dates = [np.datetime64(date) for date in dates]
-        return dates, values
-
-    def _smooth(self, data, smoothing=0.6):
-        size = len(data)
-        last = size > 0 if data[0] else None
-        smoothed = [0] * size
-        for i, d in enumerate(data):
-            if last is None:
-                smoothed[i] = d
+        self.y = {}
+        for k, v in self.raw_data.items():
+            if k == "Meta Data":
+                self.metadata = {vk.split(" ")[-1]: vv for vk, vv in v.items()}
             else:
-                smoothed[i] = last * smoothing + (1 - smoothing) * d
-            last = smoothed[i]
-        return smoothed
+                dates = list(v.keys())
+                dates.sort()
+                size = len(dates)
+                for i, date in enumerate(dates):
+                    for vk, vv in v[date].items():
+                        label = vk.split(" ")[-1]
+                        if label not in self.y:
+                            self.y[label] = np.zeros(size)
+                        self.y[label][i] = np.float32(vv)
+                self.x = [np.datetime64(date) for date in dates]
 
 
-def _plot(ax, x, y, ylabel=None):
+def _smooth(data, smoothing=0.6):
+    size = len(data)
+    last = size > 0 if data[0] else None
+    smoothed = [0] * size
+    for i, d in enumerate(data):
+        if last is None:
+            smoothed[i] = d
+        else:
+            smoothed[i] = last * smoothing + (1 - smoothing) * d
+        last = smoothed[i]
+    return smoothed
+
+
+def _plot(ax, x, ys):
+    for ylabel, y in ys.items():
+        ax.plot(x, y, label=ylabel)
+
     ax.set_title("Price")
-    kwargs = {"color": "blue", "alpha": 1, "label": "Close"}
-    ax.plot(x, y, **kwargs)
-    ax.legend(loc='lower left', fontsize="small")
+    ax.legend(loc='upper left', fontsize="small")
 
+    ax.set_xlabel("Date")
     years = mdates.YearLocator()   # every year
     months = mdates.MonthLocator()  # every month
     yearsFmt = mdates.DateFormatter('%Y')
-    ax.set_xlabel("Date")
     ax.xaxis.set_major_locator(years)
     ax.xaxis.set_major_formatter(yearsFmt)
     ax.xaxis.set_minor_locator(months)
@@ -133,20 +141,19 @@ def _plot(ax, x, y, ylabel=None):
     ax.grid(True)
     fig.autofmt_xdate()
 
-    if ylabel is not None:
-        ax.set_ylabel(ylabel)
+    # if ylabel is not None:
+    #     ax.set_ylabel(ylabel)
     # ax.yaxis.label.set_color(SUCCESSES_COLOR)
     # ax.tick_params(axis='y', colors=SUCCESSES_COLOR)
 
 
-data = StockData("CMNWX", compact=False, expires=3600)
-# print(json.dumps(r, indent=4))
+if __name__ == "__main__":
+    data = StockData("CMNWX", compact=False, expires=None)  # 3600)
 
-print("Plotting historical comparison...")
-fig, plots = plt.subplots(1, 2, figsize=(20, 10))
+    print("Plotting historical comparison...")
+    fig, plots = plt.subplots(1, 2, figsize=(20, 10))
 
-dates, values = data._extract("4. close")
-_plot(plots[0], dates, values, "Close")
+    _plot(plots[0], data.x, data.y)
 
-plt.tight_layout()
-plt.show()
+    plt.tight_layout()
+    plt.show()
