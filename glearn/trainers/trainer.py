@@ -379,9 +379,10 @@ class Trainer(Configurable):
         self.print_info()
 
         # yield after each training iteration
-        def train_yield():
+        def train_yield(summary=False):
             # write summary results
-            self.policy.summary.flush(global_step=self.global_step)
+            if summary:
+                self.policy.summary.flush(global_step=self.global_step)
 
             while True:
                 # check if training stopped
@@ -439,14 +440,11 @@ class Trainer(Configurable):
                 # optimize batch
                 self.optimize()
 
-                if train_yield():
-                    return
-
                 # evaluate if time to do so
                 if self.evaluating:
                     self.evaluate(train_yield)
 
-                if not self.training:
+                if train_yield(True):
                     return
 
     def train_reinforcement_loop(self, train_yield):
@@ -458,6 +456,9 @@ class Trainer(Configurable):
             self.episode_step = 0
 
             while self.training:
+                if train_yield(True):
+                    return
+
                 # rollout
                 transition = self.rollout()
                 done = transition.done
@@ -477,9 +478,6 @@ class Trainer(Configurable):
                     # episode poor performance
                     if episode_reward < self.min_episode_reward:
                         done = True
-
-                if train_yield():
-                    return
 
                 if done:
                     if self.max_episode_reward is None \
