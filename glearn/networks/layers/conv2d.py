@@ -39,12 +39,12 @@ class Conv2dLayer(NetworkLayer):
                 with tf.variable_scope(scope):
                     # create variables
                     height, width, output_channels = filter
-                    W = tf.get_variable("W", (height, width, input_channels, output_channels),
-                                        initializer=weights_initializer,
-                                        trainable=self.trainable)
-                    b = tf.get_variable("b", (output_channels),
-                                        initializer=biases_initializer,
-                                        trainable=self.trainable)
+                    W = self.get_variable("W", (height, width, input_channels, output_channels),
+                                          initializer=weights_initializer,
+                                          trainable=self.trainable)
+                    b = self.get_variable("b", (output_channels),
+                                          initializer=biases_initializer,
+                                          trainable=self.trainable)
 
                 # conv2d and biases
                 Z = tf.nn.conv2d(x, W, strides=[1, self.strides, self.strides, 1],

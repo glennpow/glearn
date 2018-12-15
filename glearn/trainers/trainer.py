@@ -99,25 +99,11 @@ class Trainer(Configurable):
             self.transitions = []
             self.episode_reward = 0
 
-    def add_loss(self, loss, collection="optimize"):
-        name = f"loss_{collection}"
-        tf.add_to_collection(name, loss)
+    def optimize_loss(self, loss, graph="optimize", definition=None):
+        # loss = self.get_total_loss(graph=graph)
 
-    def get_total_loss(self, collection="optimize"):
-        # add up all losses
-        name = f"loss_{collection}"
-        losses = tf.get_collection(name)
-        if len(losses) > 1:
-            return tf.add_n(losses, name=name)
-        elif len(losses) == 1:
-            return losses[0]
-        return None
-
-    def optimize_loss(self, collection="optimize", definition=None):
-        loss = self.get_total_loss(collection=collection)
-
-        if loss is None:
-            raise Exception(f"No losses found for collection: {collection}")
+        # if loss is None:
+        #     raise Exception(f"No losses found for graph: {graph}")
 
         # default definition
         if definition is None:
@@ -125,7 +111,7 @@ class Trainer(Configurable):
 
         global_step = tf.train.get_or_create_global_step()
 
-        with tf.name_scope(collection):
+        with tf.name_scope(graph):
             learning_rate = definition.get("learning_rate", 1e-4)
 
             # learning rate decay
@@ -158,9 +144,9 @@ class Trainer(Configurable):
                 grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
                 optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
 
-            self.policy.set_fetch(collection, optimize)
+            self.policy.set_fetch(graph, optimize)  # HACK - does this work for actor-critic?
 
-        self.summary.add_scalar("learning_rate", learning_rate, collection)
+        self.summary.add_scalar("learning_rate", learning_rate, graph)
 
         return optimize
 
@@ -292,7 +278,7 @@ class Trainer(Configurable):
     def evaluating(self):
         return self.global_step % self.evaluate_interval == 0
 
-    def evaluate(self):
+    def evaluate(self, train_yield):
         # Evaluate using the test dataset
         graphs = ["evaluate"]
         if self.debugging:
@@ -310,8 +296,10 @@ class Trainer(Configurable):
             reporting = step == report_step
             self.batch, feed_map = self.get_batch(mode="test")
 
+            # run evaluate graphs
             results = self.run(graphs, feed_map, render=reporting)
 
+            # gather reporting results
             if reporting:
                 report_results = results
                 report_feed_map = feed_map
@@ -323,46 +311,54 @@ class Trainer(Configurable):
                     else:
                         averaged_results[k] = v
 
-        # log info for current iteration
-        current_time = time.time()
-        train_elapsed_time = current_time - self.train_start_time
-        step_elapsed_time = current_time = self.step_start_time
-        stats = {
-            "global step": self.global_step,
-            "training time": train_elapsed_time,
-            "steps/second": self.global_step / train_elapsed_time,
-        }
-        if self.supervised:
-            stats.update({
-                "epoch step": self.epoch_step,
-                "epoch time": step_elapsed_time,
-            })
-            table = {f"Epoch: {self.epoch}": stats}
-        else:
-            stats.update({
-                "episode steps": self.episode_step,
-                "episode time": step_elapsed_time,
-                "reward": self.episode_reward,
-                "max reward": self.max_episode_reward,
-            })
-            table = {f"Episode: {self.episode}": stats}
+            if train_yield():
+                return
 
-        # average evaluate results
-        averaged_results = {k: v / epoch_size for k, v in averaged_results.items()}
-        report_results.update(averaged_results)
+        if report_results is not None:
+            # log info for current iteration
+            current_time = time.time()
+            train_elapsed_time = current_time - self.train_start_time
+            step_elapsed_time = current_time = self.step_start_time
+            stats = {
+                "global step": self.global_step,
+                "training time": train_elapsed_time,
+                "steps/second": self.global_step / train_elapsed_time,
+            }
+            if self.supervised:
+                stats.update({
+                    "epoch step": self.epoch_step,
+                    "epoch time": step_elapsed_time,
+                })
+                table = {f"Epoch: {self.epoch}": stats}
+            else:
+                stats.update({
+                    "episode steps": self.episode_step,
+                    "episode time": step_elapsed_time,
+                    "reward": self.episode_reward,
+                    "max reward": self.max_episode_reward,
+                })
+                table = {f"Episode: {self.episode}": stats}
 
-        # print inputs and results
-        table["Inputs"] = report_feed_map
-        table["Evaluation"] = report_results
+            # average evaluate results
+            averaged_results = {k: v / epoch_size for k, v in averaged_results.items()}
+            report_results.update(averaged_results)
 
-        # print tabular results
-        print_tabular(table, grouped=True)
-        print()
+            # remove None values
+            report_results = {k: v for k, v in report_results.items() if v is not None}
+
+            # print inputs and results
+            table["Inputs"] = report_feed_map
+            table["Evaluation"] = report_results
+
+            # print tabular results
+            print_tabular(table, grouped=True)
 
         # save model
         if self.save_path is not None:
             save_path = self.saver.save(self.sess, self.save_path)
             self.log(f"Saved model: {save_path}")
+
+        print()
 
     def train(self, render=False, profile=False):
         self.global_step = 0
@@ -371,6 +367,10 @@ class Trainer(Configurable):
         self.paused = False
         self.train_start_time = time.time()
         self.step_start_time = self.train_start_time
+
+        # if debugging, then error on invalid values
+        if self.debugging:
+            self.policy.set_fetch("check", tf.add_check_numerics_ops(), "debug")
 
         # prepare viewer
         self.viewer.prepare(self)
@@ -439,11 +439,14 @@ class Trainer(Configurable):
                 # optimize batch
                 self.optimize()
 
+                if train_yield():
+                    return
+
                 # evaluate if time to do so
                 if self.evaluating:
-                    self.evaluate()
+                    self.evaluate(train_yield)
 
-                if train_yield():
+                if not self.training:
                     return
 
     def train_reinforcement_loop(self, train_yield):
@@ -454,10 +457,7 @@ class Trainer(Configurable):
             self.reset()
             self.episode_step = 0
 
-            while True:
-                if train_yield():
-                    return
-
+            while self.training:
                 # rollout
                 transition = self.rollout()
                 done = transition.done
@@ -478,6 +478,9 @@ class Trainer(Configurable):
                     if episode_reward < self.min_episode_reward:
                         done = True
 
+                if train_yield():
+                    return
+
                 if done:
                     if self.max_episode_reward is None \
                        or self.episode_reward > self.max_episode_reward:
@@ -492,8 +495,10 @@ class Trainer(Configurable):
 
                     # evaluate if time to do so
                     if self.evaluating:
-                        self.evaluate()
+                        self.evaluate(train_yield)
                     break
+            if not self.training:
+                return
 
     def print_info(self):
         if self.supervised:

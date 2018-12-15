@@ -26,7 +26,7 @@ class LSTMLayer(NetworkLayer):
         # initializer
         if self.embedding_initializer is None:
             SCALE = 0.05  # TODO - expose
-            embedding_initializer = tf.random_uniform_initializer(-SCALE, SCALE, seed=self.seed)
+            embedding_initializer = tf.random_uniform_initializer(-SCALE, SCALE)
         else:
             embedding_initializer = self.load_initializer(self.embedding_initializer)
 
@@ -35,9 +35,9 @@ class LSTMLayer(NetworkLayer):
         if self.embedding_lookup:
             with tf.device("/cpu:0"):
                 # default initializer
-                embedding = tf.get_variable("embedding", [vocabulary_size, self.hidden_sizes[0]],
-                                            initializer=embedding_initializer,
-                                            trainable=self.trainable)
+                embedding = self.get_variable("embedding", [vocabulary_size, self.hidden_sizes[0]],
+                                              initializer=embedding_initializer,
+                                              trainable=self.trainable)
                 x = tf.nn.embedding_lookup(embedding, x)
 
                 # debugging fetches

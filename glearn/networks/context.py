@@ -18,6 +18,7 @@ class NetworkContext(Configurable):
         if graphs is None:
             # global graph feed
             graphs = [GLOBAL_FEED_GRAPH]
+
         # apply to specified graphs
         if not isinstance(graphs, list):
             graphs = [graphs]
@@ -78,6 +79,7 @@ class NetworkContext(Configurable):
             graphs = [name]
         elif not isinstance(graphs, list):
             graphs = [graphs]
+
         # apply to specified graphs
         for graph in graphs:
             if graph in self.fetches:
@@ -120,11 +122,6 @@ class NetworkContext(Configurable):
             feed_dict = self.build_feed_dict(feed_map, graphs=graphs)
 
             # run graph
-            # if self.debugging:  # TODO - debug levels
-            #     grs = ", ".join(graphs)
-            #     fds = ", ".join(list(feed_map.keys()))
-            #     fts = ", ".join(list(fetches.keys()))
-            #     print(f"Network run graphs: ({grs}), feeding: ({fds}), fetching: ({fts})")
             results = sess.run(fetches, feed_dict)
 
             # store results

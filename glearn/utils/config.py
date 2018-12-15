@@ -1,9 +1,10 @@
 import os
 import yaml
 import json
+import tensorflow as tf
 from glearn.datasets import load_dataset
 from glearn.envs import load_env
-from glearn.utils.printing import colorize
+from glearn.utils.log import Loggable
 from glearn.utils.path import script_relpath
 from glearn.policies.interface import Interface
 from glearn.viewers import load_view_controller
@@ -22,6 +23,7 @@ class Config(object):
 
         # load env or dataset
         self.seed = self.get("seed", 1)
+        tf.set_random_seed(self.seed)
         self.env = None
         self.dataset = None
         if "env" in self.properties:
@@ -131,15 +133,9 @@ class Config(object):
         return self.dataset is not None
 
 
-class Configurable(object):
+class Configurable(Loggable):
     def __init__(self, config):
         self.config = config
-
-    def log(self, *args):
-        print(*args)
-
-    def error(self, message):
-        self.log(colorize(message, "red"))
 
     @property
     def debugging(self):

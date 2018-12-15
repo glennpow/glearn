@@ -68,7 +68,7 @@ class Policy(NetworkContext):
         # create input/output nodes
         self.build_inputs()
 
-        # build main prediction model
+        # build prediction model
         self.build_predict()
 
         # build loss

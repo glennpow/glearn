@@ -42,7 +42,13 @@ class NetworkLayer(object):
 
             # load initializer constructor and call
             initializer_function = get_function(definition)
-            return initializer_function(seed=self.seed)
+            return initializer_function()
+
+    def get_variable(self, name, shape, **kwargs):
+        return tf.get_variable(name, shape=shape, **kwargs)
+
+    def add_loss(self, loss):
+        self.network.add_loss(loss)
 
     def build(self, inputs):
         # override
@@ -57,7 +63,7 @@ class NetworkLayer(object):
         return feed_map
 
     def dense(self, x, hidden_size, dropout=None, activation=None,
-              weights_initializer=None, biases_initializer=None):
+              weights_initializer=None, biases_initializer=None, weight_decay=None):
         # create common single dense layer
         dense_index = self.dense_count
         self.dense_count += 1
@@ -68,14 +74,20 @@ class NetworkLayer(object):
                 # weights
                 weights_initializer = self.load_initializer(weights_initializer,
                                                             tf.contrib.layers.xavier_initializer())
-                W = tf.get_variable("W", (x.shape[1], hidden_size),
-                                    initializer=weights_initializer, trainable=self.trainable)
+                W = self.get_variable("W", (x.shape[1], hidden_size),
+                                      initializer=weights_initializer, trainable=self.trainable)
+
+                # weight decay loss
+                if weight_decay is not None:
+                    W_loss = tf.multiply(tf.nn.l2_loss(W), weight_decay, name='W_loss')
+                    self.context.set_fetch(f"{scope}_W_loss", W_loss, ["evaluate"])
+                    self.add_loss(W_loss)
 
                 # biases
                 biases_initializer = self.load_initializer(biases_initializer,
                                                            tf.constant_initializer(0.0))
-                b = tf.get_variable("b", (hidden_size, ), initializer=biases_initializer,
-                                    trainable=self.trainable)
+                b = self.get_variable("b", (hidden_size, ), initializer=biases_initializer,
+                                      trainable=self.trainable)
 
             # weights and biases
             Z = tf.matmul(x, W)

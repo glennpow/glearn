@@ -1,6 +1,6 @@
 from glearn.utils.reflection import get_function
 
-from .loss import simple_loss  # noqa
+from .simple import simple_loss  # noqa
 from .sequence import sequence_loss  # noqa
 
 

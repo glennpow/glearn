@@ -1,10 +1,12 @@
 import tensorflow as tf
+from tensorflow.python.ops import math_ops
+from glearn.utils.log import Loggable
 from glearn.networks.layers.layer import load_layer
 from glearn.networks.losses import load_loss
 from glearn.networks.layers.distributions.distribution import DistributionLayer
 
 
-class Network(object):
+class Network(Loggable):
     def __init__(self, name, context, definition, trainable=True):
         self.name = name
         self.context = context
@@ -50,7 +52,7 @@ class Network(object):
     def get_variables(self):
         return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
 
-    def build(self, inputs):
+    def build_predict(self, inputs):
         # all layers within network scope
         with tf.variable_scope(self.name):
             # prepare inputs
@@ -67,11 +69,28 @@ class Network(object):
         self.head = predict
         return predict
 
+    def add_loss(self, loss):
+        tf.add_to_collection(f"{self.name}_losses", loss)
+
+    def get_total_loss(self):
+        # add all losses to get total
+        losses = tf.get_collection(f"{self.name}_losses")
+        if len(losses) == 0:
+            self.warning(f"No loss found for network: '{self.name}'")
+            return tf.constant(0)
+        return math_ops.add_n(losses, name="total_loss")
+
     def build_loss(self, outputs, **kwargs):
-        # build loss
-        loss_definition = self.definition.get("loss", None)
-        with tf.name_scope(self.name):
-            return load_loss(loss_definition, self, outputs, **kwargs)
+        with tf.name_scope(f"{self.name}_loss"):
+            # build prediction loss
+            loss_definition = self.definition.get("loss", None)
+            predict_loss, accuracy = load_loss(loss_definition, self, outputs, **kwargs)
+            self.add_loss(predict_loss)
+
+            # build combined total loss
+            total_loss = self.get_total_loss()
+
+        return total_loss, accuracy
 
     def prepare_default_feeds(self, graphs, feed_map):
         # add default feed values

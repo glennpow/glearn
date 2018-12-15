@@ -12,6 +12,9 @@
 ### MNIST (CNN)
 ./scripts/glearn train mnist
 
+### CIFAR-10 (CNN)
+./scripts/glearn train cifar10
+
 ### Digit Repeat (RNN)
 ./scripts/glearn train digit_repeat
 
