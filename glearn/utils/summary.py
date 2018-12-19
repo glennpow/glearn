@@ -96,6 +96,20 @@ class SummaryWriter(object):
         family_summaries.append(summary)
         return summary
 
+    def add_activation(self, tensor, family=None):
+        if tensor is None:
+            return
+        name = tensor.op.name
+        self.add_histogram(f"{name}/activation", tensor, family=family)
+        self.add_scalar(f"{name}/sparsity", tf.nn.zero_fraction(tensor), family=family)
+
+    def add_gradients(self, grads_tvars, family=None):
+        for grad, tvar in grads_tvars:
+            if grad is None:
+                continue
+            name = tvar.op.name
+            self.add_histogram(f"{name}/gradient", grad, family=family)
+
     def get_fetch(self, family=None):
         if family in self.summary_fetches:
             return self.summary_fetches[family]

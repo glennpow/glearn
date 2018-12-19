@@ -99,9 +99,15 @@ class NetworkLayer(object):
                 A = activation(Z)
             else:
                 A = Z
+            self.references["activation"] = A
 
             # dropout
             if dropout is not None:
                 self.references["undropped"] = A
                 A = tf.nn.dropout(A, dropout)
         return A
+
+    def activation_summary(self, family=None):
+        activation = self.references.get("activation")
+        if activation is not None:
+            self.context.summary.add_activation(activation, family=family)

@@ -57,6 +57,7 @@ class Conv2dLayer(NetworkLayer):
                     A = self.activation(Z)
                 else:
                     A = Z
+                self.references["activation"] = A
 
                 # local response normalization (before max pooling)
                 lrn_order = None

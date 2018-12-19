@@ -63,10 +63,16 @@ class Network(Loggable):
             layer_definitions = self.definition.get("layers", [])
             for i, layer_config in enumerate(layer_definitions):
                 layer = load_layer(self, i, layer_config)
-                self.add_layer(layer)
                 y = layer.build(y)
+                self.add_layer(layer)
             predict = self.get_output_layer().build_predict(y)
         self.head = predict
+
+        # add activation summary for layer
+        if self.context.debugging:
+            for layer in self.layers:
+                layer.activation_summary(family="debug")
+
         return predict
 
     def add_loss(self, loss):

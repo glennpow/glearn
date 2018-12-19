@@ -100,11 +100,6 @@ class Trainer(Configurable):
             self.episode_reward = 0
 
     def optimize_loss(self, loss, graph="optimize", definition=None):
-        # loss = self.get_total_loss(graph=graph)
-
-        # if loss is None:
-        #     raise Exception(f"No losses found for graph: {graph}")
-
         # default definition
         if definition is None:
             definition = self.kwargs
@@ -132,21 +127,25 @@ class Trainer(Configurable):
             else:
                 raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
 
-            # apply gradients, with any configured clipping
+            # get gradients and trainable variables
+            grads_tvars = optimizer.compute_gradients(loss)
+
+            # apply gradient clipping
             max_grad_norm = definition.get("max_grad_norm", None)
-            if max_grad_norm is None:
-                # apply unclipped gradients
-                optimize = optimizer.minimize(loss, global_step=global_step)
-            else:
-                # apply gradients with clipping
-                tvars = tf.trainable_variables()
-                grads = tf.gradients(loss, tvars)
+            if max_grad_norm is not None:
+                grads, tvars = zip(*grads_tvars)
                 grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
-                optimize = optimizer.apply_gradients(zip(grads, tvars), global_step=global_step)
+                grads_tvars = zip(grads, tvars)
+
+            # apply gradients
+            optimize = optimizer.apply_gradients(grads_tvars, global_step=global_step)
 
             self.policy.set_fetch(graph, optimize)  # HACK - does this work for actor-critic?
 
+        # add learning rate and gradient summaries
         self.summary.add_scalar("learning_rate", learning_rate, graph)
+        if self.debugging:
+            self.summary.add_gradients(grads_tvars, "debug")
 
         return optimize
 
@@ -379,9 +378,9 @@ class Trainer(Configurable):
         self.print_info()
 
         # yield after each training iteration
-        def train_yield(summary=False):
+        def train_yield(flush_summary=False):
             # write summary results
-            if summary:
+            if flush_summary:
                 self.policy.summary.flush(global_step=self.global_step)
 
             while True:

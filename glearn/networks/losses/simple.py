@@ -10,8 +10,7 @@ def simple_loss(network, outputs):
 
     if output_interface.discrete:
         # evaluate discrete loss
-        neg_log_p = tf.nn.softmax_cross_entropy_with_logits(logits=logits,
-                                                            labels=outputs)
+        neg_log_p = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=outputs)
         loss = tf.reduce_mean(neg_log_p)
 
         # evaluate accuracy
