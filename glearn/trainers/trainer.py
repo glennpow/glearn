@@ -131,11 +131,17 @@ class Trainer(Configurable):
             # get gradients and trainable variables
             grads_tvars = optimizer.compute_gradients(loss)
 
-            # apply gradient clipping
+            # check if we require unzipping grad/vars
             max_grad_norm = definition.get("max_grad_norm", None)
-            if max_grad_norm is not None:
+            require_unzip = self.debug_gradients or max_grad_norm is not None
+            if require_unzip:
                 grads, tvars = zip(*grads_tvars)
+
+            # apply gradient clipping
+            if max_grad_norm is not None:
                 grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
+
+            if require_unzip:
                 grads_tvars = zip(grads, tvars)
 
             # apply gradients
@@ -146,7 +152,7 @@ class Trainer(Configurable):
         # add learning rate and gradient summaries
         self.summary.add_scalar("learning_rate", learning_rate, graph)
         if self.debug_gradients:
-            self.summary.add_gradients(grads_tvars, "debug")
+            self.summary.add_gradients(zip(grads, tvars), "debug")
 
         return optimize
 
