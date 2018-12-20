@@ -1,21 +1,29 @@
 from glearn.utils.printing import colorize
 
 
-def log(self, *args):
+def log(*args):
     print(*args)
 
 
-def log_warning(self, message):
+def log_warning(message):
     log(colorize(message, "yellow"))
 
 
-def log_error(self, message):
+def log_error(message):
     log(colorize(message, "red"))
 
 
 class Loggable(object):
+    @property
+    def debugging(self):
+        return False
+
+    def debug(self, *args):
+        if self.debugging:
+            log(*args)
+
     def log(self, *args):
-        print(*args)
+        log(*args)
 
     def warning(self, message):
         log_warning(message)

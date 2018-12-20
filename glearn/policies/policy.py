@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from glearn.utils.summary import SummaryWriter, NullSummaryWriter
 from glearn.networks.context import NetworkContext
@@ -98,6 +99,11 @@ class Policy(NetworkContext):
         self.inputs = inputs
         self.outputs = outputs
 
+        # default output for debugging
+        if self.debugging:
+            batch_size = self.config.get("batch_size", 1)
+            self.default_output = np.zeros((batch_size,) + self.output.shape, self.output.dtype)
+
     def build_predict(self):
         # override
         pass
@@ -111,6 +117,10 @@ class Policy(NetworkContext):
         pass
 
     def prepare_default_feeds(self, graphs, feed_map):
+        # make sure we have outputs defined (HACK)
+        if self.debugging and "Y" not in feed_map:
+            feed_map["Y"] = self.default_output
+
         return feed_map
 
     def get_fetches(self, graphs=None):

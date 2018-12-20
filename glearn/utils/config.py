@@ -15,7 +15,6 @@ TEMP_DIR = "/tmp/glearn"
 
 class Config(object):
     def __init__(self, config_path, version=None, render=False, debug=False):
-
         self.properties = self.load_properties(config_path)
 
         # debugging

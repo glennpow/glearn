@@ -23,5 +23,7 @@ class NetworkPolicy(Policy):
         self.set_fetch("accuracy", accuracy, ["evaluate"])
 
     def prepare_default_feeds(self, graphs, feed_map):
+        feed_map = super().prepare_default_feeds(graphs, feed_map)
+
         # add default feed values
         return self.network.prepare_default_feeds(graphs, feed_map)

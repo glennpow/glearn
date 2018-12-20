@@ -17,6 +17,9 @@ class Network(Loggable):
         self.head = None
         self.tail = None
 
+        self.config = self.context.config
+        self.debug_activations = self.config.get("debug_activations", False)
+
     @property
     def seed(self):
         return self.context.seed
@@ -69,7 +72,7 @@ class Network(Loggable):
         self.head = predict
 
         # add activation summary for layer
-        if self.context.debugging:
+        if self.debug_activations:
             for layer in self.layers:
                 layer.activation_summary(family="debug")
 

@@ -21,6 +21,7 @@ class Trainer(Configurable):
         self.kwargs = kwargs
 
         self.batch_size = config.get("batch_size", 1)
+        self.debug_gradients = self.config.get("debug_gradients", False)
 
         self.epochs = epochs
         self.episodes = episodes
@@ -144,7 +145,7 @@ class Trainer(Configurable):
 
         # add learning rate and gradient summaries
         self.summary.add_scalar("learning_rate", learning_rate, graph)
-        if self.debugging:
+        if self.debug_gradients:
             self.summary.add_gradients(grads_tvars, "debug")
 
         return optimize
@@ -158,10 +159,12 @@ class Trainer(Configurable):
     def prepare_feeds(self, graphs, feed_map):
         self.policy.prepare_default_feeds(graphs, feed_map)
 
+        # dropout
         if intersects(["policy_optimize", "value_optimize"], graphs):
             feed_map["dropout"] = self.keep_prob
         else:
             feed_map["dropout"] = 1
+
         return feed_map
 
     def run(self, graphs, feed_map={}, render=True):
@@ -367,8 +370,8 @@ class Trainer(Configurable):
         self.train_start_time = time.time()
         self.step_start_time = self.train_start_time
 
-        # if debugging, then error on invalid values
-        if self.debugging:
+        # check for invalid values in the current graph
+        if self.config.get("check_numerics", False):
             self.policy.set_fetch("check", tf.add_check_numerics_ops(), "debug")
 
         # prepare viewer
