@@ -3,6 +3,10 @@ import os
 import tensorflow as tf
 from glearn.datasets.sequence import Vocabulary, SequenceDataset
 from glearn.utils.path import script_relpath
+from glearn.utils.download import ensure_download
+
+
+BASE_URL = "https://raw.githubusercontent.com/wojzaremba/lstm/master/data"
 
 
 def _read_words(filename):
@@ -27,6 +31,11 @@ def _file_to_word_ids(filename, vocabulary):
 
 def _load_data():
     data_path = script_relpath("../../data/ptb")
+
+    ensure_download(f"{BASE_URL}/ptb.train.txt", data_path)
+    ensure_download(f"{BASE_URL}/ptb.valid.txt", data_path)
+    ensure_download(f"{BASE_URL}/ptb.test.txt", data_path)
+
     train_path = os.path.join(data_path, "ptb.train.txt")
     valid_path = os.path.join(data_path, "ptb.valid.txt")
     test_path = os.path.join(data_path, "ptb.test.txt")

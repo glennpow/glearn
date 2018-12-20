@@ -41,13 +41,13 @@ def check_labels_file_header(filename):
                                                                            f.name))
 
 
-# def _maybe_download_and_extract(filename):
+# def _ensure_download(filename):
 #     url = 'https://storage.googleapis.com/cvdf-datasets/mnist/' + filename + '.gz'
 #     directory = script_relpath("../../data/mnist")
-#     maybe_download_and_extract(url=url, download_dir=directory)
+#     ensure_download(url=url, download_dir=directory, extract=True)
 
 
-def _maybe_download_and_extract(directory, filename):
+def _ensure_download(directory, filename):
     """Download (and unzip) a file from the MNIST dataset if not already done."""
     filepath = os.path.join(directory, filename)
     if tf.gfile.Exists(filepath):
@@ -82,8 +82,8 @@ def load_data(path, element_size, max_count=None, header_bytes=0, mapping=None):
 def _load_data(images_file, labels_file, config):
     """Download and parse MNIST dataset."""
     directory = script_relpath("../../data/mnist")
-    images_file = _maybe_download_and_extract(directory, images_file)
-    labels_file = _maybe_download_and_extract(directory, labels_file)
+    images_file = _ensure_download(directory, images_file)
+    labels_file = _ensure_download(directory, labels_file)
 
     check_image_file_header(images_file)
     check_labels_file_header(labels_file)

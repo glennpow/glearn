@@ -3,7 +3,7 @@ import pickle
 import os
 import gym
 from glearn.datasets.dataset import LabeledDataset
-from glearn.utils.download import maybe_download_and_extract
+from glearn.utils.download import ensure_download
 from glearn.utils.path import script_relpath
 
 
@@ -66,8 +66,8 @@ def _load_data(filename):
     return images, labels
 
 
-def _maybe_download_and_extract():
-    maybe_download_and_extract(url=DATA_URL, download_dir=DATA_PATH)
+def _ensure_download():
+    ensure_download(url=DATA_URL, download_dir=DATA_PATH, extract=True)
 
 
 def _load_label_names():
@@ -81,7 +81,7 @@ def _load_label_names():
 
 
 def cifar10_dataset(config):
-    _maybe_download_and_extract()
+    _ensure_download()
 
     data = {}
 
