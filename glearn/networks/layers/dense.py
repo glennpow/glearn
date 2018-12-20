@@ -45,6 +45,7 @@ class DenseLayer(NetworkLayer):
             y = self.dense(y, output_interface.size, self.dropout, tf.nn.softmax,
                            weights_initializer=self.references["weights_initializer"],
                            biases_initializer=self.references["weights_initializer"])
+            self.references["logits"] = self.references["Z"]
         else:
             y = self.dense(y, output_interface.size, self.dropout, None,
                            weights_initializer=self.references["weights_initializer"],

@@ -6,10 +6,10 @@ def simple_loss(network, outputs):
     context = network.context
     output_interface = context.output
     predict = network.head
-    logits = network.get_output_layer().references["Z"]
 
     if output_interface.discrete:
         # evaluate discrete loss
+        logits = network.get_output_layer().references["logits"]
         neg_log_p = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=outputs)
         loss = tf.reduce_mean(neg_log_p)
 
