@@ -79,10 +79,10 @@ class SequenceDataset(Dataset):
         output_space = Box(low=0, high=vocabulary.size, shape=(timesteps, ), dtype=npdtype)
 
         # calculate this outside TF
-        raw_epoch_size = ((len(data["train"]) // batch_size) - 1) // timesteps
+        epoch_size = {k: ((len(v) // batch_size) - 1) // timesteps for k, v in data.items()}
 
         super().__init__(name, producer_data, batch_size, input_space=input_space,
-                         output_space=output_space, epoch_size=raw_epoch_size, producer=True)
+                         output_space=output_space, epoch_size=epoch_size, producer=True)
 
     def encipher(self, value):
         label = self.vocabulary.encipher(value)

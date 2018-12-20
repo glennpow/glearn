@@ -3,11 +3,13 @@ from .layer import NetworkLayer
 
 
 class LSTMLayer(NetworkLayer):
-    def __init__(self, network, index, hidden_sizes=[128], cell_args={"forget_bias": 1},
+    def __init__(self, network, index, hidden_sizes=[128],
+                 cell_type="basic", cell_args={"forget_bias": 1},
                  embedding_lookup=False, activation=tf.nn.relu, embedding_initializer=None):
         super().__init__(network, index)
 
         self.hidden_sizes = hidden_sizes
+        self.cell_type = cell_type
         self.cell_args = cell_args
         self.embedding_lookup = embedding_lookup
         self.activation = activation
@@ -52,15 +54,19 @@ class LSTMLayer(NetworkLayer):
         x = tf.nn.dropout(x, self.dropout)
 
         # define lstm cell(s)
-        if len(self.hidden_sizes) == 1:
-            cell = tf.contrib.rnn.BasicLSTMCell(self.hidden_sizes[0], **self.cell_args)
+        cells = []
+        for hidden_size in self.hidden_sizes:
+            if self.cell_type == "block":
+                cell = tf.contrib.rnn.LSTMBlockCell(hidden_size, **self.cell_args)
+            else:
+                is_training = True  # HACK FIXME
+                cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, **self.cell_args,
+                                                    state_is_tuple=True, reuse=not is_training)
             cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self.dropout)
+            cells.append(cell)
+        if len(cells) == 1:
+            cell = cells[0]
         else:
-            cells = []
-            for hidden_size in self.hidden_sizes:
-                cell = tf.contrib.rnn.BasicLSTMCell(self.hidden_size, **self.cell_args)
-                cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self.dropout)
-                cells.append(cell)
             cell = tf.contrib.rnn.MultiRNNCell(cells)
 
         # prepare lstm state

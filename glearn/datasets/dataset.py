@@ -48,13 +48,14 @@ class Dataset(object):
         self.output = Interface(output_space)
 
         # this should be provided, otherwise it is inferred from inputs
-        self.epoch_size = {}
         self.total_samples = {}
+        if epoch_size is None:
+            self.epoch_size = {}
+        else:
+            self.epoch_size = epoch_size
         for k, v in data.items():
             if epoch_size is None:
                 self.epoch_size[k] = len(data[k][0]) // batch_size
-            else:
-                self.epoch_size[k] = epoch_size
             self.total_samples[k] = self.epoch_size[k] * batch_size
 
         self.producer = producer

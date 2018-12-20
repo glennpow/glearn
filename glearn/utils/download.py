@@ -32,3 +32,4 @@ def ensure_download(url, download_dir, extract=False):
                 zipfile.ZipFile(file=file_path, mode="r").extractall(download_dir)
             elif file_path.endswith((".tar.gz", ".tgz")):
                 tarfile.open(name=file_path, mode="r:gz").extractall(download_dir)
+    return file_path

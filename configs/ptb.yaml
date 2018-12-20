@@ -11,6 +11,7 @@
         layers:
           - name: glearn.networks:LSTMLayer
             args:
+              cell_type: block
               hidden_sizes: [650]
               embedding_lookup: true
         loss: glearn.networks.losses:sequence_loss
@@ -18,9 +19,11 @@
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
     args:
-      optimizer: adam
-      learning_rate: 2.0e-4
-      epochs: 40
+      optimizer: sgd
+      learning_rate: 1.0
+      lr_decay: 0.5
+      lr_decay_epochs: 6
+      epochs: 39
       keep_prob: 0.5
       max_grad_norm: 5
       evaluate_interval: 10

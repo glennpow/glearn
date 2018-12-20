@@ -32,13 +32,9 @@ def _file_to_word_ids(filename, vocabulary):
 def _load_data():
     data_path = script_relpath("../../data/ptb")
 
-    ensure_download(f"{BASE_URL}/ptb.train.txt", data_path)
-    ensure_download(f"{BASE_URL}/ptb.valid.txt", data_path)
-    ensure_download(f"{BASE_URL}/ptb.test.txt", data_path)
-
-    train_path = os.path.join(data_path, "ptb.train.txt")
-    valid_path = os.path.join(data_path, "ptb.valid.txt")
-    test_path = os.path.join(data_path, "ptb.test.txt")
+    train_path = ensure_download(f"{BASE_URL}/ptb.train.txt", data_path)
+    valid_path = ensure_download(f"{BASE_URL}/ptb.valid.txt", data_path)
+    test_path = ensure_download(f"{BASE_URL}/ptb.test.txt", data_path)
 
     vocabulary = _build_vocab(train_path)
     train_data = _file_to_word_ids(train_path, vocabulary)
