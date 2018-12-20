@@ -56,12 +56,12 @@ class LSTMLayer(NetworkLayer):
         # define lstm cell(s)
         cells = []
         for hidden_size in self.hidden_sizes:
-            if self.cell_type == "block":
-                cell = tf.contrib.rnn.LSTMBlockCell(hidden_size, **self.cell_args)
-            else:
+            if self.cell_type == "basic":  # TODO - deprecate
                 is_training = True  # HACK FIXME
                 cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, **self.cell_args,
                                                     state_is_tuple=True, reuse=not is_training)
+            else:
+                cell = tf.contrib.rnn.LSTMBlockCell(hidden_size, **self.cell_args)
             cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self.dropout)
             cells.append(cell)
         if len(cells) == 1:

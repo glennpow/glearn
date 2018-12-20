@@ -117,7 +117,7 @@ class Policy(NetworkContext):
         pass
 
     def prepare_default_feeds(self, graphs, feed_map):
-        # make sure we have outputs defined (HACK)
+        # make sure we have outputs defined
         if self.debugging and "Y" not in feed_map:
             feed_map["Y"] = self.default_output
 
