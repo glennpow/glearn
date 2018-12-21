@@ -43,6 +43,17 @@ class CategoricalDistributionLayer(DistributionLayer):
 
         return x
 
+    # TODO... correct batch size...
+    # def build_predict(self, y):
+    #     # make sure output is of correct dimensions
+    #     output_size = self.context.output.size
+    #     if isinstance(self.categories, int) and self.categories != output_size:
+    #         if self.categories < output_size:
+    #             y = tf.pad(y, tf.constant([output_size - self.categories]))
+    #         else:
+    #             y = tf.slice(y, 0, output_size)
+    #     return y
+
     def prepare_default_feeds(self, graphs, feed_map):
         feed_map["dropout"] = 1
         return feed_map

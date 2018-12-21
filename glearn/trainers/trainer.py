@@ -108,7 +108,7 @@ class Trainer(Configurable):
         global_step = tf.train.get_or_create_global_step()
 
         with tf.name_scope(graph):
-            learning_rate = definition.get("learning_rate", 1e-4)
+            learning_rate = definition.get("learning_rate", 1e-2)
 
             # learning rate decay
             lr_decay = definition.get("lr_decay", None)
@@ -139,7 +139,14 @@ class Trainer(Configurable):
 
             # apply gradient clipping
             if max_grad_norm is not None:
-                grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
+                clipped_grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
+
+                # metric to observe clipped gradient ratio
+                equal_grads = [tf.cast(tf.reduce_all(tf.not_equal(grad, clipped_grad)), tf.float32)
+                               for grad, clipped_grad in list(zip(grads, clipped_grads))]
+                clipped_ratio = tf.reduce_mean(equal_grads)
+
+                grads = clipped_grads
 
             if require_unzip:
                 grads_tvars = zip(grads, tvars)
@@ -153,6 +160,8 @@ class Trainer(Configurable):
         self.summary.add_scalar("learning_rate", learning_rate, graph)
         if self.debug_gradients:
             self.summary.add_gradients(zip(grads, tvars), "debug")
+        if max_grad_norm is not None:
+            self.summary.add_scalar("clipped_ratio", clipped_ratio, graph)
 
         return optimize
 
@@ -211,7 +220,7 @@ class Trainer(Configurable):
 
     def action(self):
         # decaying epsilon-greedy
-        # FIXME - should this be per epoch/episode instead of iteration?
+        # FIXME - should this be per epoch/episode instead of step?
         epsilon = self.epsilon
         if isinstance(epsilon, list):
             t = min(1, self.global_step / epsilon[2])
@@ -293,6 +302,7 @@ class Trainer(Configurable):
             graphs.append("debug")
 
         # get batch data and desired graphs
+        eval_start_time = time.time()
         averaged_results = {}
         epoch_size = self.dataset.reset(mode="test") if self.supervised else 1
         report_step = random.randrange(epoch_size)
@@ -323,25 +333,30 @@ class Trainer(Configurable):
                 return
 
         if report_results is not None:
-            # log info for current iteration
+            # log stats for current evaluation
             current_time = time.time()
             train_elapsed_time = current_time - self.train_start_time
-            step_elapsed_time = current_time = self.step_start_time
+            iteration_elapsed_time = current_time - self.iteration_start_time
+            eval_elapsed_time = eval_start_time - (self.last_eval_time or self.train_start_time)
+            eval_steps = self.global_step - (self.last_eval_steps or 0)
+            steps_per_second = eval_steps / eval_elapsed_time
+            self.last_eval_time = current_time
+            self.last_eval_steps = self.global_step
             stats = {
                 "global step": self.global_step,
                 "training time": train_elapsed_time,
-                "steps/second": self.global_step / train_elapsed_time,
+                "steps/second": steps_per_second,
             }
             if self.supervised:
                 stats.update({
                     "epoch step": self.epoch_step,
-                    "epoch time": step_elapsed_time,
+                    "epoch time": iteration_elapsed_time,
                 })
                 table = {f"Epoch: {self.epoch}": stats}
             else:
                 stats.update({
                     "episode steps": self.episode_step,
-                    "episode time": step_elapsed_time,
+                    "episode time": iteration_elapsed_time,
                     "reward": self.episode_reward,
                     "max reward": self.max_episode_reward,
                 })
@@ -361,6 +376,9 @@ class Trainer(Configurable):
             # print tabular results
             print_tabular(table, grouped=True)
 
+            # summaries
+            self.summary.add_simple_value("steps_per_second", steps_per_second, "evaluate")
+
         # save model
         if self.save_path is not None:
             save_path = self.saver.save(self.sess, self.save_path)
@@ -374,10 +392,11 @@ class Trainer(Configurable):
         self.training = True
         self.paused = False
         self.train_start_time = time.time()
-        self.step_start_time = self.train_start_time
+        self.last_eval_time = None
+        self.last_eval_steps = None
 
         # check for invalid values in the current graph
-        if self.config.get("check_numerics", False):
+        if self.config.get("debug_numerics", False):
             self.policy.set_fetch("check", tf.add_check_numerics_ops(), "debug")
 
         # prepare viewer
@@ -438,8 +457,13 @@ class Trainer(Configurable):
     def train_supervised_loop(self, train_yield):
         # supervised learning
         for epoch in range(self.epochs):
+            # start current epoch
+            self.iteration_start_time = time.time()
             epoch_size = self.dataset.reset()
             self.epoch = epoch
+
+            # epoch summary
+            self.summary.add_simple_value("epoch", epoch, "evaluate")
 
             for step in range(epoch_size):
                 # epoch time
@@ -459,9 +483,13 @@ class Trainer(Configurable):
         # reinforcement learning
         for episode in range(self.episodes):
             # start current episode
+            self.iteration_start_time = time.time()
             self.episode = episode
             self.reset()
             self.episode_step = 0
+
+            # summary
+            self.summary.add_simple_value("episode", episode, "evaluate")
 
             while self.training:
                 if train_yield(True):
@@ -474,7 +502,7 @@ class Trainer(Configurable):
 
                 # episode time
                 current_time = time.time()
-                episode_time = current_time - self.step_start_time
+                episode_time = current_time - self.iteration_start_time
                 if self.max_episode_time is not None:
                     # episode timeout
                     if episode_time > self.max_episode_time:

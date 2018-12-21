@@ -1,9 +1,10 @@
 --- # CIFAR-10
 
   ### DEBUG ###
-  debug_activations: true
-  debug_gradients: true
-  # debug_run: true
+  # debug_activations: true
+  # debug_gradients: true
+  # debug_runs: true
+  # debug_numerics: true
   #############
 
   dataset: cifar10
@@ -19,19 +20,19 @@
               filters: [[5, 5, 64]]
               max_pool_k: 3
               lrn: [false, 1, 0.0001111111111, 0.75]
-              weights_initializer:
-                name: tensorflow:truncated_normal_initializer
-                args:
-                  stddev: 5.0e-2
+              # weights_initializer:
+              #   name: tensorflow:truncated_normal_initializer
+              #   args:
+              #     stddev: 5.0e-2
           - name: glearn.networks:Conv2dLayer
             args:
               filters: [[5, 5, 64]]
               max_pool_k: 3
               lrn: [true, 1, 0.0001111111111, 0.75]
-              weights_initializer:
-                name: tensorflow:truncated_normal_initializer
-                args:
-                  stddev: 5.0e-2
+              # weights_initializer:
+              #   name: tensorflow:truncated_normal_initializer
+              #   args:
+              #     stddev: 5.0e-2
               biases_initializer:
                 name: tensorflow:constant_initializer
                 args:
@@ -40,10 +41,10 @@
             args:
               hidden_sizes: [384, 192]
               weight_decay: 0.004
-              weights_initializer:
-                name: tensorflow:truncated_normal_initializer
-                args:
-                  stddev: 0.04
+              # weights_initializer:
+              #   name: tensorflow:truncated_normal_initializer
+              #   args:
+              #     stddev: 0.04
               biases_initializer:
                 name: tensorflow:constant_initializer
                 args:
@@ -52,14 +53,14 @@
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
     args:
-      optimizer: sgd
-      learning_rate: 0.1
-      lr_decay: 0.5
-      lr_decay_epochs: 20
+      optimizer: adam  # sgd
+      learning_rate: 1.0e-5  # 0.001
+      lr_decay: 0.2
+      lr_decay_epochs: 40
       epochs: 1500
       # keep_prob: 0.8
       max_grad_norm: 5
-      evaluate_interval: 20
+      evaluate_interval: 100
 
   viewer:
     name: glearn.viewers.advanced_viewer:AdvancedViewer

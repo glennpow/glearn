@@ -13,7 +13,7 @@ class NetworkContext(Configurable):
         self.fetches = {}
         self.latest_results = {}
 
-        self.debug_run = self.config.get("debug_run", False)
+        self.debug_runs = self.config.get("debug_runs", False)
 
     def set_feed(self, name, value, graphs=None):
         # set feed node, for graph or global (None)
@@ -120,7 +120,7 @@ class NetworkContext(Configurable):
         fetches = self.get_fetches(graphs)
 
         if len(fetches) > 0:
-            if self.debug_run:
+            if self.debug_runs:
                 graphs_str = ', '.join(graphs)
                 fetches_str = ', '.join(list(fetches.keys()))
                 self.debug(f"Running graphs: '{graphs_str}' with fetches: '{fetches_str}'")
