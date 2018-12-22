@@ -54,7 +54,7 @@
     name: glearn.trainers:PolicyGradientTrainer
     args:
       optimizer: adam  # sgd
-      learning_rate: 1.0e-5  # 0.001
+      learning_rate: 1.0e-4  # 0.001
       lr_decay: 0.2
       lr_decay_epochs: 40
       epochs: 1500

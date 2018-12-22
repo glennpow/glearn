@@ -31,13 +31,15 @@ class Trainer(Configurable):
         self.epsilon = epsilon
         self.keep_prob = keep_prob
 
-        self.global_step = 0
         self.epoch_step = 0
         self.episode_step = 0
         self.observation = None
         self.transitions = []
         self.episode_reward = 0
         self.batch = None
+
+        # get global step
+        self.global_step = tf.train.get_or_create_global_step()
 
         if self.rendering:
             self.init_viewer()
@@ -105,7 +107,7 @@ class Trainer(Configurable):
         if definition is None:
             definition = self.kwargs
 
-        global_step = tf.train.get_or_create_global_step()
+        global_step = self.global_step
 
         with tf.name_scope(graph):
             learning_rate = definition.get("learning_rate", 1e-2)
@@ -142,9 +144,9 @@ class Trainer(Configurable):
                 clipped_grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
 
                 # metric to observe clipped gradient ratio
-                equal_grads = [tf.cast(tf.reduce_all(tf.not_equal(grad, clipped_grad)), tf.float32)
-                               for grad, clipped_grad in list(zip(grads, clipped_grads))]
-                clipped_ratio = tf.reduce_mean(equal_grads)
+                unequal = [tf.reduce_mean(tf.cast(tf.not_equal(grad, clipped_grad), tf.float32))
+                           for grad, clipped_grad in list(zip(grads, clipped_grads))]
+                clipped_ratio = tf.reduce_mean(unequal)
 
                 grads = clipped_grads
 
@@ -220,10 +222,10 @@ class Trainer(Configurable):
 
     def action(self):
         # decaying epsilon-greedy
-        # FIXME - should this be per epoch/episode instead of step?
         epsilon = self.epsilon
         if isinstance(epsilon, list):
-            t = min(1, self.global_step / epsilon[2])
+            # FIXME - should this be per current_global_iteration instead of current_global_step?
+            t = min(1, self.current_global_step / epsilon[2])
             epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
 
         # get action
@@ -276,16 +278,17 @@ class Trainer(Configurable):
         pass
 
     def optimize(self):
-        # Optimize using a supervised or unsupervised batch
-        self.global_step += 1
+        # get current global step
+        global_step = tf.train.global_step(self.sess, self.global_step)
+        self.current_global_step = global_step
 
         iteration_name = "Epoch" if self.supervised else "Episode"
         iteration = self.epoch if self.supervised else self.episode
         step = self.epoch_step if self.supervised else self.episode_step
         print_update(f"Optimizing | {iteration_name}: {iteration} | Step: {step} | "
-                     f"Global Step: {self.global_step} | Eval. Steps: {self.evaluate_interval}")
+                     f"Global Step: {global_step} | Eval. Steps: {self.evaluate_interval}")
 
-        # get batch data and desired graphs
+        # get either supervised or unsupervised batch data and feeds
         self.batch, feed_map = self.get_batch()
 
         # run all desired graphs
@@ -293,7 +296,7 @@ class Trainer(Configurable):
 
     @property
     def evaluating(self):
-        return self.global_step % self.evaluate_interval == 0
+        return self.current_global_step % self.evaluate_interval == 0
 
     def evaluate(self, train_yield):
         # Evaluate using the test dataset
@@ -338,12 +341,12 @@ class Trainer(Configurable):
             train_elapsed_time = current_time - self.train_start_time
             iteration_elapsed_time = current_time - self.iteration_start_time
             eval_elapsed_time = eval_start_time - (self.last_eval_time or self.train_start_time)
-            eval_steps = self.global_step - (self.last_eval_steps or 0)
+            eval_steps = self.current_global_step - (self.last_eval_step or 0)
             steps_per_second = eval_steps / eval_elapsed_time
             self.last_eval_time = current_time
-            self.last_eval_steps = self.global_step
+            self.last_eval_step = self.current_global_step
             stats = {
-                "global step": self.global_step,
+                "global step": self.current_global_step,
                 "training time": train_elapsed_time,
                 "steps/second": steps_per_second,
             }
@@ -387,13 +390,10 @@ class Trainer(Configurable):
         print()
 
     def train(self, render=False, profile=False):
-        self.global_step = 0
         self.max_episode_reward = None
         self.training = True
         self.paused = False
         self.train_start_time = time.time()
-        self.last_eval_time = None
-        self.last_eval_steps = None
 
         # check for invalid values in the current graph
         if self.config.get("debug_numerics", False):
@@ -409,7 +409,7 @@ class Trainer(Configurable):
         def train_yield(flush_summary=False):
             # write summary results
             if flush_summary:
-                self.policy.summary.flush(global_step=self.global_step)
+                self.policy.summary.flush(global_step=self.current_global_step)
 
             while True:
                 # check if training stopped
@@ -437,6 +437,12 @@ class Trainer(Configurable):
                 self.stop_session()
             atexit.register(cleanup)
 
+            # get current global step, and prepare evaluation counters
+            global_step = tf.train.global_step(self.sess, self.global_step)
+            self.current_global_step = global_step
+            self.last_eval_time = None
+            self.last_eval_step = self.current_global_step
+
             # do supervised or reinforcement loop
             if self.supervised:
                 self.train_supervised_loop(train_yield)
@@ -462,8 +468,8 @@ class Trainer(Configurable):
             epoch_size = self.dataset.reset()
             self.epoch = epoch
 
-            # epoch summary
-            self.summary.add_simple_value("epoch", epoch, "evaluate")
+            # epoch summary (TODO - store this in variable)
+            self.summary.add_scalar("epoch", self.global_step / epoch_size, "evaluate")
 
             for step in range(epoch_size):
                 # epoch time
@@ -488,7 +494,7 @@ class Trainer(Configurable):
             self.reset()
             self.episode_step = 0
 
-            # summary
+            # episode summary (TODO - store this in variable)
             self.summary.add_simple_value("episode", episode, "evaluate")
 
             while self.training:

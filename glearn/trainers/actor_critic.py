@@ -36,8 +36,6 @@ class ActorCriticTrainer(TDTrainer):
         self.summary.add_scalar("value", tf.reduce_mean(critic_value), "evaluate")
 
         # build advantage and critic optimization
-        # self.add_loss(value_loss, "value_optimize")
-        # self.optimize_loss("value_optimize", self.critic_definition)
         self.optimize_loss(value_loss, "value_optimize", self.critic_definition)
 
     def init_actor(self):
@@ -75,8 +73,6 @@ class ActorCriticTrainer(TDTrainer):
             policy.set_fetch("policy_loss", policy_loss, "debug")
 
         # optimize the policy loss
-        # self.add_loss(policy_loss, "policy_optimize")
-        # self.optimize_loss("policy_optimize")
         self.optimize_loss(policy_loss, "policy_optimize")
 
         # add summaries

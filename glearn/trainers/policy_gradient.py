@@ -12,8 +12,6 @@ class PolicyGradientTrainer(Trainer):
         self.summary.add_scalar("loss", loss, "evaluate")
 
         # minimize policy loss
-        # self.add_loss(loss, "policy_optimize")
-        # self.optimize_loss("policy_optimize")
         self.optimize_loss(loss, "policy_optimize")
 
         super().init_optimizer()
