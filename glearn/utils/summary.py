@@ -4,7 +4,7 @@ import tensorflow as tf
 from subprocess import Popen
 
 
-SUMMARY_KEY_PREFIX = "_summary"
+SUMMARY_KEY_PREFIX = "_summary_"
 DEFAULT_SUBDIRECTORY = "events"
 
 
@@ -122,7 +122,7 @@ class SummaryWriter(object):
     def get_family_key(self, family=None):
         if family is None:
             return SUMMARY_KEY_PREFIX
-        return f"{SUMMARY_KEY_PREFIX}_{family}"
+        return f"{SUMMARY_KEY_PREFIX}{family}"
 
     def prepare_fetches(self, fetches, families=None):
         if not isinstance(families, list):
