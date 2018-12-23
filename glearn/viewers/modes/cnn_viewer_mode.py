@@ -19,21 +19,21 @@ class CNNViewerMode(ViewerMode):
         network = self.policy.network
         self.filters = self.config.find("filters")
         conv3d_layers = network.get_layers(Conv2dLayer)
-        n = 0
-        for layer in conv3d_layers:
-            features = layer.references["features"]
-            for f in features:
-                network.context.set_fetch(f"conv2d_{n}", f, "debug")
-                n += 1
+        if self.debugging:
+            n = 0
+            for layer in conv3d_layers:
+                features = layer.references["features"]
+                for f in features:
+                    network.context.set_fetch(f"conv2d_{n}", f, "debug")
+                    n += 1
 
     def view_results(self, graphs, feed_map, results):
-        if "evaluate" in graphs:
+        if self.debugging and "debug" in graphs:
             # visualize evaluated dataset results
             if self.supervised:
-                self.update_visualize(feed_map["X"], feed_map["Y"], results["predict"])
-        if "debug" in graphs:
+                self.view_predict(results["X"], results["Y"], results["predict"])
             # visualize debug dataset results
-            self.visualize_features(results)
+            self.view_features(results)
 
     def on_key_press(self, key, modifiers):
         super().on_key_press(key, modifiers)
@@ -51,7 +51,7 @@ class CNNViewerMode(ViewerMode):
                     self.visualize_layer = min(self.visualize_layer + 1, max_layers - 1)
                 max_features = self.filters[self.visualize_layer][2]
                 self.visualize_feature = min(self.visualize_feature, max_features - 1)
-                self.visualize_features()
+                self.view_features()
             elif key == pyglet.window.key.MINUS:
                 if self.visualize_layer is not None:
                     self.visualize_layer -= 1
@@ -60,18 +60,18 @@ class CNNViewerMode(ViewerMode):
                     else:
                         max_features = self.filters[self.visualize_layer][2]
                         self.visualize_feature = min(self.visualize_feature, max_features - 1)
-                        self.visualize_features()
+                        self.view_features()
             elif key == pyglet.window.key.BRACKETRIGHT:
                 if self.visualize_layer is not None:
                     max_features = self.filters[self.visualize_layer][2]
                     self.visualize_feature = min(self.visualize_feature + 1, max_features - 1)
-                    self.visualize_features()
+                    self.view_features()
             elif key == pyglet.window.key.BRACKETLEFT:
                 if self.visualize_layer is not None:
                     self.visualize_feature = max(self.visualize_feature - 1, 0)
-                    self.visualize_features()
+                    self.view_features()
 
-    def update_visualize(self, inputs, outputs, predict):
+    def view_predict(self, inputs, outputs, predict):
         # build image grid of inputs
         grid = self.visualize_grid + [1]
         image_size = np.multiply(self.input.shape, grid)
@@ -98,7 +98,7 @@ class CNNViewerMode(ViewerMode):
                                       color=color, anchor_x='right', anchor_y='bottom')
         self.viewer.set_main_image(image)
 
-    def visualize_features(self, results=None):
+    def view_features(self, results=None):
         if results is None:
             results = self.last_results
         else:

@@ -1,5 +1,6 @@
 import tensorflow as tf
 from glearn.utils.config import Configurable
+from glearn.utils.printing import colorize
 
 
 GLOBAL_FEED_GRAPH = "*"
@@ -121,9 +122,11 @@ class NetworkContext(Configurable):
 
         if len(fetches) > 0:
             if self.debug_runs:
-                graphs_str = ', '.join(graphs)
-                fetches_str = ', '.join(list(fetches.keys()))
-                self.debug(f"Running graphs: '{graphs_str}' with fetches: '{fetches_str}'")
+                graphs_s = ', '.join(graphs)
+                feeds_s = ', '.join(list(feed_map.keys()))
+                fetches_s = ', '.join(list(fetches.keys()))
+                message = f"══ Run: '{graphs_s}' (Feeds: '{feeds_s}', Fetches: '{fetches_s}')"
+                self.debug(colorize(message, "cyan", bold=True))
 
             # build final feed_dict
             feed_dict = self.build_feed_dict(feed_map, graphs=graphs)
