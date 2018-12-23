@@ -55,7 +55,7 @@
     args:
       optimizer: adam  # sgd
       learning_rate: 1.0e-4  # 0.001
-      lr_decay: 0.2
+      lr_decay: 0.5
       lr_decay_epochs: 40
       epochs: 1500
       # keep_prob: 0.8

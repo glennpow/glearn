@@ -24,12 +24,11 @@ class SummaryWriter(object):
         self.writers = {}
         self.server = None
 
-    def start(self, append=False, server=False, **kwargs):
+    def start(self, server=False, **kwargs):
         self.kwargs = kwargs
 
-        # prepare directory
-        if not append:
-            shutil.rmtree(self.path, ignore_errors=True)
+        # prepare clean directory
+        shutil.rmtree(self.path, ignore_errors=True)
         os.makedirs(self.path, exist_ok=True)
 
         # prepare server
@@ -207,6 +206,12 @@ class NullSummaryWriter(object):
         return None
 
     def add_histogram(self, **kwargs):
+        return None
+
+    def add_activation(self, **kwargs):
+        return None
+
+    def add_gradients(self, **kwargs):
         return None
 
     def get_fetch(self, **kwargs):
