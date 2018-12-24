@@ -79,17 +79,17 @@ class Config(object):
             elif config_path.endswith(".json"):
                 properties = json.load(f)
 
-        # include any parent configs  (TODO - could use find_config for these too...)
-        if "include" in properties:
-            includes = properties["include"]
-            if not isinstance(includes, list):
-                includes = [includes]
+        # import shared configs
+        if "import" in properties:
+            imports = properties["import"]
+            if not isinstance(imports, list):
+                imports = [imports]
             new_properties = {}
-            for include in includes:
-                relative_include = os.path.join(os.path.dirname(config_path), include)
-                included = self.load_properties(relative_include)
-                if included is not None:
-                    new_properties.update(included)
+            for import_identifier in imports:
+                import_path = find_config(import_identifier)
+                import_properties = self.load_properties(import_path)
+                if import_properties is not None:
+                    new_properties.update(import_properties)
             new_properties.update(properties)  # TODO - smart merge
             properties = new_properties
 
@@ -187,10 +187,11 @@ def find_config(identifier, search_defaults=True):
     options = [identifier]
 
     if search_defaults:
-        # does it need an extension?   (TODO - try more extensions?)
+        # does it need an extension?
         _, ext = os.path.splitext(identifier)
         if len(ext) == 0:
             options.append(f"{identifier}.yaml")
+            options.append(f"{identifier}.json")
 
         # is it relative to the project root?
         root = script_relpath("../..")

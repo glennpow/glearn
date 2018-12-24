@@ -1,0 +1,8 @@
+---
+
+  ### DEBUG ###
+  # debug_activations: true
+  debug_gradients: true
+  # debug_runs: true
+  # debug_numerics: true
+  #############
