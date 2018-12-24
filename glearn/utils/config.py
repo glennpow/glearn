@@ -80,7 +80,7 @@ class Config(object):
                 properties = json.load(f)
 
         # import shared configs
-        if "import" in properties:
+        if properties is not None and "import" in properties:
             imports = properties["import"]
             if not isinstance(imports, list):
                 imports = [imports]
