@@ -19,6 +19,9 @@ class Config(object):
 
         # debugging
         self.debugging = debug
+        if debug:
+            from glearn.utils.debug import debug_faults
+            debug_faults()
 
         # load env or dataset
         self.seed = self.get("seed", 1)
