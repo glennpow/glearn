@@ -19,7 +19,7 @@ class Config(object):
 
         # debugging
         self.debugging = debug
-        if debug:
+        if self.debugging:
             from glearn.utils.debug import debug_faults
             debug_faults()
 
