@@ -1,11 +1,5 @@
 --- # CIFAR-10
-
-  ### DEBUG ###
-  # debug_activations: true
-  # debug_gradients: true
-  # debug_runs: true
-  # debug_numerics: true
-  #############
+  import: base
 
   dataset: cifar10
   batch_size: 128
@@ -54,11 +48,11 @@
     name: glearn.trainers:PolicyGradientTrainer
     args:
       optimizer: adam  # sgd
-      learning_rate: 1.0e-4  # 0.001
+      learning_rate: 2.0e-4  # 0.001
       lr_decay: 0.5
       lr_decay_epochs: 40
       epochs: 1500
-      # keep_prob: 0.8
+      keep_prob: 0.8
       max_grad_norm: 5
       evaluate_interval: 100
 

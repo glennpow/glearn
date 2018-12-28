@@ -12,7 +12,7 @@ class DigitRepeatDataset(SequenceDataset):
 
         vocabulary = Vocabulary(range(digits))
 
-        super().__init__("Counter", data, batch_size, vocabulary, timesteps)
+        super().__init__("DigitRepeat", data, batch_size, vocabulary, timesteps)
 
     def _generate_data(self, digits, repeat):
         data = []

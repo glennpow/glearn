@@ -88,13 +88,14 @@ class CNNViewerMode(ViewerMode):
                 y = row * height
                 image[y:y + height, x:x + width] = input_image
 
-                action = self.dataset.decipher(predict[index])
-                action_s = f"{action}"
-                correct = action == self.dataset.decipher(outputs[index])
+                expected = self.dataset.decipher(outputs[index])
+                predicted = self.dataset.decipher(predict[index])
+                correct = predicted == expected
+                predict_s = f"{predicted}"
                 color = (0, 255, 0, 255) if correct else (255, 0, 0, 255)
                 lx = x + width
                 ly = image_size[0] - (y + height)
-                self.viewer.add_label(f"action:{index}", action_s, x=lx, y=ly, font_size=8,
+                self.viewer.add_label(f"action:{index}", predict_s, x=lx, y=ly, font_size=8,
                                       color=color, anchor_x='right', anchor_y='bottom')
         self.viewer.set_main_image(image)
 
