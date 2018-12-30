@@ -1,8 +1,23 @@
 ---
+  ### Debugging
 
-  ### DEBUG ###
+  ## write activation summaries to tensorboard
   # debug_activations: true
+
+  ## write gradient summaries to tensorboard
   # debug_gradients: true
+
+  ## log session run calls
   # debug_runs: true
+
+  ## session run tracing
+  # debug_trace: true
+
+  ## add numerics checks (NaNs, etc.)
   # debug_numerics: true
-  #############
+
+
+  ### Session Debugging
+
+  # session_config:
+  #   log_device_placement: true
