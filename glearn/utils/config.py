@@ -4,8 +4,9 @@ import json
 import tensorflow as tf
 from glearn.datasets import load_dataset
 from glearn.envs import load_env
-from glearn.utils.log import Loggable
+from glearn.utils.log import log, Loggable
 from glearn.utils.path import script_relpath
+from glearn.utils.summary import SummaryWriter, NullSummaryWriter
 from glearn.policies.interface import Interface
 from glearn.viewers import load_view_controller
 
@@ -72,6 +73,8 @@ class Config(object):
             self.input = Interface(self.env.observation_space)
             self.output = Interface(self.env.action_space)
 
+        self._init_summaries()
+
     def load_properties(self, config_path):
         properties = {}
 
@@ -134,6 +137,21 @@ class Config(object):
     def supervised(self):
         return self.dataset is not None
 
+    def _init_summaries(self):
+        if self.tensorboard_path is not None:
+            log(f"Tensorboard log root directory: {self.tensorboard_path}")
+            self.summary = SummaryWriter(self.tensorboard_path)
+        else:
+            self.summary = NullSummaryWriter()
+
+    def start_summaries(self, sess):
+        if self.summary is not None:
+            self.summary.start(sess, server=True)
+
+    def stop_summaries(self, sess):
+        if self.summary is not None:
+            self.summary.stop()
+
 
 class Configurable(Loggable):
     def __init__(self, config):
@@ -174,6 +192,10 @@ class Configurable(Loggable):
     @property
     def seed(self):
         return self.config.seed
+
+    @property
+    def summary(self):
+        return self.config.summary
 
 
 def load_config(identifier, version=None, render=False, debug=False, search_defaults=True):

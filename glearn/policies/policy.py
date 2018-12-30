@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-from glearn.utils.summary import SummaryWriter, NullSummaryWriter
 from glearn.networks.context import NetworkContext
 
 
@@ -12,7 +11,6 @@ class Policy(NetworkContext):
 
         if self.rendering:
             self.init_viewer()
-        self.init_summaries()
         self.build_model()
 
     def __str__(self):
@@ -28,12 +26,8 @@ class Policy(NetworkContext):
     def start_session(self, sess):
         self.start_threading(sess)
 
-        self.start_summaries(sess)
-
     def stop_session(self, sess):
         self.stop_threading(sess)
-
-        self.stop_summaries(sess)
 
     def start_threading(self, sess):
         if self.multithreaded:
@@ -49,21 +43,6 @@ class Policy(NetworkContext):
             # join all threads
             self.coord.request_stop()
             self.coord.join(self.threads)
-
-    def init_summaries(self):
-        if self.tensorboard_path is not None:
-            self.log(f"Tensorboard log root directory: {self.tensorboard_path}")
-            self.summary = SummaryWriter(self.tensorboard_path)
-        else:
-            self.summary = NullSummaryWriter()
-
-    def start_summaries(self, sess):
-        if self.summary is not None:
-            self.summary.start(graph=sess.graph, server=True)
-
-    def stop_summaries(self, sess):
-        if self.summary is not None:
-            self.summary.stop()
 
     def build_model(self):
         # create input/output nodes

@@ -17,5 +17,10 @@ class DebuggableSession(tf.Session):
             self.run_metadata = None
 
     def run(self, fetches, feed_dict=None):
-        return super().run(fetches, feed_dict=feed_dict, options=self.run_options,
-                           run_metadata=self.run_metadata)
+        results = super().run(fetches, feed_dict=feed_dict, options=self.run_options,
+                              run_metadata=self.run_metadata)
+
+        if self.run_metadata is not None:
+            self.config.summary.add_run_metadata(self.run_metadata)
+
+        return results

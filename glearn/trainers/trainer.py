@@ -59,20 +59,21 @@ class Trainer(Configurable):
     def load_path(self):
         return self.config.load_path
 
-    @property
-    def summary(self):
-        return self.policy.summary
-
     def start_session(self):
-        self.sess = tf.Session()
+        from glearn.utils.session import DebuggableSession
+        self.sess = DebuggableSession(self.config)
         self.sess.run(tf.global_variables_initializer())
 
         self.policy.start_session(self.sess)
+
+        self.config.start_summaries(self.sess)
 
         self.start_persistence()
 
     def stop_session(self):
         self.policy.stop_session(self.sess)
+
+        self.config.stop_summaries(self.sess)
 
         self.sess.close()
 
@@ -451,8 +452,7 @@ class Trainer(Configurable):
 
         if profile:
             # profile training loop
-            profile_path = f"{self.log_dir}/profile"
-            run_profile(train_loop, profile_path)
+            profile_path = run_profile(train_loop, self.sess, self.config)
 
             # show profiling results
             open_profile(profile_path)

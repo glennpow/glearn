@@ -23,9 +23,13 @@ class SummaryWriter(object):
         self.summary_results = {}
         self.writers = {}
         self.server = None
+        self.run_metadata = None
 
-    def start(self, server=False, **kwargs):
+    def start(self, sess, server=False, **kwargs):
+        self.sess = sess
         self.kwargs = kwargs
+        if "graph" not in self.kwargs:
+            self.kwargs["graph"] = sess.graph
 
         # prepare clean directory
         shutil.rmtree(self.path, ignore_errors=True)
@@ -109,6 +113,10 @@ class SummaryWriter(object):
             name = tvar.op.name
             self.add_histogram(f"{name}/gradient", grad, family=family)
 
+    def add_run_metadata(self, run_metadata, family=None):
+        # TODO - dict for families
+        self.run_metadata = run_metadata
+
     def get_fetch(self, family=None):
         if family in self.summary_fetches:
             return self.summary_fetches[family]
@@ -182,6 +190,11 @@ class SummaryWriter(object):
                 summary_values.append(tf.Summary.Value(tag=tag, simple_value=value))
             simple_summary = tf.Summary(value=summary_values)
             writer.add_summary(simple_summary, global_step=global_step)
+
+            # trace info
+            if self.run_metadata is not None:
+                writer.add_run_metadata(self.run_metadata, f"step{global_step}", global_step)
+                self.run_metadata = None
 
             # flush writer
             writer.flush()
