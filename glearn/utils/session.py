@@ -3,6 +3,11 @@ import tensorflow as tf
 
 class DebuggableSession(tf.Session):
     def __init__(self, config, config_proto=None, **kwargs):
+        if config_proto is None:
+            config_kwargs = config.get("session_config", None)
+            if config_kwargs is not None:
+                config_proto = tf.ConfigProto(**config_kwargs)
+
         super().__init__(config=config_proto, **kwargs)
 
         self.config = config

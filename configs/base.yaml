@@ -21,3 +21,5 @@
 
   # session_config:
   #   log_device_placement: true
+  #   gpu_options:
+  #     allow_growth: True

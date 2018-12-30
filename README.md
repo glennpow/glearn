@@ -33,6 +33,12 @@ Rendering is enabled by default.  You can disable rendering with:
 You can enable debugging information with:
 ./scripts/glearn train ... --debug
 
+There are also various debug options that can be enabled in the experiment config.
+The `base.yaml` file has most of these listed, which can be imported into another config.
+
+This environment variable can be used to log TF memory info:
+`TF_CPP_MIN_VLOG_LEVEL`=3
+
 
 ## Versions
 
@@ -45,4 +51,3 @@ VERSION is which params to load.  It can be an int or string.  If int, then auto
 ./scripts/glearn train ... --profile
  OR
 python utils/profile.py --path=/path/to/profile_100
-
