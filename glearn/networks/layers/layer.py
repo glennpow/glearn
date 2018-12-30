@@ -1,5 +1,6 @@
 import tensorflow as tf
 from glearn.utils.reflection import get_class, get_function
+from glearn.utils.device import get_device
 
 
 def load_layer(network, index, definition):
@@ -44,8 +45,13 @@ class NetworkLayer(object):
             initializer_function = get_function(definition)
             return initializer_function()
 
-    def get_variable(self, name, shape, **kwargs):
-        return tf.get_variable(name, shape=shape, **kwargs)
+    def get_variable(self, name, shape, cpu=None, gpu=None, **kwargs):
+        device = get_device(cpu=cpu, gpu=gpu)
+        if device is not None:
+            with tf.device(device):
+                return tf.get_variable(name, shape=shape, **kwargs)
+        else:
+            return tf.get_variable(name, shape=shape, **kwargs)
 
     def add_loss(self, loss):
         self.network.add_loss(loss)
@@ -74,7 +80,7 @@ class NetworkLayer(object):
                 # weights
                 weights_initializer = self.load_initializer(weights_initializer,
                                                             tf.contrib.layers.xavier_initializer())
-                W = self.get_variable("W", (x.shape[1], hidden_size),
+                W = self.get_variable("W", (x.shape[1], hidden_size), cpu=True,
                                       initializer=weights_initializer, trainable=self.trainable)
 
                 # weight decay loss
@@ -86,8 +92,8 @@ class NetworkLayer(object):
                 # biases
                 biases_initializer = self.load_initializer(biases_initializer,
                                                            tf.constant_initializer(0.0))
-                b = self.get_variable("b", (hidden_size, ), initializer=biases_initializer,
-                                      trainable=self.trainable)
+                b = self.get_variable("b", (hidden_size, ), cpu=True,
+                                      initializer=biases_initializer, trainable=self.trainable)
 
             # weights and biases
             Z = tf.matmul(x, W)

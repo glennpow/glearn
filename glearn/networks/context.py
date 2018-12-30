@@ -125,7 +125,8 @@ class NetworkContext(Configurable):
                 graphs_s = ', '.join(graphs)
                 feeds_s = ', '.join(list(feed_map.keys()))
                 fetches_s = ', '.join(list(fetches.keys()))
-                message = f"══ Run: '{graphs_s}' (Feeds: '{feeds_s}', Fetches: '{fetches_s}')"
+                message = (f"Run | Graphs: '{graphs_s}' | Feeds: '{feeds_s}'"
+                           f" | Fetches: '{fetches_s}'")
                 self.debug(colorize(message, "cyan", bold=True))
 
             # build final feed_dict
