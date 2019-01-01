@@ -60,22 +60,14 @@ class Trainer(Configurable):
         return self.config.load_path
 
     def start_session(self):
-        from glearn.utils.session import DebuggableSession
-        self.sess = DebuggableSession(self.config)
-        self.sess.run(tf.global_variables_initializer())
-
-        self.policy.start_session(self.sess)
-
-        self.config.start_summaries(self.sess)
+        self.config.start_session()
+        self.policy.start_session()
 
         self.start_persistence()
 
     def stop_session(self):
-        self.policy.stop_session(self.sess)
-
-        self.config.stop_summaries(self.sess)
-
-        self.sess.close()
+        self.policy.stop_session()
+        self.config.stop_session()
 
     def start_persistence(self):
         # TODO - only do all this the first time...
@@ -191,7 +183,7 @@ class Trainer(Configurable):
 
         # run policy for graph with feeds
         feed_map = self.prepare_feeds(graphs, feed_map)
-        results = self.policy.run(self.sess, graphs, feed_map)
+        results = self.policy.run(graphs, feed_map)
 
         # view results
         if render:
@@ -279,21 +271,24 @@ class Trainer(Configurable):
         pass
 
     def optimize(self):
-        # get current global step
+        # get either supervised or unsupervised batch data and feeds
+        self.batch, feed_map = self.get_batch()
+
+        # run all desired graphs
+        results = self.run(["policy_optimize"], feed_map)
+
+        # get current global step (TODO: add global_step fetch into above run)
         global_step = tf.train.global_step(self.sess, self.global_step)
+        global_step += 1  # HACK: +1, this doesn't seem to be updated yet
         self.current_global_step = global_step
 
+        # print log
         iteration_name = "Epoch" if self.supervised else "Episode"
         iteration = self.epoch if self.supervised else self.episode
         step = self.epoch_step if self.supervised else self.episode_step
         print_update(f"Optimizing | {iteration_name}: {iteration} | Step: {step} | "
                      f"Global Step: {global_step} | Eval. Steps: {self.evaluate_interval}")
-
-        # get either supervised or unsupervised batch data and feeds
-        self.batch, feed_map = self.get_batch()
-
-        # run all desired graphs
-        return self.run(["policy_optimize"], feed_map)
+        return results
 
     @property
     def evaluating(self):
@@ -452,7 +447,7 @@ class Trainer(Configurable):
 
         if profile:
             # profile training loop
-            profile_path = run_profile(train_loop, self.sess, self.config)
+            profile_path = run_profile(train_loop, self.config)
 
             # show profiling results
             open_profile(profile_path)
@@ -581,9 +576,9 @@ class Trainer(Configurable):
     def on_key_press(self, key, modifiers):
         # feature visualization keys
         if key == pyglet.window.key.ESCAPE:
-            self.log("Training cancelled by user")
+            self.warning("Training cancelled by user")
             self.viewer.close()
             self.training = False
         elif key == pyglet.window.key.SPACE:
-            self.log(f"Training {'unpaused' if self.paused else 'paused'} by user")
+            self.warning(f"Training {'unpaused' if self.paused else 'paused'} by user")
             self.paused = not self.paused

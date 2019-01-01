@@ -1,5 +1,5 @@
 ---
-  ### Debugging
+  ### Debug Config
 
   ## write activation summaries to tensorboard
   # debug_activations: true
@@ -17,9 +17,9 @@
   # debug_numerics: true
 
 
-  ### Session Debugging
+  ### Session Config
 
-  # session_config:
-  #   log_device_placement: true
-  #   gpu_options:
-  #     allow_growth: True
+  session_config:
+    gpu_options:
+      allow_growth: True
+    # log_device_placement: true

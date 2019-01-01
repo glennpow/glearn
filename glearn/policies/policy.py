@@ -23,22 +23,22 @@ class Policy(NetworkContext):
     def tensorboard_path(self):
         return self.config.tensorboard_path
 
-    def start_session(self, sess):
-        self.start_threading(sess)
+    def start_session(self):
+        self.start_threading()
 
-    def stop_session(self, sess):
-        self.stop_threading(sess)
+    def stop_session(self):
+        self.stop_threading()
 
-    def start_threading(self, sess):
+    def start_threading(self):
         if self.multithreaded:
             # start thread queue
             self.coord = tf.train.Coordinator()
-            self.threads = tf.train.start_queue_runners(coord=self.coord, sess=sess)
+            self.threads = tf.train.start_queue_runners(coord=self.coord, sess=self.sess)
 
             num_threads = len(self.threads)
             print(f"Started training threads: {num_threads}")
 
-    def stop_threading(self, sess):
+    def stop_threading(self):
         if self.multithreaded:
             # join all threads
             self.coord.request_stop()
@@ -110,8 +110,8 @@ class Policy(NetworkContext):
 
         return fetches
 
-    def run(self, sess, graphs, feed_map):
-        results = super().run(sess, graphs, feed_map)
+    def run(self, graphs, feed_map):
+        results = super().run(graphs, feed_map)
 
         # process summaries
         if len(results) > 0:

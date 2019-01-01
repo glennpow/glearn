@@ -26,6 +26,7 @@ class DebuggableSession(tf.Session):
                               run_metadata=self.run_metadata)
 
         if self.run_metadata is not None:
-            self.config.summary.add_run_metadata(self.run_metadata)
+            for fetch in fetches:
+                self.config.summary.add_run_metadata(self.run_metadata, fetch.name)
 
         return results

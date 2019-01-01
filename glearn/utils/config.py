@@ -6,6 +6,7 @@ from glearn.datasets import load_dataset
 from glearn.envs import load_env
 from glearn.utils.log import log, Loggable
 from glearn.utils.path import script_relpath
+from glearn.utils.session import DebuggableSession
 from glearn.utils.summary import SummaryWriter, NullSummaryWriter
 from glearn.policies.interface import Interface
 from glearn.viewers import load_view_controller
@@ -24,6 +25,9 @@ class Config(object):
             from glearn.utils.debug import debug_faults
             debug_faults()
 
+        # init session
+        self._init_session()
+
         # load env or dataset
         self.seed = self.get("seed", 1)
         tf.set_random_seed(self.seed)
@@ -35,7 +39,7 @@ class Config(object):
             self.project = self.env.name
         elif "dataset" in self.properties:
             # make dataset
-            self.dataset = load_dataset(self.properties)
+            self.dataset = load_dataset(self)
             self.project = self.dataset.name
         if self.env is None and self.dataset is None:
             raise Exception("Failed to find training env or dataset in config")
@@ -73,6 +77,7 @@ class Config(object):
             self.input = Interface(self.env.observation_space)
             self.output = Interface(self.env.action_space)
 
+        # init tensorboard summaries and server
         self._init_summaries()
 
     def load_properties(self, config_path):
@@ -137,6 +142,19 @@ class Config(object):
     def supervised(self):
         return self.dataset is not None
 
+    def _init_session(self):
+        self.sess = DebuggableSession(self)
+
+    def start_session(self):
+        self.sess.run(tf.global_variables_initializer())
+
+        self._start_summaries()
+
+    def stop_session(self):
+        self._stop_summaries()
+
+        self.sess.close()
+
     def _init_summaries(self):
         if self.tensorboard_path is not None:
             log(f"Tensorboard log root directory: {self.tensorboard_path}")
@@ -144,11 +162,11 @@ class Config(object):
         else:
             self.summary = NullSummaryWriter()
 
-    def start_summaries(self, sess):
+    def _start_summaries(self):
         if self.summary is not None:
-            self.summary.start(sess, server=True)
+            self.summary.start(self.sess, server=True)
 
-    def stop_summaries(self, sess):
+    def _stop_summaries(self):
         if self.summary is not None:
             self.summary.stop()
 
@@ -192,6 +210,10 @@ class Configurable(Loggable):
     @property
     def seed(self):
         return self.config.seed
+
+    @property
+    def sess(self):
+        return self.config.sess
 
     @property
     def summary(self):

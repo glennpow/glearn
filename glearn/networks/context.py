@@ -68,12 +68,15 @@ class NetworkContext(Configurable):
         feeds = self.get_feeds(graphs)
         feed_dict = {}
         for key, value in mapping.items():
-            if key in feeds:
-                feed = feeds[key]
-                feed_dict[feed] = value
+            if isinstance(key, str):
+                if key in feeds:
+                    feed = feeds[key]
+                    feed_dict[feed] = value
+                else:
+                    graph_name = GLOBAL_FEED_GRAPH if graphs is None else ", ".join(graphs)
+                    self.error(f"Failed to find feed '{key}' for graph: {graph_name}")
             else:
-                graph_name = GLOBAL_FEED_GRAPH if graphs is None else ", ".join(graphs)
-                self.error(f"Failed to find feed '{key}' for graph: {graph_name}")
+                feed_dict[key] = value
         return feed_dict
 
     def set_fetch(self, name, value, graphs=None):
@@ -116,24 +119,24 @@ class NetworkContext(Configurable):
             fetches.update(self.fetches.get(graph, {}))
         return fetches
 
-    def run(self, sess, graphs, feed_map):
+    def run(self, graphs, feed_map):
         # get configured fetches
         fetches = self.get_fetches(graphs)
 
         if len(fetches) > 0:
-            if self.debug_runs:
+            if self.debugging and self.debug_runs:
                 graphs_s = ', '.join(graphs)
                 feeds_s = ', '.join(list(feed_map.keys()))
                 fetches_s = ', '.join(list(fetches.keys()))
                 message = (f"Run | Graphs: '{graphs_s}' | Feeds: '{feeds_s}'"
                            f" | Fetches: '{fetches_s}'")
-                self.debug(colorize(message, "cyan", bold=True))
+                self.debug(message, "cyan", bold=True)
 
             # build final feed_dict
             feed_dict = self.build_feed_dict(feed_map, graphs=graphs)
 
             # run graph
-            results = sess.run(fetches, feed_dict)
+            results = self.sess.run(fetches, feed_dict)
 
             # store results
             self.latest_results.update(results)

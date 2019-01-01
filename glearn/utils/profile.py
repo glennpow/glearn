@@ -6,7 +6,7 @@ import tensorflow as tf
 from glearn.utils.subprocess_utils import shell_call
 
 
-def run_profile(call, sess, config):
+def run_profile(call, config):
     # get profile options
     path = f"{config.log_dir}/profile"
     profile_config = config.get("profile", None)
@@ -17,7 +17,8 @@ def run_profile(call, sess, config):
 
     # run call with profiler
     with tf.contrib.tfprof.ProfileContext(path) as pctx:
-        pctx.profiler.profile_operations(run_meta=sess.run_metadata, options=profile_options)
+        pctx.profiler.profile_operations(run_meta=config.sess.run_metadata,
+                                         options=profile_options)
         call()
 
     return path

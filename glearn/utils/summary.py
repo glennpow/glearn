@@ -21,9 +21,9 @@ class SummaryWriter(object):
         self.summaries = {}
         self.summary_fetches = {}
         self.summary_results = {}
+        self.run_metadatas = {}
         self.writers = {}
         self.server = None
-        self.run_metadata = None
 
     def start(self, sess, server=False, **kwargs):
         self.sess = sess
@@ -114,8 +114,7 @@ class SummaryWriter(object):
             self.add_histogram(f"{name}/gradient", grad, family=family)
 
     def add_run_metadata(self, run_metadata, family=None):
-        # TODO - dict for families
-        self.run_metadata = run_metadata
+        self.run_metadatas[family] = run_metadata
 
     def get_fetch(self, family=None):
         if family in self.summary_fetches:
@@ -164,8 +163,11 @@ class SummaryWriter(object):
         return f"{family}/{name}"
 
     def flush(self, global_step=None):
-        # flush summary buffers
-        for family, summary_results in self.summary_results.items():
+        # collect all relevant families
+        families = set(list(self.summary_results.keys()) + list(self.run_metadatas.keys()))
+
+        # flush summary data
+        for family in families:
             # get writer
             path = os.path.abspath(self.path)
             if family is None:
@@ -178,28 +180,33 @@ class SummaryWriter(object):
                 writer = tf.summary.FileWriter(path, **self.kwargs)
                 self.writers[family] = writer
 
-            # write results
-            if len(summary_results.results) > 0:
-                summary = summary_results.results[0]  # TODO - average
-                writer.add_summary(summary, global_step=global_step)
+            # write any summary results for family
+            summary_results = self.summary_results.pop(family, None)
+            if summary_results is not None:
+                # write results
+                if len(summary_results.results) > 0:
+                    summary = summary_results.results[0]  # TODO - average
+                    writer.add_summary(summary, global_step=global_step)
 
-            # write simple values
-            summary_values = []
-            for name, value in summary_results.values.items():
-                tag = self.summary_scope(name, family)
-                summary_values.append(tf.Summary.Value(tag=tag, simple_value=value))
-            simple_summary = tf.Summary(value=summary_values)
-            writer.add_summary(simple_summary, global_step=global_step)
+                # write simple values
+                summary_values = []
+                for name, value in summary_results.values.items():
+                    tag = self.summary_scope(name, family)
+                    summary_values.append(tf.Summary.Value(tag=tag, simple_value=value))
+                simple_summary = tf.Summary(value=summary_values)
+                writer.add_summary(simple_summary, global_step=global_step)
 
-            # trace info
-            if self.run_metadata is not None:
-                writer.add_run_metadata(self.run_metadata, f"step{global_step}", global_step)
-                self.run_metadata = None
+            # write any metadata results for family
+            run_metadata = self.run_metadatas.pop(family, None)
+            if run_metadata is not None:
+                if family is not None:
+                    tag = f"{family}/step{global_step}"
+                else:
+                    tag = f"step{global_step}"
+                writer.add_run_metadata(run_metadata, tag, global_step)
 
             # flush writer
             writer.flush()
-        # reset buffers
-        self.summary_results = {}
 
 
 class NullSummaryWriter(object):

@@ -1,16 +1,18 @@
 from glearn.utils.printing import colorize
 
 
-def log(*args):
-    print(*args)
+def log(message, color=None, bold=False, highlight=False):
+    if color is not None:
+        message = colorize(message, color, bold=bold, highlight=highlight)
+    print(message)
 
 
 def log_warning(message):
-    log(colorize(message, "yellow"))
+    log(message, color="yellow", bold=True)
 
 
 def log_error(message):
-    log(colorize(message, "red"))
+    log(message, color="red", bold=True)
 
 
 class Loggable(object):
@@ -18,12 +20,12 @@ class Loggable(object):
     def debugging(self):
         return False
 
-    def debug(self, *args):
+    def debug(self, message, color=None, bold=False, highlight=False):
         if self.debugging:
-            log(*args)
+            log(message, color=color, bold=bold, highlight=highlight)
 
-    def log(self, *args):
-        log(*args)
+    def log(self, message, color=None, bold=False, highlight=False):
+        log(message, color=color, bold=bold, highlight=highlight)
 
     def warning(self, message):
         log_warning(message)
