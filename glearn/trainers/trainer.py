@@ -540,25 +540,29 @@ class Trainer(Configurable):
             if not self.training:
                 return
 
+    def get_info(self):
+        return {
+            "Description": str(self),
+        }
+
     def print_info(self):
+        info = {}
+
         if self.supervised:
-            training_info = {
-                "Dataset": self.dataset,
-                "Trainer": self,
-                "Policy": self.policy,
-                "Input": self.dataset.input,
-                "Output": self.dataset.output,
-            }
+            info["Dataset"] = self.dataset.get_info()
         else:
-            training_info = {
-                "Environment": self.project,
-                "Trainer": self,
-                "Policy": self.policy,
+            info["Environment"] = {
+                "Description": self.project,
                 "Input": self.input,
                 "Output": self.output,
             }
+
+        info["Trainer"] = self.get_info()
+
+        info["Policy"] = self.policy.get_info()
+
         print()
-        print_tabular(training_info, show_type=False, color="white", bold=True)
+        print_tabular(info, grouped=True, show_type=False, color="white", bold=True)
         print()
 
     @property

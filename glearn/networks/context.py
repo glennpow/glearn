@@ -1,9 +1,34 @@
+import numpy as np
 import tensorflow as tf
 from glearn.utils.config import Configurable
-from glearn.utils.printing import colorize
 
 
 GLOBAL_FEED_GRAPH = "*"
+
+
+def num_variable_parameters(variables):
+    # get total parameters in given variables
+    return np.sum([np.product([vi.value for vi in v.get_shape()]) for v in variables])
+
+
+def num_parameters():
+    # get total network parameters
+    return num_variable_parameters(tf.all_variables())
+
+
+def num_global_parameters():
+    # get total global parameters
+    return num_variable_parameters(tf.global_variables())
+
+
+def num_model_parameters():
+    # get total model parameters
+    return num_variable_parameters(tf.model_variables())
+
+
+def num_trainable_parameters():
+    # get total trainable parameters
+    return num_variable_parameters(tf.trainable_variables())
 
 
 class NetworkContext(Configurable):

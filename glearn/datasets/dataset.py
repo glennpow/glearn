@@ -108,6 +108,13 @@ class Dataset(object):
     def sess(self):
         return self.config.sess
 
+    def get_info(self):
+        return {
+            "Description": str(self),
+            "Input": self.input,
+            "Output": self.output,
+        }
+
     def _format_partitions(self, partitions):
         return ", ".join([f"{k}:{v}" for k, v in partitions.items()])
 
@@ -115,9 +122,12 @@ class Dataset(object):
         from glearn.utils.memory import print_virtual_memory, print_gpu_memory
         print_virtual_memory(f"before init {partition}")
         print_gpu_memory(f"before init {partition}")
+
         self.sess.run(self.initializers[partition])
+
         print_virtual_memory(f"after init {partition}")
         print_gpu_memory(f"after init {partition}")
+
         self.current_partition = partition
         return self.get_epoch_size(partition=partition)
 

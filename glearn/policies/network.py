@@ -8,6 +8,14 @@ class NetworkPolicy(Policy):
 
         super().__init__(config, **kwargs)
 
+    def get_info(self):
+        info = super().get_info()
+        info.update({
+            "Global Parameters": self.network.num_global_parameters(),
+            "Trainable Parameters": self.network.num_trainable_parameters(),
+        })
+        return info
+
     def build_predict(self):
         # build predict network
         self.network = load_network("policy", self, self.network_definition)
