@@ -73,6 +73,13 @@ class Dataset(object):
         ]
         return f"Dataset({', '.join(properties)})"
 
+    def get_info(self):
+        return {
+            "Description": str(self),
+            "Input": self.input,
+            "Output": self.output,
+        }
+
     def _format_modes(self, modes):
         return ", ".join([f"{k}:{v}" for k, v in modes.items()])
 

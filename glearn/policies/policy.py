@@ -19,10 +19,6 @@ class Policy(NetworkContext):
         ]
         return f"{type(self).__name__}({', '.join(properties)})"
 
-    @property
-    def tensorboard_path(self):
-        return self.config.tensorboard_path
-
     def start_session(self):
         self.start_threading()
 
@@ -109,6 +105,11 @@ class Policy(NetworkContext):
         self.summary.prepare_fetches(fetches, graphs)
 
         return fetches
+
+    def get_info(self):
+        return {
+            "Description": str(self),
+        }
 
     def run(self, graphs, feed_map):
         results = super().run(graphs, feed_map)

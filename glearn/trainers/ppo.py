@@ -22,8 +22,8 @@ class PPOTrainer(ActorCriticTrainer):
             self.old_policy_network.build(policy_inputs)
 
             # build old policy update
-            policy_vars = self.policy_network.get_variables()
-            old_policy_vars = self.old_policy_network.get_variables()
+            policy_vars = self.policy_network.global_variables()
+            old_policy_vars = self.old_policy_network.global_variables()
             policy_update = [oldp.assign(p) for p, oldp in zip(policy_vars, old_policy_vars)]
             policy.set_fetch("policy_update", policy_update)
 

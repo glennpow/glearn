@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.python.ops import math_ops
 from glearn.utils.log import Loggable
+from glearn.networks.context import num_variable_parameters
 from glearn.networks.layers.layer import load_layer
 from glearn.networks.losses import load_loss
 from glearn.networks.layers.distributions.distribution import DistributionLayer
@@ -52,8 +53,29 @@ class Network(Loggable):
         # look for distribution layer
         return self.get_layer(DistributionLayer)
 
-    def get_variables(self):
-        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
+    def global_variables(self):
+        # get all global variables in network scope
+        return tf.global_variables(scope=self.name)
+
+    def model_variables(self):
+        # get all model variables in network scope
+        return tf.model_variables(scope=self.name)
+
+    def trainable_variables(self):
+        # get all trainable variables in network scope
+        return tf.trainable_variables(scope=self.name)
+
+    def num_global_parameters(self):
+        # get total global parameters
+        return num_variable_parameters(self.global_variables())
+
+    def num_model_parameters(self):
+        # get total model parameters
+        return num_variable_parameters(self.model_variables())
+
+    def num_trainable_parameters(self):
+        # get total trainable parameters
+        return num_variable_parameters(self.trainable_variables())
 
     def build_predict(self, inputs):
         # all layers within network scope
