@@ -72,8 +72,6 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
     bottom = "└" + equals + "┘"
     dotted = "├" + ('-' * table_width) + "┤"
     dashes = "│" + ('░' * table_width) + "│"
-    # dashes = "├" + ('─' * table_width) + "┤"
-    # dotted = "│" + ('░' * table_width) + "│"
     lines = []
     for header, group in formatted.items():
         lines.append(top if len(lines) == 0 else dashes)
