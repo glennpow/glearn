@@ -34,7 +34,7 @@ class Vocabulary(object):
 
 
 class SequenceDataset(Dataset):
-    def __init__(self, name, data, batch_size, vocabulary, timesteps):
+    def __init__(self, config, name, data, batch_size, vocabulary, timesteps):
         self.vocabulary = vocabulary
 
         tfdtype = tf.int32  # HACK - can we infer?
@@ -81,7 +81,7 @@ class SequenceDataset(Dataset):
         # calculate this outside TF
         epoch_size = {k: ((len(v) // batch_size) - 1) // timesteps for k, v in data.items()}
 
-        super().__init__(name, producer_data, batch_size, input_space=input_space,
+        super().__init__(config, name, producer_data, batch_size, input_space=input_space,
                          output_space=output_space, epoch_size=epoch_size, producer=True)
 
     def encipher(self, value):

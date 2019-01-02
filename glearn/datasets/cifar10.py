@@ -16,7 +16,7 @@ IMAGE_CHANNELS = 3
 IMAGE_SIZE_FLAT = IMAGE_SIZE * IMAGE_SIZE * IMAGE_CHANNELS
 IMAGE_CLASSES = 10
 
-NUM_TRAINING_FILES = 5
+NUM_TRAINING_FILES = 1  # HACK: 5
 IMAGES_PER_FILE = 10000
 NUM_TRAINING_IMAGES = NUM_TRAINING_FILES * IMAGES_PER_FILE
 
@@ -51,17 +51,16 @@ def _convert_images(raw):
 
 
 def _load_data(filename):
-    # Load the pickled data-file.
+    # load the pickled data-file.
     data = _unpickle(filename)
 
-    # Get the raw images.
+    # convert the raw images.
     raw_images = data[b'data']
-
-    # Get the class-labels for each image.
-    labels = np.array(data[b'labels'])
-
-    # Convert the images.
     images = _convert_images(raw_images)
+
+    # convert the class-labels for each image.
+    labels = np.array(data[b'labels'])
+    labels = np.eye(IMAGE_CLASSES)[labels.reshape(-1)]
 
     return images, labels
 
@@ -90,8 +89,8 @@ def cifar10_dataset(config):
     # Pre-allocate the arrays for the images and class-numbers for efficiency.
     images_shape = [NUM_TRAINING_IMAGES, IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNELS]
     images = np.zeros(shape=images_shape, dtype=float)
-    labels_shape = [NUM_TRAINING_IMAGES]
-    labels = np.zeros(shape=labels_shape, dtype=int)
+    labels_shape = [NUM_TRAINING_IMAGES, IMAGE_CLASSES]
+    labels = np.zeros(shape=labels_shape, dtype=float)
     data["train"] = (images, labels)
 
     begin = 0
@@ -107,7 +106,7 @@ def cifar10_dataset(config):
         images[begin:end, :] = images_batch
 
         # Store the class-numbers into the array.
-        labels[begin:end] = labels_batch
+        labels[begin:end, :] = labels_batch
         begin = end
 
     output_space = gym.spaces.Discrete(IMAGE_CLASSES)
@@ -116,5 +115,5 @@ def cifar10_dataset(config):
     label_names = _load_label_names()
 
     # TODO fix HACK - use a producer like PTB...
-    return LabeledDataset("CIFAR-10", data, batch_size, output_space=output_space,
-                          epoch_size=None, label_names=label_names)
+    return LabeledDataset(config, "CIFAR-10", data, batch_size, output_space=output_space,
+                          epoch_size=None, label_names=label_names, shuffle=1000)

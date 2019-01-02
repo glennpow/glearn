@@ -109,7 +109,7 @@ class Trainer(Configurable):
             lr_decay = definition.get("lr_decay", None)
             if lr_decay is not None:
                 lr_decay_epochs = definition.get("lr_decay_epochs", 1)
-                epoch_size = self.dataset.get_epoch_size(mode="train")
+                epoch_size = self.dataset.get_epoch_size(partition="train")
                 decay_steps = int(lr_decay_epochs * epoch_size)
                 learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps,
                                                            lr_decay, staircase=True)
@@ -251,10 +251,10 @@ class Trainer(Configurable):
     def process_transition(self, transition):
         pass
 
-    def get_batch(self, mode="train"):
+    def get_batch(self):
         if self.supervised:
-            # supervised batch of samples
-            return self.dataset.get_batch(mode=mode)
+            # prepare supervised batch
+            return self.dataset.get_batch()
         else:
             # unsupervised experience replay batch of samples
             batch = transition_batch(self.transitions[:self.batch_size])
@@ -300,10 +300,15 @@ class Trainer(Configurable):
         if self.debugging:
             graphs.append("debug")
 
+        # prepare dataset partition
+        if self.supervised:
+            epoch_size = self.dataset.initialize(partition="test")
+        else:
+            epoch_size = 1
+
         # get batch data and desired graphs
         eval_start_time = time.time()
         averaged_results = {}
-        epoch_size = self.dataset.reset(mode="test") if self.supervised else 1
         report_step = random.randrange(epoch_size)
         report_results = None
         report_feed_map = None
@@ -311,7 +316,7 @@ class Trainer(Configurable):
             print_update(f"Evaluating | Progress: {step}/{epoch_size}")
 
             reporting = step == report_step
-            self.batch, feed_map = self.get_batch(mode="test")
+            self.batch, feed_map = self.get_batch()
 
             # run evaluate graphs
             results = self.run(graphs, feed_map, render=reporting)
@@ -459,9 +464,9 @@ class Trainer(Configurable):
         # supervised learning
         for epoch in range(self.epochs):
             # start current epoch
-            self.iteration_start_time = time.time()
-            epoch_size = self.dataset.reset()
+            epoch_size = self.dataset.initialize(partition="train")
             self.epoch = epoch
+            self.iteration_start_time = time.time()
 
             # epoch summary (TODO - store this in variable)
             self.summary.add_scalar("epoch", self.global_step / epoch_size, "evaluate")

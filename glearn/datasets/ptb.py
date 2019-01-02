@@ -43,7 +43,7 @@ def _load_data():
     return train_data, valid_data, test_data, vocabulary
 
 
-def ptb_dataset(config, mode="train"):
+def ptb_dataset(config):
     train_data, valid_data, test_data, vocabulary = _load_data()
     data = {
         "train": train_data,
@@ -54,4 +54,4 @@ def ptb_dataset(config, mode="train"):
     batch_size = config.get("batch_size", 20)
     timesteps = config.get("timesteps", 35)
 
-    return SequenceDataset("PTB", data, batch_size, vocabulary, timesteps)
+    return SequenceDataset(config, "PTB", data, batch_size, vocabulary, timesteps)

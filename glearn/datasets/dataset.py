@@ -15,9 +15,9 @@ class Transition(object):
 
 
 class Batch(object):
-    def __init__(self, dataset=None, mode="train"):
+    def __init__(self, dataset=None, partition="train"):
         self.dataset = dataset
-        self.mode = mode
+        self.partition = partition
         self.inputs = []
         self.outputs = []
         self.info = {}
@@ -32,11 +32,14 @@ def transition_batch(transitions):
 
 
 class Dataset(object):
-    def __init__(self, name, data, batch_size, input_space=None, output_space=None,
-                 epoch_size=None, producer=False):
+    def __init__(self, config, name, data, batch_size, input_space=None, output_space=None,
+                 epoch_size=None, shuffle=None):
+        self.config = config
+
         self.name = name
         self.data = data
         self.batch_size = batch_size
+        self.current_partition = None
 
         if input_space is None:
             inputs = data["train"][0]
@@ -58,14 +61,42 @@ class Dataset(object):
                 self.epoch_size[k] = len(data[k][0]) // batch_size
             self.total_samples[k] = self.epoch_size[k] * batch_size
 
-        self.producer = producer
-        self.heads = {}
+        # tf.data.Dataset integration
+        partitions = list(data.keys())
+        self.datasets = {}
+        self.iterator = None
+        self.handles = {}
+        self.initializers = {}
+        with tf.device('/cpu:0'):
+            for partition in partitions:
+                if partition in data:
+                    input_dataset = tf.data.Dataset.from_tensor_slices(data[partition][0])
+                    output_dataset = tf.data.Dataset.from_tensor_slices(data[partition][1])
+                    zip_dataset = tf.data.Dataset.zip((input_dataset, output_dataset))
 
-        self.reset()
+                    if shuffle is not None:
+                        zip_dataset = zip_dataset.shuffle(shuffle)
+
+                    zip_dataset = zip_dataset.repeat().batch(batch_size)
+                    # zip_dataset.prefetch(prefetch_batch_size)  # TODO
+                    self.datasets[partition] = zip_dataset
+
+                    if self.iterator is None:
+                        self.handle_feed = tf.placeholder(tf.string, shape=[])
+                        output_types = zip_dataset.output_types
+                        output_shapes = zip_dataset.output_shapes
+                        self.iterator = tf.data.Iterator.from_string_handle(self.handle_feed,
+                                                                            output_types,
+                                                                            output_shapes)
+                        self.next_element = self.iterator.get_next()
+
+                    partition_iterator = zip_dataset.make_initializable_iterator()
+                    self.handles[partition] = self.sess.run(partition_iterator.string_handle())
+                    self.initializers[partition] = partition_iterator.make_initializer(zip_dataset)
 
     def __str__(self):
-        total_samples = self._format_modes(self.total_samples)
-        epoch_size = self._format_modes(self.epoch_size)
+        total_samples = self._format_partitions(self.total_samples)
+        epoch_size = self._format_partitions(self.epoch_size)
         properties = [
             self.name,
             f"total=[{total_samples}]",
@@ -73,66 +104,40 @@ class Dataset(object):
         ]
         return f"Dataset({', '.join(properties)})"
 
-    def _format_modes(self, modes):
-        return ", ".join([f"{k}:{v}" for k, v in modes.items()])
+    @property
+    def sess(self):
+        return self.config.sess
 
-    def reset(self, mode="train"):
-        self.heads[mode] = 0
-        return self.get_epoch_size(mode=mode)
+    def _format_partitions(self, partitions):
+        return ", ".join([f"{k}:{v}" for k, v in partitions.items()])
 
-    def get_inputs(self, mode="train"):
-        if self.producer:
-            return self.data[mode][0]
-        else:
-            return tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
+    def initialize(self, partition="train"):
+        from glearn.utils.memory import print_virtual_memory, print_gpu_memory
+        print_virtual_memory(f"before init {partition}")
+        print_gpu_memory(f"before init {partition}")
+        self.sess.run(self.initializers[partition])
+        print_virtual_memory(f"after init {partition}")
+        print_gpu_memory(f"after init {partition}")
+        self.current_partition = partition
+        return self.get_epoch_size(partition=partition)
 
-    def get_outputs(self, mode="train"):
-        if self.producer:
-            return self.data[mode][1]
-        else:
-            return tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
+    def get_inputs(self):
+        return self.next_element[0]
 
-    def get_epoch_size(self, mode="train"):
-        if mode in self.epoch_size:
-            return self.epoch_size[mode]
+    def get_outputs(self):
+        return self.next_element[1]
+
+    def get_epoch_size(self, partition="train"):
+        if partition in self.epoch_size:
+            return self.epoch_size[partition]
         return 0
 
-    def get_batch(self, mode="train"):
-        if self.producer:
-            # the tensorflow producer will handle batching itself
-            return self, {}
-        else:
-            # return individual batches instead of producer
-            batch = self.build_batch(mode=mode)
-            feed_map = {
-                "X": batch.inputs,
-                "Y": batch.outputs,
-            }
-            # dataset = tf.data.Dataset.from_tensor_slices(batch)
-            return batch, feed_map
+    def get_batch(self):
+        return self, {self.handle_feed: self.handles[self.current_partition]}
 
-    def build_batch(self, mode="train"):
-        inputs = self.data[mode][0]
-        outputs = self.data[mode][1]
-
-        # get batch head
-        if mode not in self.heads:
-            self.heads[mode] = 0
-        head = self.heads[mode]
-
-        # get slices of data
-        batch = Batch(dataset=self, mode=mode)
-        batch.inputs = inputs[head:head + self.batch_size]
-        batch.outputs = outputs[head:head + self.batch_size]
-
-        # encode data through the interfaces
-        batch.inputs = [self.input.encode(o) for o in batch.inputs]
-        batch.outputs = [self.output.encode(o) for o in batch.outputs]
-
-        # move batch head
-        head = (head + self.batch_size) % len(inputs)
-        self.heads[mode] = head
-        return batch
+        # # encode data through the interfaces (FIXME - needed?)
+        # batch.inputs = [self.input.encode(o) for o in batch.inputs]
+        # batch.outputs = [self.output.encode(o) for o in batch.outputs]
 
     def encipher(self, value):
         return self.output.encode(value)

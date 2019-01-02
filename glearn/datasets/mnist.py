@@ -47,8 +47,9 @@ def check_labels_file_header(filename):
 #     ensure_download(url=url, download_dir=directory, extract=True)
 
 
-def _ensure_download(directory, filename):
+def _ensure_download(filename):
     """Download (and unzip) a file from the MNIST dataset if not already done."""
+    directory = script_relpath("../../data/mnist")
     filepath = os.path.join(directory, filename)
     if tf.gfile.Exists(filepath):
         return filepath
@@ -81,9 +82,8 @@ def load_data(path, element_size, max_count=None, header_bytes=0, mapping=None):
 
 def _load_data(images_file, labels_file, config):
     """Download and parse MNIST dataset."""
-    directory = script_relpath("../../data/mnist")
-    images_file = _ensure_download(directory, images_file)
-    labels_file = _ensure_download(directory, labels_file)
+    images_file = _ensure_download(images_file)
+    labels_file = _ensure_download(labels_file)
 
     check_image_file_header(images_file)
     check_labels_file_header(labels_file)
@@ -106,11 +106,14 @@ def _load_data(images_file, labels_file, config):
     images = load_data(images_file, 28 * 28, max_count=max_count, header_bytes=16,
                        mapping=decode_image)
     images = np.reshape(images, [-1, 28, 28, 1])
+
     labels = load_data(labels_file, 1, max_count=max_count, header_bytes=8, mapping=decode_label)
+    labels = np.eye(10)[labels.reshape(-1)]
+
     return images, labels
 
 
-def mnist_dataset(config, mode="train"):
+def mnist_dataset(config):
     data = {}
     data["train"] = _load_data(f'train-images-idx3-ubyte', f'train-labels-idx1-ubyte', config)
     data["test"] = _load_data(f't10k-images-idx3-ubyte', f't10k-labels-idx1-ubyte', config)
@@ -118,5 +121,4 @@ def mnist_dataset(config, mode="train"):
     batch_size = config.get("batch_size", 128)
     output_space = gym.spaces.Discrete(10)
 
-    # TODO fix HACK - use a producer like PTB
-    return Dataset("MNIST", data, batch_size, output_space=output_space)
+    return Dataset(config, "MNIST", data, batch_size, output_space=output_space)
