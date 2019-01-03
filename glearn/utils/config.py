@@ -8,6 +8,7 @@ from glearn.utils.log import log, Loggable
 from glearn.utils.path import script_relpath
 from glearn.utils.session import DebuggableSession
 from glearn.utils.summary import SummaryWriter, NullSummaryWriter
+from glearn.utils.subprocess_utils import shell_call
 from glearn.policies.interface import Interface
 from glearn.viewers import load_view_controller
 
@@ -76,6 +77,10 @@ class Config(object):
 
             self.input = Interface(self.env.observation_space)
             self.output = Interface(self.env.action_space)
+
+        # external ip
+        self.ip = shell_call(["dig", "+short", "myip.opendns.com", "@resolver1.opendns.com"],
+                             response_type="text", ignore_exceptions=True)
 
         # init tensorboard summaries and server
         self._init_summaries()
@@ -157,14 +162,13 @@ class Config(object):
 
     def _init_summaries(self):
         if self.tensorboard_path is not None:
-            log(f"Tensorboard log root directory: {self.tensorboard_path}")
-            self.summary = SummaryWriter(self.tensorboard_path)
+            self.summary = SummaryWriter(self)
         else:
             self.summary = NullSummaryWriter()
 
     def _start_summaries(self):
         if self.summary is not None:
-            self.summary.start(self.sess, server=True)
+            self.summary.start()
 
     def _stop_summaries(self):
         if self.summary is not None:

@@ -2,6 +2,7 @@ import os
 import shutil
 import tensorflow as tf
 from subprocess import Popen
+from glearn.utils.log import log
 
 
 SUMMARY_KEY_PREFIX = "_summary_"
@@ -15,8 +16,11 @@ class SummaryWriter(object):
             self.results = []
             self.values = {}
 
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, config):
+        self.config = config
+        self.path = config.tensorboard_path
+
+        log(f"Tensorboard log root directory: {self.path}")
 
         self.summaries = {}
         self.summary_fetches = {}
@@ -25,21 +29,24 @@ class SummaryWriter(object):
         self.writers = {}
         self.server = None
 
-    def start(self, sess, server=False, **kwargs):
-        self.sess = sess
+    @property
+    def sess(self):
+        return self.config.sess
+
+    def start(self, **kwargs):
         self.kwargs = kwargs
         if "graph" not in self.kwargs:
-            self.kwargs["graph"] = sess.graph
+            self.kwargs["graph"] = self.sess.graph
 
         # prepare clean directory
         shutil.rmtree(self.path, ignore_errors=True)
         os.makedirs(self.path, exist_ok=True)
 
-        # prepare server
+        # start tensorboard server
+        server = self.config.get("tensorboard", False)
         if server:
-            command = ["tensorboard", "--logdir", self.path]
-            self.server = Popen(command)
-            print(f"Started tensorboard server with PID: {self.server.pid}")
+            self.server = Popen(["tensorboard", "--logdir", self.path])
+            log(f"Started tensorboard server: {self.config.ip}")
 
     def stop(self):
         for _, writer in self.writers.items():
