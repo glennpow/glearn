@@ -8,7 +8,7 @@ def log(message, color=None, bold=False, highlight=False):
 
 
 def log_warning(message):
-    log(message, color="yellow", bold=True)
+    log(message, color="yellow")
 
 
 def log_error(message):

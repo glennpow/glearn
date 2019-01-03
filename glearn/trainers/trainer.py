@@ -324,7 +324,7 @@ class Trainer(Configurable):
             # gather reporting results
             if reporting:
                 report_results = results
-                report_feed_map = feed_map
+                report_feed_map = {k: v for k, v in feed_map.items() if isinstance(k, str)}
             for k, v in results.items():
                 if self.policy.is_fetch(k, "evaluate") and \
                    (isinstance(v, float) or isinstance(v, int)):

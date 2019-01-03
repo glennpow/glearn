@@ -1,4 +1,10 @@
 ---
+  ### General Config
+
+  ## start a tensorboard server
+  tensorboard: true
+
+
   ### Debug Config
 
   ## write activation summaries to tensorboard
@@ -21,5 +27,5 @@
 
   session_config:
     gpu_options:
-      allow_growth: True
+      allow_growth: true
     # log_device_placement: true
