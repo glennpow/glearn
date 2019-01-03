@@ -7,6 +7,9 @@
 
   ### Debug Config
 
+  ## log memory usage stats after each evaluation
+  # debug_memory: true
+
   ## write activation summaries to tensorboard
   # debug_activations: true
 

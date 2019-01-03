@@ -37,7 +37,6 @@ class Dataset(object):
         self.config = config
 
         self.name = name
-        self.data = data
         self.batch_size = batch_size
         self.current_partition = None
 
@@ -119,15 +118,7 @@ class Dataset(object):
         return ", ".join([f"{k}:{v}" for k, v in partitions.items()])
 
     def initialize(self, partition="train"):
-        from glearn.utils.memory import print_virtual_memory, print_gpu_memory
-        print_virtual_memory(f"before init {partition}")
-        print_gpu_memory(f"before init {partition}")
-
         self.sess.run(self.initializers[partition])
-
-        print_virtual_memory(f"after init {partition}")
-        print_gpu_memory(f"after init {partition}")
-
         self.current_partition = partition
         return self.get_epoch_size(partition=partition)
 
@@ -144,10 +135,6 @@ class Dataset(object):
 
     def get_batch(self):
         return self, {self.handle_feed: self.handles[self.current_partition]}
-
-        # # encode data through the interfaces (FIXME - needed?)
-        # batch.inputs = [self.input.encode(o) for o in batch.inputs]
-        # batch.outputs = [self.output.encode(o) for o in batch.outputs]
 
     def encipher(self, value):
         return self.output.encode(value)

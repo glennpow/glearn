@@ -10,6 +10,7 @@ from glearn.utils.collections import intersects
 from glearn.utils.config import Configurable
 from glearn.utils.printing import print_update, print_tabular
 from glearn.utils.profile import run_profile, open_profile
+from glearn.utils.memory import print_virtual_memory, print_gpu_memory
 
 
 class Trainer(Configurable):
@@ -383,10 +384,17 @@ class Trainer(Configurable):
             # summaries
             self.summary.add_simple_value("steps_per_second", steps_per_second, "evaluate")
 
+            # profile memory
+            debug_memory = self.config.get("debug_memory", False)
+            if self.debugging and debug_memory:
+                print_virtual_memory()
+                print_gpu_memory()
+
         # save model
         if self.save_path is not None:
+            t0 = time.time()
             save_path = self.saver.save(self.sess, self.save_path)
-            self.log(f"Saved model: {save_path}")
+            self.log(f"Saved model: {save_path}  ({time.time() - t0:.2} secs)")
 
         print()
 
