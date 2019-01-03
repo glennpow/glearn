@@ -11,7 +11,7 @@ def num_variable_parameters(variables):
     return np.sum([np.product([vi.value for vi in v.get_shape()]) for v in variables])
 
 
-def num_parameters():
+def num_all_parameters():
     # get total network parameters
     return num_variable_parameters(tf.all_variables())
 
