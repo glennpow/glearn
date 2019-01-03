@@ -8,6 +8,7 @@ import pyglet
 from glearn.datasets.dataset import Transition, transition_batch
 from glearn.utils.collections import intersects
 from glearn.utils.config import Configurable
+from glearn.networks.context import num_global_parameters, num_trainable_parameters
 from glearn.utils.printing import print_update, print_tabular
 from glearn.utils.profile import run_profile, open_profile
 from glearn.utils.memory import print_virtual_memory, print_gpu_memory
@@ -551,6 +552,8 @@ class Trainer(Configurable):
     def get_info(self):
         return {
             "Description": str(self),
+            "Total Global Parameters": num_global_parameters(),
+            "Total Trainable Parameters": num_trainable_parameters(),
         }
 
     def print_info(self):
