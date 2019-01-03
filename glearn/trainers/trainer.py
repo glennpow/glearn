@@ -53,6 +53,42 @@ class Trainer(Configurable):
         ]
         return f"{type(self).__name__}({', '.join(properties)})"
 
+    def get_info(self):
+        return {
+            "Description": str(self),
+            "Total Global Parameters": num_global_parameters(),
+            "Total Trainable Parameters": num_trainable_parameters(),
+        }
+
+    def print_info(self):
+        # gather info
+        info = {}
+        if self.supervised:
+            info["Dataset"] = self.dataset.get_info()
+        else:
+            info["Environment"] = {
+                "Description": self.project,
+                "Input": self.input,
+                "Output": self.output,
+            }
+        info["Trainer"] = self.get_info()
+        info["Policy"] = self.policy.get_info()
+
+        # print a table with all this info
+        print()
+        print_tabular(info, grouped=True, show_type=False, color="white", bold=True)
+        print()
+
+    def start_session(self):
+        self.config.start_session()
+        self.policy.start_session()
+
+        self.start_saver()
+
+    def stop_session(self):
+        self.policy.stop_session()
+        self.config.stop_session()
+
     @property
     def save_path(self):
         return self.config.save_path
@@ -61,34 +97,43 @@ class Trainer(Configurable):
     def load_path(self):
         return self.config.load_path
 
-    def start_session(self):
-        self.config.start_session()
-        self.policy.start_session()
-
-        self.start_persistence()
-
-    def stop_session(self):
-        self.policy.stop_session()
-        self.config.stop_session()
-
-    def start_persistence(self):
-        # TODO - only do all this the first time...
-        if self.save_path is not None or self.load_path is not None:
+    def start_saver(self):
+        # init saver
+        if self.save_path is None and self.load_path is None:
+            self.saver = None
+            return
+        else:
+            # TODO - Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2, ...)
             self.saver = tf.train.Saver()
 
+        # load any previously saved data for the current version
         if self.load_path is not None:
-            if os.path.exists(f"{self.load_path}.index"):
-                try:
-                    self.log(f"Loading model: {self.load_path}")
-                    self.saver.restore(self.sess, self.load_path)
-                except Exception as e:
-                    self.error(str(e))
+            self.load(self.load_path)
 
+        # prepare save directory
         if self.save_path is not None:
-            self.log(f"Preparing to save model: {self.save_path}")
+            self.log(f"Preparing to save checkpoints: {self.save_path}")
             save_dir = os.path.dirname(self.save_path)
             os.makedirs(save_dir, exist_ok=True)
+            self.dirty_meta_graph = True
             # TODO - clear old dir?
+
+    def save(self, path):
+        t0 = time.time()
+        save_path = self.saver.save(self.sess, path, global_step=self.global_step,
+                                    write_meta_graph=self.dirty_meta_graph)
+        self.dirty_meta_graph = False
+
+        # TODO - could show total file size as well...
+        self.log(f"Saved model: {save_path}  ({time.time() - t0:.2} secs)")
+
+    def load(self, path):
+        if os.path.exists(f"{path}.index"):
+            try:
+                self.log(f"Loading model: {path}")
+                self.saver.restore(self.sess, path)
+            except Exception as e:
+                self.error(str(e))
 
     def reset(self):
         # reset env and episode
@@ -393,9 +438,7 @@ class Trainer(Configurable):
 
         # save model
         if self.save_path is not None:
-            t0 = time.time()
-            save_path = self.saver.save(self.sess, self.save_path)
-            self.log(f"Saved model: {save_path}  ({time.time() - t0:.2} secs)")
+            self.save(self.save_path)
 
         print()
 
@@ -474,6 +517,7 @@ class Trainer(Configurable):
         for epoch in range(self.epochs):
             # start current epoch
             epoch_size = self.dataset.initialize(partition="train")
+            self.dirty_meta_graph = True  # FIXME - do we need to ever do this again during train?
             self.epoch = epoch
             self.iteration_start_time = time.time()
 
@@ -548,33 +592,6 @@ class Trainer(Configurable):
                     break
             if not self.training:
                 return
-
-    def get_info(self):
-        return {
-            "Description": str(self),
-            "Total Global Parameters": num_global_parameters(),
-            "Total Trainable Parameters": num_trainable_parameters(),
-        }
-
-    def print_info(self):
-        info = {}
-
-        if self.supervised:
-            info["Dataset"] = self.dataset.get_info()
-        else:
-            info["Environment"] = {
-                "Description": self.project,
-                "Input": self.input,
-                "Output": self.output,
-            }
-
-        info["Trainer"] = self.get_info()
-
-        info["Policy"] = self.policy.get_info()
-
-        print()
-        print_tabular(info, grouped=True, show_type=False, color="white", bold=True)
-        print()
 
     @property
     def viewer(self):

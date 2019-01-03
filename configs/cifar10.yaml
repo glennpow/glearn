@@ -54,7 +54,7 @@
       epochs: 1500
       keep_prob: 0.8
       max_grad_norm: 5
-      evaluate_interval: 100
+      evaluate_interval: 500
 
   viewer:
     name: glearn.viewers.advanced_viewer:AdvancedViewer
