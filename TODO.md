@@ -3,6 +3,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 # from "trainer.py", extract "evaluator.py", "optimizer.py", etc.
+# use tf.name_scope(None) around all summaries?
 # concatenate all historic tensorboard data for previous versions of a model.
 ? refactor loss (probably needs to be in trainer, use policy.get_logits() or something)
 X fix everaging of evaluation summary results

@@ -31,6 +31,16 @@ def num_trainable_parameters():
     return num_variable_parameters(tf.trainable_variables())
 
 
+def saveable_objects():
+    # get all saveable objects
+    return tf.get_collection(tf.GraphKeys.SAVEABLE_OBJECTS)
+
+
+def num_saveable_objects():
+    # get count of saveable objects
+    return len(saveable_objects())
+
+
 class NetworkContext(Configurable):
     def __init__(self, config):
         super().__init__(config)
