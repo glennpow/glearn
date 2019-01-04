@@ -11,7 +11,7 @@ def num_variable_parameters(variables):
     return np.sum([np.product([vi.value for vi in v.get_shape()]) for v in variables])
 
 
-def num_parameters():
+def num_all_parameters():
     # get total network parameters
     return num_variable_parameters(tf.all_variables())
 
@@ -29,6 +29,16 @@ def num_model_parameters():
 def num_trainable_parameters():
     # get total trainable parameters
     return num_variable_parameters(tf.trainable_variables())
+
+
+def saveable_objects():
+    # get all saveable objects
+    return tf.get_collection(tf.GraphKeys.SAVEABLE_OBJECTS)
+
+
+def num_saveable_objects():
+    # get count of saveable objects
+    return len(saveable_objects())
 
 
 class NetworkContext(Configurable):

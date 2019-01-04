@@ -64,3 +64,9 @@
         - name: glearn.viewers.modes:CNNViewerMode
           args:
             visualize_grid: [10, 10]
+
+  # local run overrides
+  local:
+    trainer:
+      args:
+        evaluate_interval: 100

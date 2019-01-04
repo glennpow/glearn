@@ -1,10 +1,12 @@
 import os
 import yaml
 import json
+import collections
+import socket
 import tensorflow as tf
 from glearn.datasets import load_dataset
 from glearn.envs import load_env
-from glearn.utils.log import log, Loggable
+from glearn.utils.log import Loggable
 from glearn.utils.path import script_relpath
 from glearn.utils.session import DebuggableSession
 from glearn.utils.summary import SummaryWriter, NullSummaryWriter
@@ -18,7 +20,17 @@ TEMP_DIR = "/tmp/glearn"
 
 class Config(object):
     def __init__(self, config_path, version=None, render=False, debug=False):
-        self.properties = self.load_properties(config_path)
+        # determine local or external IP address
+        local_ip = socket.gethostbyname(socket.gethostname())
+        self.local = local_ip == "127.0.0.1"
+        if self.local:
+            self.ip = local_ip
+        else:
+            self.ip = shell_call(["dig", "+short", "myip.opendns.com", "@resolver1.opendns.com"],
+                                 response_type="text", ignore_exceptions=True)
+
+        # load properties from config file
+        self.properties = self.load_properties(config_path, local=self.local)
 
         # debugging
         self.debugging = debug
@@ -78,38 +90,49 @@ class Config(object):
             self.input = Interface(self.env.observation_space)
             self.output = Interface(self.env.action_space)
 
-        # external ip
-        self.ip = shell_call(["dig", "+short", "myip.opendns.com", "@resolver1.opendns.com"],
-                             response_type="text", ignore_exceptions=True)
-
         # init tensorboard summaries and server
         self._init_summaries()
 
-    def load_properties(self, config_path):
-        properties = {}
-
-        # load config file
+    def load_properties(self, config_path, local=False):
+        # load main config file
+        properties = None
         with open(config_path, "r") as f:
             if config_path.endswith(".yaml") or config_path.endswith("yml"):
                 properties = yaml.load(f)
             elif config_path.endswith(".json"):
                 properties = json.load(f)
+        if properties is None:
+            return {}
 
-        # import shared configs
-        if properties is not None and "import" in properties:
-            imports = properties["import"]
+        # load imported config files
+        imports = properties.pop("import", None)
+        if imports is not None:
             if not isinstance(imports, list):
                 imports = [imports]
+
             new_properties = {}
             for import_identifier in imports:
                 import_path = find_config(import_identifier)
                 import_properties = self.load_properties(import_path)
                 if import_properties is not None:
-                    new_properties.update(import_properties)
-            new_properties.update(properties)  # TODO - smart merge
-            properties = new_properties
+                    self._deep_update(new_properties, import_properties)
+
+            properties = self._deep_update(new_properties, properties)
+
+        # apply any local-specific properties
+        local_properties = properties.pop("local", None)
+        if local and local_properties is not None:
+            self._deep_update(properties, local_properties)
 
         return properties
+
+    def _deep_update(self, target, src):
+        for k, v in src.items():
+            if isinstance(v, collections.Mapping):
+                target[k] = self._deep_update(target.get(k, {}), v)
+            else:
+                target[k] = v
+        return target
 
     def has(self, key):
         return key in self.properties
