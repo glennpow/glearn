@@ -1,4 +1,6 @@
 --- # Maze
+  import: base
+
   env:
     name: glearn.envs.maze:MazeEnv
     args:

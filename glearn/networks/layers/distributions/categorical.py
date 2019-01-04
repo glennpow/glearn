@@ -80,7 +80,7 @@ class DiscretizedDistributionLayer(CategoricalDistributionLayer):
         self.references["distribution"] = x
 
         # return sample
-        x = x.sample(1, seed=self.seed)
+        x = tf.cast(x.sample(1, seed=self.seed), tf.float32)
 
         return x
 

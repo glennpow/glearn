@@ -8,7 +8,8 @@ import pyglet
 from glearn.datasets.dataset import Transition, transition_batch
 from glearn.utils.collections import intersects
 from glearn.utils.config import Configurable
-from glearn.networks.context import num_global_parameters, num_trainable_parameters
+from glearn.networks.context import num_global_parameters, num_trainable_parameters, \
+    saveable_objects
 from glearn.utils.printing import print_update, print_tabular
 from glearn.utils.profile import run_profile, open_profile
 
@@ -52,6 +53,38 @@ class Trainer(Configurable):
         ]
         return f"{type(self).__name__}({', '.join(properties)})"
 
+    def get_info(self):
+        return {
+            "Description": str(self),
+            "Total Global Parameters": num_global_parameters(),
+            "Total Trainable Parameters": num_trainable_parameters(),
+            "Total Saveable Objects": len(saveable_objects()),
+        }
+
+    def print_info(self):
+        # gather info
+        info = {}
+        if self.supervised:
+            info["Dataset"] = self.dataset.get_info()
+        else:
+            info["Environment"] = {
+                "Description": self.project,
+                "Input": self.input,
+                "Output": self.output,
+            }
+        info["Trainer"] = self.get_info()
+        info["Policy"] = self.policy.get_info()
+
+    def start_session(self):
+        self.config.start_session()
+        self.policy.start_session()
+
+        self.init_checkpoints()
+
+    def stop_session(self):
+        self.policy.stop_session()
+        self.config.stop_session()
+
     @property
     def save_path(self):
         return self.config.save_path
@@ -60,19 +93,13 @@ class Trainer(Configurable):
     def load_path(self):
         return self.config.load_path
 
-    def start_session(self):
-        self.config.start_session()
-        self.policy.start_session()
-
-        self.start_persistence()
-
-    def stop_session(self):
-        self.policy.stop_session()
-        self.config.stop_session()
-
-    def start_persistence(self):
-        # TODO - only do all this the first time...
-        if self.save_path is not None or self.load_path is not None:
+    def init_checkpoints(self):
+        # init saver
+        if self.save_path is None and self.load_path is None:
+            self.saver = None
+            return
+        else:
+            # TODO - Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2, ...)
             self.saver = tf.train.Saver()
 
         if self.load_path is not None:

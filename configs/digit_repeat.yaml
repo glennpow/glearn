@@ -1,4 +1,6 @@
 --- # Digit Repeat
+  import: base
+
   dataset: digit_repeat
   batch_size: 20
   timesteps: 35
