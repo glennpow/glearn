@@ -1,4 +1,6 @@
 --- # Pendulum
+  import: base
+
   env: Pendulum-v0
   batch_size: 128
 

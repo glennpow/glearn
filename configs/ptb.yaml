@@ -1,4 +1,6 @@
 --- # PTB
+  import: base
+
   dataset: ptb
   batch_size: 20
   timesteps: 35

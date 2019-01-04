@@ -1,4 +1,6 @@
 --- # Ant
+  import: base
+
   env: glearn.envs.ant:AntEnv
   batch_size: 128
 

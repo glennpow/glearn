@@ -8,7 +8,8 @@ import pyglet
 from glearn.datasets.dataset import Transition, transition_batch
 from glearn.utils.collections import intersects
 from glearn.utils.config import Configurable
-from glearn.networks.context import num_global_parameters, num_trainable_parameters
+from glearn.networks.context import num_global_parameters, num_trainable_parameters, \
+    saveable_objects
 from glearn.utils.printing import print_update, print_tabular
 from glearn.utils.profile import run_profile, open_profile
 from glearn.utils.memory import print_virtual_memory, print_gpu_memory
@@ -58,6 +59,7 @@ class Trainer(Configurable):
             "Description": str(self),
             "Total Global Parameters": num_global_parameters(),
             "Total Trainable Parameters": num_trainable_parameters(),
+            "Total Saveable Objects": len(saveable_objects()),
         }
 
     def print_info(self):
@@ -83,7 +85,7 @@ class Trainer(Configurable):
         self.config.start_session()
         self.policy.start_session()
 
-        self.start_saver()
+        self.init_checkpoints()
 
     def stop_session(self):
         self.policy.stop_session()
@@ -97,7 +99,7 @@ class Trainer(Configurable):
     def load_path(self):
         return self.config.load_path
 
-    def start_saver(self):
+    def init_checkpoints(self):
         # init saver
         if self.save_path is None and self.load_path is None:
             self.saver = None

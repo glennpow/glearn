@@ -29,7 +29,7 @@ class ActorCriticTrainer(TDTrainer):
         with tf.name_scope('value'):
             self.critic_network = load_network("critic", policy, self.critic_definition)
             critic_inputs = policy.get_feed("X")
-            critic_value = self.critic_network.build(critic_inputs)
+            critic_value = self.critic_network.build_predict(critic_inputs)
             policy.set_fetch("value", critic_value)
 
         value_loss = self.init_value_loss(critic_value)
