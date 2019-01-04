@@ -12,6 +12,7 @@ from glearn.networks.context import num_global_parameters, num_trainable_paramet
     saveable_objects
 from glearn.utils.printing import print_update, print_tabular
 from glearn.utils.profile import run_profile, open_profile
+from glearn.utils.memory import print_virtual_memory, print_gpu_memory
 
 
 class Trainer(Configurable):
@@ -75,6 +76,11 @@ class Trainer(Configurable):
         info["Trainer"] = self.get_info()
         info["Policy"] = self.policy.get_info()
 
+        # print a table with all this info
+        print()
+        print_tabular(info, grouped=True, show_type=False, color="white", bold=True)
+        print()
+
     def start_session(self):
         self.config.start_session()
         self.policy.start_session()
@@ -102,19 +108,34 @@ class Trainer(Configurable):
             # TODO - Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2, ...)
             self.saver = tf.train.Saver()
 
+        # load any previously saved data for the current version
         if self.load_path is not None:
-            if os.path.exists(f"{self.load_path}.index"):
-                try:
-                    self.log(f"Loading model: {self.load_path}")
-                    self.saver.restore(self.sess, self.load_path)
-                except Exception as e:
-                    self.error(str(e))
+            self.load(self.load_path)
 
+        # prepare save directory
         if self.save_path is not None:
-            self.log(f"Preparing to save model: {self.save_path}")
+            self.log(f"Preparing to save checkpoints: {self.save_path}")
             save_dir = os.path.dirname(self.save_path)
             os.makedirs(save_dir, exist_ok=True)
+            self.dirty_meta_graph = True
             # TODO - clear old dir?
+
+    def save(self, path):
+        t0 = time.time()
+        save_path = self.saver.save(self.sess, path, global_step=self.global_step,
+                                    write_meta_graph=self.dirty_meta_graph)
+        self.dirty_meta_graph = False
+
+        # TODO - could show total file size as well...
+        self.log(f"Saved model: {save_path}  ({time.time() - t0:.2} secs)")
+
+    def load(self, path):
+        if os.path.exists(f"{path}.index"):
+            try:
+                self.log(f"Loading model: {path}")
+                self.saver.restore(self.sess, path)
+            except Exception as e:
+                self.error(str(e))
 
     def reset(self):
         # reset env and episode
@@ -137,7 +158,7 @@ class Trainer(Configurable):
             lr_decay = definition.get("lr_decay", None)
             if lr_decay is not None:
                 lr_decay_epochs = definition.get("lr_decay_epochs", 1)
-                epoch_size = self.dataset.get_epoch_size(mode="train")
+                epoch_size = self.dataset.get_epoch_size(partition="train")
                 decay_steps = int(lr_decay_epochs * epoch_size)
                 learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps,
                                                            lr_decay, staircase=True)
@@ -328,10 +349,15 @@ class Trainer(Configurable):
         if self.debugging:
             graphs.append("debug")
 
+        # prepare dataset partition
+        if self.supervised:
+            epoch_size = self.dataset.reset(mode="test")
+        else:
+            epoch_size = 1
+
         # get batch data and desired graphs
         eval_start_time = time.time()
         averaged_results = {}
-        epoch_size = self.dataset.reset(mode="test") if self.supervised else 1
         report_step = random.randrange(epoch_size)
         report_results = None
         report_feed_map = None
@@ -406,10 +432,15 @@ class Trainer(Configurable):
             # summaries
             self.summary.add_simple_value("steps_per_second", steps_per_second, "evaluate")
 
+            # profile memory
+            debug_memory = self.config.get("debug_memory", False)
+            if self.debugging and debug_memory:
+                print_virtual_memory()
+                print_gpu_memory()
+
         # save model
         if self.save_path is not None:
-            save_path = self.saver.save(self.sess, self.save_path)
-            self.log(f"Saved model: {save_path}")
+            self.save(self.save_path)
 
         print()
 
@@ -487,9 +518,10 @@ class Trainer(Configurable):
         # supervised learning
         for epoch in range(self.epochs):
             # start current epoch
-            self.iteration_start_time = time.time()
-            epoch_size = self.dataset.reset()
+            epoch_size = self.dataset.reset(mode="train")
+            self.dirty_meta_graph = True  # FIXME - do we need to ever do this again during train?
             self.epoch = epoch
+            self.iteration_start_time = time.time()
 
             # epoch summary (TODO - store this in variable)
             self.summary.add_scalar("epoch", self.global_step / epoch_size, "evaluate")
@@ -562,33 +594,6 @@ class Trainer(Configurable):
                     break
             if not self.training:
                 return
-
-    def get_info(self):
-        return {
-            "Description": str(self),
-            "Total Global Parameters": num_global_parameters(),
-            "Total Trainable Parameters": num_trainable_parameters(),
-        }
-
-    def print_info(self):
-        info = {}
-
-        if self.supervised:
-            info["Dataset"] = self.dataset.get_info()
-        else:
-            info["Environment"] = {
-                "Description": self.project,
-                "Input": self.input,
-                "Output": self.output,
-            }
-
-        info["Trainer"] = self.get_info()
-
-        info["Policy"] = self.policy.get_info()
-
-        print()
-        print_tabular(info, grouped=True, show_type=False, color="white", bold=True)
-        print()
 
     @property
     def viewer(self):
