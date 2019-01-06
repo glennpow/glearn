@@ -11,13 +11,13 @@ class TDTrainer(Trainer):
 
         super().__init__(config, policy, **kwargs)
 
-    def init_value_loss(self, value):
+    def build_value_loss(self, value):
         policy = self.policy
 
         # build advantage and value optimization
         with tf.name_scope('td'):
             # calculate advantage, using discounted rewards
-            # discounted_reward = reward + gamma * value  # this happens out of graph now
+            # discounted_reward = reward + gamma * value  # this happens outside of graph now
             discounted_reward = policy.create_feed("discounted_reward", ["advantage"], (None, 1))
             advantage = discounted_reward - value
             if self.normalize_advantage:  # aborghi implementation
@@ -48,7 +48,7 @@ class TDTrainer(Trainer):
         return super().prepare_feeds(graphs, feed_map)
 
     def process_transition(self, transition):
-        # get value value and apply discount gamma here, during rollouts
+        # get value and apply discount gamma here, during rollouts
         # TODO - could get this along WITH 'predict' fetch before?
         feed_map = {"X": [transition.observation]}
 

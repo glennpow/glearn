@@ -47,9 +47,6 @@ class Policy(NetworkContext):
         # build prediction model
         self.build_predict()
 
-        # build loss
-        self.build_loss()
-
     def build_inputs(self):
         with tf.name_scope('feeds'):
             if self.supervised:

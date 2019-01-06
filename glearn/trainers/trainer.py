@@ -144,61 +144,60 @@ class Trainer(Configurable):
             self.transitions = []
             self.episode_reward = 0
 
-    def optimize_loss(self, loss, graph="optimize", definition=None):
+    def optimize_loss(self, loss, graph="optimize", definition=None, update_global_step=True):
         # default definition
         if definition is None:
             definition = self.kwargs
 
         global_step = self.global_step
 
-        with tf.name_scope(graph):
-            learning_rate = definition.get("learning_rate", 1e-2)
+        # with tf.name_scope(graph):
+        learning_rate = definition.get("learning_rate", 1e-2)
 
-            # learning rate decay
-            lr_decay = definition.get("lr_decay", None)
-            if lr_decay is not None:
-                lr_decay_epochs = definition.get("lr_decay_epochs", 1)
-                epoch_size = self.dataset.get_epoch_size(partition="train")
-                decay_steps = int(lr_decay_epochs * epoch_size)
-                learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps,
-                                                           lr_decay, staircase=True)
+        # learning rate decay
+        lr_decay = definition.get("lr_decay", None)
+        if lr_decay is not None:
+            lr_decay_epochs = definition.get("lr_decay_epochs", 1)
+            epoch_size = self.dataset.get_epoch_size(partition="train")
+            decay_steps = int(lr_decay_epochs * epoch_size)
+            learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps,
+                                                       lr_decay, staircase=True)
 
-            # create optimizer
-            optimizer_name = definition.get("optimizer", "sgd")
-            if optimizer_name == "sgd":
-                optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-            elif optimizer_name == "adam":
-                optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-            else:
-                raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
+        # create optimizer
+        optimizer_name = definition.get("optimizer", "sgd")
+        if optimizer_name == "sgd":
+            optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+        elif optimizer_name == "adam":
+            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        else:
+            raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
 
-            # get gradients and trainable variables
-            grads_tvars = optimizer.compute_gradients(loss)
+        # get gradients and trainable variables
+        grads_tvars = optimizer.compute_gradients(loss)
 
-            # check if we require unzipping grad/vars
-            max_grad_norm = definition.get("max_grad_norm", None)
-            require_unzip = self.debug_gradients or max_grad_norm is not None
-            if require_unzip:
-                grads, tvars = zip(*grads_tvars)
+        # check if we require unzipping grad/vars
+        max_grad_norm = definition.get("max_grad_norm", None)
+        require_unzip = self.debug_gradients or max_grad_norm is not None
+        if require_unzip:
+            grads, tvars = zip(*grads_tvars)
 
-            # apply gradient clipping
-            if max_grad_norm is not None:
-                clipped_grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
+        # apply gradient clipping
+        if max_grad_norm is not None:
+            clipped_grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
 
-                # metric to observe clipped gradient ratio
-                unequal = [tf.reduce_mean(tf.cast(tf.not_equal(grad, clipped_grad), tf.float32))
-                           for grad, clipped_grad in list(zip(grads, clipped_grads))]
-                clipped_ratio = tf.reduce_mean(unequal)
+            # metric to observe clipped gradient ratio
+            unequal = [tf.reduce_mean(tf.cast(tf.not_equal(grad, clipped_grad), tf.float32))
+                       for grad, clipped_grad in list(zip(grads, clipped_grads))]
+            clipped_ratio = tf.reduce_mean(unequal)
 
-                grads = clipped_grads
+            grads = clipped_grads
 
-            if require_unzip:
-                grads_tvars = zip(grads, tvars)
+        if require_unzip:
+            grads_tvars = zip(grads, tvars)
 
-            # apply gradients
-            optimize = optimizer.apply_gradients(grads_tvars, global_step=global_step)
-
-            self.policy.set_fetch(graph, optimize)  # HACK - does this work for actor-critic?
+        # apply gradients
+        optimizer_global_step = global_step if update_global_step else None
+        optimize = optimizer.apply_gradients(grads_tvars, global_step=optimizer_global_step)
 
         # add learning rate and gradient summaries
         self.summary.add_scalar("learning_rate", learning_rate, graph)
@@ -266,9 +265,9 @@ class Trainer(Configurable):
         # decaying epsilon-greedy
         epsilon = self.epsilon
         if isinstance(epsilon, list):
-            # FIXME - should this be per current_global_iteration instead of current_global_step?
             t = min(1, self.current_global_step / epsilon[2])
             epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
+            self.summary.add_simple_value("epsilon", epsilon, "evaluate")
 
         # get action
         if np.random.random() < epsilon:
