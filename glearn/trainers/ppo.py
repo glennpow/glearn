@@ -28,10 +28,11 @@ class PPOTrainer(ActorCriticTrainer):
             policy.set_fetch("policy_update", policy_update)
 
         # build policy optimization
-        with tf.name_scope('policy_optimize'):
+        graph = "policy_optimize"
+        with tf.name_scope(graph):
             action_shape = (None,) + self.output.shape
-            past_action = policy.create_feed("past_action", "policy_optimize", action_shape)
-            past_advantage = policy.create_feed("past_advantage", "policy_optimize", (None, 1))
+            past_action = policy.create_feed("past_action", graph, action_shape)
+            past_advantage = policy.create_feed("past_advantage", graph, (None, 1))
             # past_advantage = advantage
 
             # surrogate loss
@@ -52,10 +53,12 @@ class PPOTrainer(ActorCriticTrainer):
 
             policy.set_fetch("policy_loss", policy_loss, "evaluate")
 
-        # optimize the surrogate loss
-        # self.add_loss(policy_loss, "policy_optimize")
-        # self.optimize_loss("policy_optimize")
-        self.optimize_loss(policy_loss, "policy_optimize")
+            # optimize the surrogate loss
+            # self.add_loss(policy_loss, "policy_optimize")
+            # self.optimize_loss("policy_optimize")
+            optimize = self.optimize_loss(policy_loss, graph)
+
+            self.policy.set_fetch(graph, optimize)
 
         # summaries
         self.summary.add_scalar("loss", policy_loss, "evaluate")

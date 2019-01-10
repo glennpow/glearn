@@ -26,17 +26,21 @@ class ActorCriticTrainer(TDTrainer):
         policy = self.policy
 
         # build critic network
-        with tf.name_scope('value'):
+        with tf.name_scope("value"):
             self.critic_network = load_network("critic", policy, self.critic_definition)
             critic_inputs = policy.get_feed("X")
             critic_value = self.critic_network.build_predict(critic_inputs)
             policy.set_fetch("value", critic_value)
 
-        value_loss = self.init_value_loss(critic_value)
+        value_loss = self.build_value_loss(critic_value)
         self.summary.add_scalar("value", tf.reduce_mean(critic_value), "evaluate")
 
         # build advantage and critic optimization
-        self.optimize_loss(value_loss, "value_optimize", self.critic_definition)
+        graph = "value_optimize"
+        with tf.name_scope(graph):
+            optimize = self.optimize_loss(value_loss, graph, self.critic_definition)
+
+            self.policy.set_fetch(graph, optimize)  # FIXME? does it matter that this is in actor?
 
     def init_actor(self):
         policy = self.policy
@@ -45,9 +49,10 @@ class ActorCriticTrainer(TDTrainer):
 
         # build policy optimization
         entropy_loss = None
-        with tf.name_scope('policy_optimize'):
+        graph = "policy_optimize"
+        with tf.name_scope(graph):
             action_shape = (None,) + self.output.shape
-            graphs = ["policy_optimize", "evaluate"]
+            graphs = [graph, "evaluate"]
             past_action = policy.create_feed("past_action", graphs, action_shape)
             past_advantage = policy.create_feed("past_advantage", graphs, (None, 1))
 
@@ -56,14 +61,14 @@ class ActorCriticTrainer(TDTrainer):
             neg_logp = -policy_distribution.log_prob(past_action)
             policy_loss = neg_logp * past_advantage
 
-            # entropy exploration factor
+            # entropy exploration factor (TODO - could add to losses collection)
             if self.ent_coef > 0:
                 entropy = policy_distribution.entropy()
                 policy.set_fetch("entropy", entropy, "debug")
                 entropy_loss = -self.ent_coef * entropy
                 policy_loss += entropy_loss
 
-            # L2 distribution loss
+            # L2 distribution loss (TODO - could add to losses collection)
             l2_loss = None
             if "l2_loss" in policy_distribution.references:
                 l2_loss = policy_distribution.references["l2_loss"]
@@ -72,8 +77,10 @@ class ActorCriticTrainer(TDTrainer):
             policy_loss = tf.reduce_mean(policy_loss)
             policy.set_fetch("policy_loss", policy_loss, "debug")
 
-        # optimize the policy loss
-        self.optimize_loss(policy_loss, "policy_optimize")
+            # optimize the policy loss
+            optimize = self.optimize_loss(policy_loss, graph, update_global_step=False)
+
+            self.policy.set_fetch(graph, optimize)
 
         # add summaries
         if entropy_loss is not None:

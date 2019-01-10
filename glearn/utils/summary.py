@@ -46,7 +46,7 @@ class SummaryWriter(object):
         server = self.config.get("tensorboard", False)
         if server:
             self.server = Popen(["tensorboard", "--logdir", self.path])
-            log(f"Started tensorboard server: {self.config.ip}")
+            log(f"Started tensorboard server: http://{self.config.ip}:6006")
 
     def stop(self):
         for _, writer in self.writers.items():

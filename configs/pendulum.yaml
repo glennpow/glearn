@@ -28,7 +28,7 @@
     args:
       critic:
         optimizer: adam
-        learning_rate: 0.1 # 2.0e-4
+        learning_rate: 3.0e-2  # 2.0e-4
         layers:
           - name: glearn.networks:DenseLayer
             args:
@@ -40,10 +40,10 @@
       optimizer: adam
       learning_rate: 1.0e-3
       gamma: 0.99
-      ent_coef: 1.0e-4
+      ent_coef: 1.0e-3  # 3.0e-2  # 1.0e-4
       episodes: 5000
       keep_prob: 0.8
-      epsilon: [1, 0.1, 10]
+      # epsilon: [1, 0.1, 2000]
       evaluate_interval: 1
 
       
