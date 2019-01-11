@@ -2,7 +2,8 @@ import numpy as np
 import pickle
 import os
 import gym
-from glearn.datasets.dataset import LabeledDataset
+import tensorflow as tf
+from glearn.datasets.dataset import DatasetPartition, LabeledDataset
 from glearn.utils.download import ensure_download
 from glearn.utils.path import script_relpath
 
@@ -82,16 +83,42 @@ def _load_label_names():
 def cifar10_dataset(config):
     _ensure_download()
 
+    return old_method(config)
+    # return new_method(config)
+
+
+def new_method(config):
+    filenames = {
+        "train": ["data_batch_" + str(i + 1) for i in range(NUM_TRAINING_FILES)],
+        "test": ["test_batch"],
+    }
+
+    batch_size = config.get("batch_size", 128)
+    label_names = _load_label_names()
+
+    with tf.device('/cpu:0'):
+        for name, (input_data, output_data, size) in filenames.items():
+            inputs = tf.data.Dataset.from_tensor_slices(input_data)
+            outputs = tf.data.Dataset.from_tensor_slices(output_data)
+
+            partitions[name] = DatasetPartition(name, inputs, outputs, size, batch_size,
+                                                output_space=output_space, shuffle=1000)
+
+    return LabeledDataset(config, "CIFAR-10", partitions, label_names=label_names)
+
+
+def old_method(config):
     data = {}
 
-    data["test"] = _load_data(filename="test_batch")
+    images, labels = _load_data(filename="test_batch")
+    data["test"] = (images, labels, IMAGES_PER_FILE)
 
     # Pre-allocate the arrays for the images and class-numbers for efficiency.
     images_shape = [NUM_TRAINING_IMAGES, IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNELS]
     images = np.zeros(shape=images_shape, dtype=float)
     labels_shape = [NUM_TRAINING_IMAGES, IMAGE_CLASSES]
     labels = np.zeros(shape=labels_shape, dtype=float)
-    data["train"] = (images, labels)
+    data["train"] = (images, labels, NUM_TRAINING_IMAGES)
 
     begin = 0
     for i in range(NUM_TRAINING_FILES):
@@ -114,6 +141,13 @@ def cifar10_dataset(config):
     batch_size = config.get("batch_size", 128)
     label_names = _load_label_names()
 
-    # TODO fix HACK - use a producer like PTB...
-    return LabeledDataset(config, "CIFAR-10", data, batch_size, output_space=output_space,
-                          epoch_size=None, label_names=label_names, shuffle=1000)
+    with tf.device('/cpu:0'):
+        partitions = {}
+        for name, (input_data, output_data, size) in data.items():
+            inputs = tf.data.Dataset.from_tensor_slices(input_data)
+            outputs = tf.data.Dataset.from_tensor_slices(output_data)
+
+            partitions[name] = DatasetPartition(name, inputs, outputs, size, batch_size,
+                                                output_space=output_space, shuffle=1000)
+
+    return LabeledDataset(config, "CIFAR-10", partitions, label_names=label_names)
