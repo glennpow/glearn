@@ -19,7 +19,7 @@ class Network(Loggable):
         self.tail = None
 
         self.config = self.context.config
-        self.debug_activations = self.config.get("debug_activations", False)
+        self.debug_activations = self.config.is_debugging("debug_activations")
 
     @property
     def seed(self):
@@ -96,7 +96,7 @@ class Network(Loggable):
         # add activation summary for layer
         if self.debug_activations:
             for layer in self.layers:
-                layer.activation_summary(family="debug")
+                layer.activation_summary(family="evaluate")
 
         return predict
 
@@ -123,8 +123,8 @@ class Network(Loggable):
 
         return total_loss, accuracy
 
-    def prepare_default_feeds(self, graphs, feed_map):
+    def prepare_default_feeds(self, families, feed_map):
         # add default feed values
         for layer in self.layers:
-            feed_map = layer.prepare_default_feeds(graphs, feed_map)
+            feed_map = layer.prepare_default_feeds(families, feed_map)
         return feed_map

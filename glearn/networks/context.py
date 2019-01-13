@@ -3,7 +3,7 @@ import tensorflow as tf
 from glearn.utils.config import Configurable
 
 
-GLOBAL_FEED_GRAPH = "*"
+GLOBAL_FEED_FAMILY = "*"
 
 
 def num_variable_parameters(variables):
@@ -49,58 +49,58 @@ class NetworkContext(Configurable):
         self.fetches = {}
         self.latest_results = {}
 
-        self.debug_runs = self.config.get("debug_runs", False)
+        self.debug_runs = self.config.is_debugging("debug_runs")
 
-    def set_feed(self, name, value, graphs=None):
-        # set feed node, for graph or global (None)
-        if graphs is None:
-            # global graph feed
-            graphs = [GLOBAL_FEED_GRAPH]
+    def set_feed(self, name, value, families=None):
+        # set feed node, for family or global (None)
+        if families is None:
+            # global family feed
+            families = [GLOBAL_FEED_FAMILY]
 
-        # apply to specified graphs
-        if not isinstance(graphs, list):
-            graphs = [graphs]
-        for graph in graphs:
-            if graph in self.feeds:
-                graph_feeds = self.feeds[graph]
+        # apply to specified families
+        if not isinstance(families, list):
+            families = [families]
+        for family in families:
+            if family in self.feeds:
+                family_feeds = self.feeds[family]
             else:
-                graph_feeds = {}
-                self.feeds[graph] = graph_feeds
-            graph_feeds[name] = value
+                family_feeds = {}
+                self.feeds[family] = family_feeds
+            family_feeds[name] = value
 
-    def create_feed(self, name, graphs=None, shape=(), dtype=tf.float32):
+    def create_feed(self, name, families=None, shape=(), dtype=tf.float32):
         # create placeholder and set as feed
         ph = tf.placeholder(dtype, shape, name=name)
-        self.set_feed(name, ph, graphs)
+        self.set_feed(name, ph, families)
         return ph
 
-    def get_or_create_feed(self, name, graphs=None, shape=(), dtype=tf.float32):
+    def get_or_create_feed(self, name, families=None, shape=(), dtype=tf.float32):
         # get feed or create if none found
         ph = self.get_feed(name)
         if ph is None:
-            return self.create_feed(name, graphs, shape, dtype)
+            return self.create_feed(name, families, shape, dtype)
         return ph
 
-    def get_feed(self, name, graph=None):
-        # find feed node for graph name
-        graph_feeds = self.get_feeds(graph)
-        if name in graph_feeds:
-            return graph_feeds[name]
+    def get_feed(self, name, family=None):
+        # find feed node for family name
+        family_feeds = self.get_feeds(family)
+        if name in family_feeds:
+            return family_feeds[name]
         return None
 
-    def get_feeds(self, graphs=None):
+    def get_feeds(self, families=None):
         # get all global feeds
-        feeds = self.feeds.get(GLOBAL_FEED_GRAPH, {})
-        if graphs is not None:
-            # merge with desired graph feeds
-            if not isinstance(graphs, list):
-                graphs = [graphs]
-            for graph in graphs:
-                feeds.update(self.feeds.get(graph, {}))
+        feeds = self.feeds.get(GLOBAL_FEED_FAMILY, {})
+        if families is not None:
+            # merge with desired family feeds
+            if not isinstance(families, list):
+                families = [families]
+            for family in families:
+                feeds.update(self.feeds.get(family, {}))
         return feeds
 
-    def build_feed_dict(self, mapping, graphs=None):
-        feeds = self.get_feeds(graphs)
+    def build_feed_dict(self, mapping, families=None):
+        feeds = self.get_feeds(families)
         feed_dict = {}
         for key, value in mapping.items():
             if isinstance(key, str):
@@ -108,69 +108,70 @@ class NetworkContext(Configurable):
                     feed = feeds[key]
                     feed_dict[feed] = value
                 else:
-                    graph_name = GLOBAL_FEED_GRAPH if graphs is None else ", ".join(graphs)
-                    self.error(f"Failed to find feed '{key}' for graph: {graph_name}")
+                    family_name = GLOBAL_FEED_FAMILY if families is None else ", ".join(families)
+                    self.error(f"Failed to find feed '{key}' for family: {family_name}")
             else:
                 feed_dict[key] = value
         return feed_dict
 
-    def set_fetch(self, name, value, graphs=None):
-        # set fetch for graphs (defaults to name)
-        if graphs is None:
-            graphs = [name]
-        elif not isinstance(graphs, list):
-            graphs = [graphs]
+    def set_fetch(self, name, value, families=None):
+        # set fetch for families (defaults to name)
+        if families is None:
+            families = [name]
+        elif not isinstance(families, list):
+            families = [families]
 
-        # apply to specified graphs
-        for graph in graphs:
-            if graph in self.fetches:
-                graph_fetches = self.fetches[graph]
+        # apply to specified families
+        for family in families:
+            if family in self.fetches:
+                family_fetches = self.fetches[family]
             else:
-                graph_fetches = {}
-                self.fetches[graph] = graph_fetches
-            graph_fetches[name] = value
-        for graph, graph_fetches in self.fetches.items():
-            if (graphs is None or graph in graphs) and name in graph_fetches:
-                return graph_fetches[name]
+                family_fetches = {}
+                self.fetches[family] = family_fetches
+            family_fetches[name] = value
 
-    def is_fetch(self, name, graphs=None):
-        return self.get_fetch(name, graphs=graphs) is not None
+        # TODO - not sure why this was returning anything here...
+        # self.get_fetch(name, families=families)
 
-    def get_fetch(self, name, graphs=None):
-        # find feed node for graph (defaults to name)
-        if graphs is not None and not isinstance(graphs, list):
-            graphs = [graphs]
-        for graph, graph_fetches in self.fetches.items():
-            if (graphs is None or graph in graphs) and name in graph_fetches:
-                return graph_fetches[name]
+    def is_fetch(self, name, families=None):
+        return self.get_fetch(name, families=families) is not None
+
+    def get_fetch(self, name, families=None):
+        # find feed node for family (defaults to name)
+        if families is not None and not isinstance(families, list):
+            families = [families]
+        for family, family_fetches in self.fetches.items():
+            if (families is None or family in families) and name in family_fetches:
+                # return if found
+                return family_fetches[name]
         return None
 
-    def get_fetches(self, graphs):
-        # get all fetches for specified graphs
-        if not isinstance(graphs, list):
-            graphs = [graphs]
+    def get_fetches(self, families):
+        # get all fetches for specified families
+        if not isinstance(families, list):
+            families = [families]
         fetches = {}
-        for graph in graphs:
-            fetches.update(self.fetches.get(graph, {}))
+        for family in families:
+            fetches.update(self.fetches.get(family, {}))
         return fetches
 
-    def run(self, graphs, feed_map):
+    def run(self, families, feed_map):
         # get configured fetches
-        fetches = self.get_fetches(graphs)
+        fetches = self.get_fetches(families)
 
         if len(fetches) > 0:
-            if self.debugging and self.debug_runs:
-                graphs_s = ', '.join(graphs)
+            if self.debug_runs:
+                families_s = ', '.join(families)
                 feeds_s = ', '.join(list(feed_map.keys()))
                 fetches_s = ', '.join(list(fetches.keys()))
-                message = (f"Run | Graphs: '{graphs_s}' | Feeds: '{feeds_s}'"
+                message = (f"Run | Families: '{families_s}' | Feeds: '{feeds_s}'"
                            f" | Fetches: '{fetches_s}'")
                 self.debug(message, "cyan", bold=True)
 
             # build final feed_dict
-            feed_dict = self.build_feed_dict(feed_map, graphs=graphs)
+            feed_dict = self.build_feed_dict(feed_map, families=families)
 
-            # run graph
+            # run family
             results = self.sess.run(fetches, feed_dict)
 
             # store results

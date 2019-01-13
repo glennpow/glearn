@@ -12,7 +12,7 @@ X replace GaussianLayer with CategoricalLayer
 # empirical rewards (curiosity?)
 X L2 penalty on tanh preactivation (HACK)
 # transition buffer for RL should use tf, and return components as slices (producer?)
-? prepare_feeds should just look at fetches, not graphs (requires callback from policy.run to trainer)
+? prepare_feeds should just look at fetches, not families (requires callback from policy.run to trainer)
 # rename Batch to Data, and subclass Dataset from it.  Also load datasets using definitions paradigm?
 # define TD/PolicyGradient inheritance.
 # preparing for GPU training, some inputs/vars/operations should require:  with tf.device('/cpu:0'):

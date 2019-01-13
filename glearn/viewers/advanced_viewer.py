@@ -67,9 +67,9 @@ class AdvancedViewer(Configurable):
         for mode in self.modes:
             mode.prepare(trainer)
 
-    def view_results(self, graphs, feed_map, results):
+    def view_results(self, families, feed_map, results):
         for mode in self.modes:
-            mode.view_results(graphs, feed_map, results)
+            mode.view_results(families, feed_map, results)
 
     def on_key_press(self, key, modifiers):
         for mode in self.modes:

@@ -55,7 +55,7 @@ class CategoricalDistributionLayer(DistributionLayer):
     #             y = tf.slice(y, 0, output_size)
     #     return y
 
-    def prepare_default_feeds(self, graphs, feed_map):
+    def prepare_default_feeds(self, families, feed_map):
         feed_map["dropout"] = 1
         return feed_map
 

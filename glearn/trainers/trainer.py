@@ -24,7 +24,9 @@ class Trainer(Configurable):
         self.kwargs = kwargs
 
         self.batch_size = config.get("batch_size", 1)
-        self.debug_gradients = self.config.get("debug_gradients", False)
+        self.debug_gradients = self.config.is_debugging("debug_gradients")
+        self.debug_memory = self.config.is_debugging("debug_memory")
+        self.debug_numerics = self.config.is_debugging("debug_numerics")
 
         self.epochs = epochs
         self.episodes = episodes
@@ -144,21 +146,20 @@ class Trainer(Configurable):
             self.transitions = []
             self.episode_reward = 0
 
-    def optimize_loss(self, loss, graph="optimize", definition=None, update_global_step=True):
+    def optimize_loss(self, loss, family="optimize", definition=None, update_global_step=True):
         # default definition
         if definition is None:
             definition = self.kwargs
 
         global_step = self.global_step
 
-        # with tf.name_scope(graph):
         learning_rate = definition.get("learning_rate", 1e-2)
 
         # learning rate decay
         lr_decay = definition.get("lr_decay", None)
         if lr_decay is not None:
             lr_decay_epochs = definition.get("lr_decay_epochs", 1)
-            epoch_size = self.dataset.get_epoch_size(partition="train")
+            epoch_size = self.dataset.get_epoch_size(mode="train")
             decay_steps = int(lr_decay_epochs * epoch_size)
             learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps,
                                                        lr_decay, staircase=True)
@@ -200,11 +201,11 @@ class Trainer(Configurable):
         optimize = optimizer.apply_gradients(grads_tvars, global_step=optimizer_global_step)
 
         # add learning rate and gradient summaries
-        self.summary.add_scalar("learning_rate", learning_rate, graph)
+        self.summary.add_scalar("learning_rate", learning_rate, family)
         if self.debug_gradients:
-            self.summary.add_gradients(zip(grads, tvars), "debug")
+            self.summary.add_gradients(zip(grads, tvars), "evaluate")
         if max_grad_norm is not None:
-            self.summary.add_scalar("clipped_ratio", clipped_ratio, graph)
+            self.summary.add_scalar("clipped_ratio", clipped_ratio, family)
 
         return optimize
 
@@ -214,33 +215,33 @@ class Trainer(Configurable):
         if accuracy is not None:
             self.summary.add_scalar("accuracy", accuracy, "evaluate")
 
-    def prepare_feeds(self, graphs, feed_map):
-        self.policy.prepare_default_feeds(graphs, feed_map)
+    def prepare_feeds(self, families, feed_map):
+        self.policy.prepare_default_feeds(families, feed_map)
 
         # dropout
-        if intersects(["policy_optimize", "value_optimize"], graphs):
+        if intersects(["policy_optimize", "value_optimize"], families):
             feed_map["dropout"] = self.keep_prob
         else:
             feed_map["dropout"] = 1
 
         return feed_map
 
-    def run(self, graphs, feed_map={}, render=True):
-        if not isinstance(graphs, list):
-            graphs = [graphs]
+    def run(self, families, feed_map={}, render=True):
+        if not isinstance(families, list):
+            families = [families]
 
-        # run policy for graph with feeds
-        feed_map = self.prepare_feeds(graphs, feed_map)
-        results = self.policy.run(graphs, feed_map)
+        # run policy for families with feeds
+        feed_map = self.prepare_feeds(families, feed_map)
+        results = self.policy.run(families, feed_map)
 
         # view results
         if render:
-            self.viewer.view_results(graphs, feed_map, results)
+            self.viewer.view_results(families, feed_map, results)
 
         return results
 
     def fetch(self, name, feed_map={}, squeeze=False):
-        # shortcut to fetch a single graph/value
+        # shortcut to fetch a single family/value
         results = self.run(name, feed_map)
         fetch_result = results[name]
 
@@ -252,13 +253,11 @@ class Trainer(Configurable):
         # input as feed map
         feed_map = {"X": [inputs]}
 
-        # get desired graphs
-        graphs = ["predict"]
-        if self.debugging:
-            graphs.append("debug")
+        # get desired families
+        families = ["predict"]
 
-        # evaluate graphs and extract single prediction
-        results = self.run(graphs, feed_map)
+        # evaluate families and extract single prediction
+        results = self.run(families, feed_map)
         return results["predict"][0]
 
     def action(self):
@@ -322,7 +321,7 @@ class Trainer(Configurable):
         # get either supervised or unsupervised batch data and feeds
         self.batch, feed_map = self.get_batch()
 
-        # run all desired graphs
+        # run all desired families
         results = self.run(["policy_optimize"], feed_map)
 
         # get current global step (TODO: add global_step fetch into above run)
@@ -344,9 +343,7 @@ class Trainer(Configurable):
 
     def evaluate(self, train_yield):
         # Evaluate using the test dataset
-        graphs = ["evaluate"]
-        if self.debugging:
-            graphs.append("debug")
+        families = ["evaluate"]
 
         # prepare dataset partition
         if self.supervised:
@@ -354,7 +351,7 @@ class Trainer(Configurable):
         else:
             epoch_size = 1
 
-        # get batch data and desired graphs
+        # get batch data and desired families
         eval_start_time = time.time()
         averaged_results = {}
         report_step = random.randrange(epoch_size)
@@ -366,8 +363,8 @@ class Trainer(Configurable):
             reporting = step == report_step
             self.batch, feed_map = self.get_batch()
 
-            # run evaluate graphs
-            results = self.run(graphs, feed_map, render=reporting)
+            # run evaluate families
+            results = self.run(families, feed_map, render=reporting)
 
             # gather reporting results
             if reporting:
@@ -432,8 +429,7 @@ class Trainer(Configurable):
             self.summary.add_simple_value("steps_per_second", steps_per_second, "evaluate")
 
             # profile memory
-            debug_memory = self.config.get("debug_memory", False)
-            if self.debugging and debug_memory:
+            if self.debug_memory:
                 print_virtual_memory()
                 print_gpu_memory()
 
@@ -450,8 +446,8 @@ class Trainer(Configurable):
         self.train_start_time = time.time()
 
         # check for invalid values in the current graph
-        if self.config.get("debug_numerics", False):
-            self.policy.set_fetch("check", tf.add_check_numerics_ops(), "debug")
+        if self.debug_numerics:
+            self.policy.set_fetch("check", tf.add_check_numerics_ops(), "optimize")
 
         # prepare viewer
         self.viewer.prepare(self)
