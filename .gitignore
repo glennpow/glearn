@@ -1,2 +1,4 @@
 data/
+database.db
+logs/
 glearn.egg-info/

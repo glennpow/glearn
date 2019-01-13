@@ -12,7 +12,7 @@ class CategoricalDistributionLayer(DistributionLayer):
         self.weights_initializer = weights_initializer
         self.biases_initializer = biases_initializer
 
-    def build(self, inputs):
+    def build(self, inputs, sample=True):
         # get variables
         dropout = self.context.get_or_create_feed("dropout")
 
@@ -38,8 +38,9 @@ class CategoricalDistributionLayer(DistributionLayer):
         self.references["distribution"] = x
 
         # sample from distribution
-        x = x.sample(1, seed=self.seed)
-        # x = tf.squeeze(x, axis=0)  # TODO FIXME?
+        if sample:
+            x = x.sample(1, seed=self.seed, name="sampleA")
+            # x = tf.squeeze(x, axis=0)  # TODO FIXME?
 
         return x
 
@@ -71,12 +72,13 @@ class DiscretizedDistributionLayer(CategoricalDistributionLayer):
 
     def build(self, inputs):
         # get categorical outputs
-        x = super().build(inputs)
+        x = super().build(inputs, sample=False)
 
         # wrap categorical outputs in bijector which converts into discretized range
         self.bijector = DiscretizedBijector(self.divs, self.low, self.high)
         x = tf.contrib.distributions.TransformedDistribution(distribution=self.distribution,
-                                                             bijector=self.bijector)
+                                                             bijector=self.bijector,
+                                                             name="discretized")
         self.references["distribution"] = x
 
         # return sample
