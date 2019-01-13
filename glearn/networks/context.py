@@ -166,7 +166,7 @@ class NetworkContext(Configurable):
                 fetches_s = ', '.join(list(fetches.keys()))
                 message = (f"Run | Families: '{families_s}' | Feeds: '{feeds_s}'"
                            f" | Fetches: '{fetches_s}'")
-                self.debug(message, "cyan", bold=True)
+                self.log(message, "cyan", bold=True)
 
             # build final feed_dict
             feed_dict = self.build_feed_dict(feed_map, families=families)
