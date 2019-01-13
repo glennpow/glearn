@@ -15,6 +15,9 @@ class LSTMLayer(NetworkLayer):
         self.activation = activation
         self.embedding_initializer = embedding_initializer
 
+        self.debug_embeddings = self.context.config.is_debugging("debug_embeddings")
+        self.debug_embedded = self.context.config.is_debugging("debug_embedded")
+
     def build(self, inputs):
         # get variables
         self.dropout = self.context.get_or_create_feed("dropout")
@@ -43,12 +46,10 @@ class LSTMLayer(NetworkLayer):
                 x = tf.nn.embedding_lookup(embedding, x)
 
                 # debugging fetches
-                visualize_embedded = False  # HACK - expose
-                visualize_embeddings = False
-                if visualize_embedded:
-                    self.context.set_fetch("embedded", x, "debug")
-                if visualize_embeddings:
-                    self.context.set_fetch("embedding", embedding, "debug")
+                if self.debug_embeddings:
+                    self.context.set_fetch("embedding", embedding, "evaluate")
+                elif self.debug_embedded:
+                    self.context.set_fetch("embedded", x, "evaluate")
 
         # first dropout here
         x = tf.nn.dropout(x, self.dropout)

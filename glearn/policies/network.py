@@ -21,7 +21,7 @@ class NetworkPolicy(Policy):
         self.network = load_network("policy", self, self.network_definition)
         predict = self.network.build_predict(self.inputs)
 
-        self.set_fetch("predict", predict, ["predict", "evaluate", "debug"])
+        self.set_fetch("predict", predict, ["predict", "evaluate"])
 
     def build_loss(self):
         # build loss
@@ -30,8 +30,8 @@ class NetworkPolicy(Policy):
         self.set_fetch("loss", loss, ["evaluate"])
         self.set_fetch("accuracy", accuracy, ["evaluate"])
 
-    def prepare_default_feeds(self, graphs, feed_map):
-        feed_map = super().prepare_default_feeds(graphs, feed_map)
+    def prepare_default_feeds(self, families, feed_map):
+        feed_map = super().prepare_default_feeds(families, feed_map)
 
         # add default feed values
-        return self.network.prepare_default_feeds(graphs, feed_map)
+        return self.network.prepare_default_feeds(families, feed_map)

@@ -13,7 +13,7 @@ class ViewerMode(Configurable):
         self.trainer = trainer
         self.policy = trainer.policy
 
-    def view_results(self, graphs, feed_map, results):
+    def view_results(self, families, feed_map, results):
         pass
 
     def on_key_press(self, key, modifiers):

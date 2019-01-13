@@ -65,8 +65,9 @@ class Policy(NetworkContext):
             self.set_feed("Y", outputs)
 
             # set fetches
-            self.set_fetch("X", inputs, "debug")
-            self.set_fetch("Y", outputs, "debug")
+            if self.debugging:
+                self.set_fetch("X", inputs, "evaluate")
+                self.set_fetch("Y", outputs, "evaluate")
 
         self.inputs = inputs
         self.outputs = outputs
@@ -88,18 +89,18 @@ class Policy(NetworkContext):
         # override
         pass
 
-    def prepare_default_feeds(self, graphs, feed_map):
+    def prepare_default_feeds(self, families, feed_map):
         # make sure we have outputs defined
         # if self.debugging and "Y" not in feed_map:
         #     feed_map["Y"] = self.default_output
 
         return feed_map
 
-    def get_fetches(self, graphs=None):
-        fetches = super().get_fetches(graphs)
+    def get_fetches(self, families=None):
+        fetches = super().get_fetches(families)
 
         # also fetch summaries
-        self.summary.prepare_fetches(fetches, graphs)
+        self.summary.prepare_fetches(fetches, families)
 
         return fetches
 
@@ -108,8 +109,8 @@ class Policy(NetworkContext):
             "Description": str(self),
         }
 
-    def run(self, graphs, feed_map):
-        results = super().run(graphs, feed_map)
+    def run(self, families, feed_map):
+        results = super().run(families, feed_map)
 
         # process summaries
         if len(results) > 0:

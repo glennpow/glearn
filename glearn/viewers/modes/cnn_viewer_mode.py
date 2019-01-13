@@ -24,16 +24,18 @@ class CNNViewerMode(ViewerMode):
             for layer in conv3d_layers:
                 features = layer.references["features"]
                 for f in features:
-                    network.context.set_fetch(f"conv2d_{n}", f, "debug")
+                    network.context.set_fetch(f"conv2d_{n}", f, "predict")
                     n += 1
 
-    def view_results(self, graphs, feed_map, results):
-        if self.debugging and "debug" in graphs:
-            # visualize evaluated dataset results
-            if self.supervised:
+    def view_results(self, families, feed_map, results):
+        if self.debugging:
+            # visualize prediction results
+            if self.supervised and "evaluate" in families:
                 self.view_predict(results["X"], results["Y"], results["predict"])
-            # visualize debug dataset results
-            self.view_features(results)
+
+            # visualize CNN features
+            if "conv2d_0" in results:
+                self.view_features(results)
 
     def on_key_press(self, key, modifiers):
         super().on_key_press(key, modifiers)

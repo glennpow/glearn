@@ -11,10 +11,10 @@ class DebuggableSession(tf.Session):
         super().__init__(config=config_proto, **kwargs)
 
         self.config = config
+        self.debug_trace = self.config.is_debugging("debug_trace")
 
         # debug trace
-        debug_trace = self.config.get("debug_trace", False)
-        if self.config.debugging and debug_trace:
+        if self.debug_trace:
             self.run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
             self.run_metadata = tf.RunMetadata()
         else:

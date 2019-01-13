@@ -35,11 +35,11 @@ class ActorCriticTrainer(TDTrainer):
         self.summary.add_scalar("value", tf.reduce_mean(critic_value), "evaluate")
 
         # build advantage and critic optimization
-        graph = "value_optimize"
-        with tf.name_scope(graph):
-            optimize = self.optimize_loss(value_loss, graph, self.critic_definition)
+        family = "value_optimize"
+        with tf.name_scope(family):
+            optimize = self.optimize_loss(value_loss, family, self.critic_definition)
 
-            self.policy.set_fetch(graph, optimize)  # FIXME? does it matter that this is in actor?
+            self.policy.set_fetch(family, optimize)  # FIXME? does it matter that this is in actor?
 
     def init_actor(self):
         policy = self.policy
@@ -48,12 +48,12 @@ class ActorCriticTrainer(TDTrainer):
 
         # build policy optimization
         entropy_loss = None
-        graph = "policy_optimize"
-        with tf.name_scope(graph):
+        family = "policy_optimize"
+        with tf.name_scope(family):
             action_shape = (None,) + self.output.shape
-            graphs = [graph, "evaluate"]
-            past_action = policy.create_feed("past_action", graphs, action_shape)
-            past_advantage = policy.create_feed("past_advantage", graphs, (None, 1))
+            families = [family, "evaluate"]
+            past_action = policy.create_feed("past_action", families, action_shape)
+            past_advantage = policy.create_feed("past_advantage", families, (None, 1))
 
             # policy loss
             policy_distribution = policy.network.get_distribution_layer()
@@ -63,9 +63,9 @@ class ActorCriticTrainer(TDTrainer):
             # entropy exploration factor (TODO - could add to losses collection)
             if self.ent_coef > 0:
                 entropy = policy_distribution.entropy()
-                policy.set_fetch("entropy", entropy, "debug")
                 entropy_loss = -self.ent_coef * entropy
                 policy_loss += entropy_loss
+                policy.set_fetch("entropy", entropy, "evaluate")
 
             # L2 distribution loss (TODO - could add to losses collection)
             l2_loss = None
@@ -74,12 +74,12 @@ class ActorCriticTrainer(TDTrainer):
                 policy_loss += l2_loss
 
             policy_loss = tf.reduce_mean(policy_loss)
-            policy.set_fetch("policy_loss", policy_loss, "debug")
+            policy.set_fetch("policy_loss", policy_loss, "evaluate")
 
             # optimize the policy loss
-            optimize = self.optimize_loss(policy_loss, graph, update_global_step=False)
+            optimize = self.optimize_loss(policy_loss, family, update_global_step=False)
 
-            self.policy.set_fetch(graph, optimize)
+            self.policy.set_fetch(family, optimize)
 
         # add summaries
         if entropy_loss is not None:
@@ -96,25 +96,25 @@ class ActorCriticTrainer(TDTrainer):
         # if l2_loss is not None:
         #     self.summary.add_scalar("l2_loss", l2_loss, "evaluate")
 
-    def prepare_feeds(self, graphs, feed_map):
-        if intersects(["policy_optimize", "evaluate"], graphs):
+    def prepare_feeds(self, families, feed_map):
+        if intersects(["policy_optimize", "evaluate"], families):
             feed_map["past_action"] = self.batch.outputs
             feed_map["past_advantage"] = self.past_advantage
 
-        return super().prepare_feeds(graphs, feed_map)
+        return super().prepare_feeds(families, feed_map)
 
-    def run(self, graphs, feed_map={}, **kwargs):
-        if not isinstance(graphs, list):
-            graphs = [graphs]
+    def run(self, families, feed_map={}, **kwargs):
+        if not isinstance(families, list):
+            families = [families]
 
-        if intersects(["policy_optimize", "evaluate"], graphs):
+        if intersects(["policy_optimize", "evaluate"], families):
             # get advantage
             self.past_advantage = super().fetch("advantage", feed_map)
 
-        if "policy_optimize" in graphs:
+        if "policy_optimize" in families:
             # optimize critic value network as well
-            graphs += ["value_optimize"]
+            families += ["value_optimize"]
 
-        results = super().run(graphs, feed_map, **kwargs)
+        results = super().run(families, feed_map, **kwargs)
 
         return results

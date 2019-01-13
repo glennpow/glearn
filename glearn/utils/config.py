@@ -162,6 +162,9 @@ class Config(object):
             return pv
         return default
 
+    def is_debugging(self, key):
+        return self.debugging and self.get(key, False)
+
     @property
     def reinforcement(self):
         return self.env is not None
@@ -205,6 +208,10 @@ class Configurable(Loggable):
     @property
     def debugging(self):
         return self.config.debugging
+
+    @property
+    def is_debugging(self, key):
+        return self.condfig.is_debugging(key)
 
     @property
     def project(self):

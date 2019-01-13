@@ -35,8 +35,8 @@ class TDTrainer(Trainer):
         self.summary.add_scalar("reward", tf.reduce_mean(discounted_reward), "evaluate")
         return value_loss
 
-    def prepare_feeds(self, graphs, feed_map):
-        if intersects(["advantage", "value_optimize"], graphs):
+    def prepare_feeds(self, families, feed_map):
+        if intersects(["advantage", "value_optimize"], families):
             # build value feed map with rewards
             if self.batch is not None:
                 reward = [e.discounted_reward for e in self.batch.info["transitions"]]
@@ -45,7 +45,7 @@ class TDTrainer(Trainer):
                 shape = np.shape(feed_map["X"])[:-1] + (1,)
                 feed_map["discounted_reward"] = np.zeros(shape)
 
-        return super().prepare_feeds(graphs, feed_map)
+        return super().prepare_feeds(families, feed_map)
 
     def process_transition(self, transition):
         # get value and apply discount gamma here, during rollouts

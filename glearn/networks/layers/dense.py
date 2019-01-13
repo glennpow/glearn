@@ -52,6 +52,6 @@ class DenseLayer(NetworkLayer):
                            biases_initializer=self.references["weights_initializer"])
         return y
 
-    def prepare_default_feeds(self, graphs, feed_map):
+    def prepare_default_feeds(self, families, feed_map):
         feed_map["dropout"] = 1
         return feed_map

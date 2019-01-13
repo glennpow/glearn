@@ -10,16 +10,16 @@ class PolicyGradientTrainer(Trainer):
         # get loss from policy
         loss = self.policy.get_fetch("loss", "evaluate")
         if loss is None:
-            self.error(f"Policy ({self.policy}) does not define a 'loss' for 'evaluate' graph")
+            self.error(f"Policy ({self.policy}) does not define a 'loss' for 'evaluate' family")
             return None
 
         self.summary.add_scalar("loss", loss, "evaluate")
 
         # minimize policy loss
-        graph = "policy_optimize"
-        with tf.name_scope(graph):
-            optimize = self.optimize_loss(loss, graph)
+        family = "policy_optimize"
+        with tf.name_scope(family):
+            optimize = self.optimize_loss(loss, family)
 
-            self.policy.set_fetch(graph, optimize)
+            self.policy.set_fetch(family, optimize)
 
         super().init_optimizer()

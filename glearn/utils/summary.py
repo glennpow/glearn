@@ -63,7 +63,7 @@ class SummaryWriter(object):
             self.summary_results[family] = self.Results(family)
         return self.summary_results[family]
 
-    def add_simple_value(self, name, value, family=None):
+    def add_simple_value(self, name, value, family=None, debug=False):
         summary_results = self.get_summary_results(family)
         summary_results.values[name] = value  # TODO - average
 
@@ -76,7 +76,7 @@ class SummaryWriter(object):
         # if family not in self.summary_families:
         #     self.summary_families.append(family)
 
-    def add_scalar(self, name, tensor, family=None):
+    def add_scalar(self, name, tensor, family=None, debug=False):
         # HACK - avoiding family being repeated twice in tensorboard tag
         # summary = tf.summary.scalar(name, tensor, family=family)
         if family is not None:
