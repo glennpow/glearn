@@ -66,6 +66,14 @@ def _load_data(filename):
     return images, labels
 
 
+def _generate_data(filename):
+    images, labels = _load_data(filename)
+
+    count = len(images)
+    for i in range(images):
+        yield images[i], labels[i]
+
+
 def _ensure_download():
     ensure_download(url=DATA_URL, download_dir=DATA_PATH, extract=True)
 
@@ -83,12 +91,12 @@ def _load_label_names():
 def cifar10_dataset(config):
     _ensure_download()
 
-    return old_method(config)
-    # return new_method(config)
+    # return raw_method(config)
+    return generator_method(config)
 
 
-def new_method(config):
-    filenames = {
+def generator_method(config):
+    partition_paths = {
         "train": ["data_batch_" + str(i + 1) for i in range(NUM_TRAINING_FILES)],
         "test": ["test_batch"],
     }
@@ -97,9 +105,20 @@ def new_method(config):
     label_names = _load_label_names()
 
     with tf.device('/cpu:0'):
-        for name, (input_data, output_data, size) in filenames.items():
-            inputs = tf.data.Dataset.from_tensor_slices(input_data)
-            outputs = tf.data.Dataset.from_tensor_slices(output_data)
+        for name, paths in partition_paths.items():
+            partition = None
+            for path in paths:
+                file_dataset = tf.data.Dataset.from_generator(lambda: _generate_data(path))
+                if partition is None:
+                    partition = file_dataset
+                else:
+                    partition = partition.concatenate(file_dataset)
+
+            # paths_dataset = tf.data.Dataset.from_tensor_slices(paths)
+            # paths_dataset = paths_dataset.flat_map(_load_data)
+            # import ipdb; ipdb.set_trace()  # HACK DEBUGGING !!!
+            # inputs = tf.data.Dataset.from_tensor_slices(input_data)
+            # outputs = tf.data.Dataset.from_tensor_slices(output_data)
 
             partitions[name] = DatasetPartition(name, inputs, outputs, size, batch_size,
                                                 output_space=output_space, shuffle=1000)
@@ -107,7 +126,7 @@ def new_method(config):
     return LabeledDataset(config, "CIFAR-10", partitions, label_names=label_names)
 
 
-def old_method(config):
+def raw_method(config):
     data = {}
 
     images, labels = _load_data(filename="test_batch")
