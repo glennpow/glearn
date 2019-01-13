@@ -26,7 +26,20 @@ class DebuggableSession(tf.Session):
                               run_metadata=self.run_metadata)
 
         if self.run_metadata is not None:
-            for fetch in fetches:
-                self.config.summary.add_run_metadata(self.run_metadata, fetch.name)
+            def add_fetch_metadata(fetch, name):
+                self.config.summary.add_run_metadata(self.run_metadata, name)
+            self._map_fetches(fetches, add_fetch_metadata)
 
         return results
+
+    def _map_fetches(self, fetches, func, name=None):
+        if isinstance(fetches, dict):
+            for fetch_name, fetch in fetches.items():
+                self._map_fetches(fetch, func, name=fetch_name)
+        elif isinstance(fetches, list) or isinstance(fetches, tuple):
+            for fetch in fetches:
+                self._map_fetches(fetch, func)
+        else:
+            if name is None and hasattr(fetches, "name"):
+                name = fetches.name
+            func(fetches, name)
