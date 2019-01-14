@@ -14,6 +14,8 @@
             args:
               hidden_sizes: [200]
           - name: glearn.networks:NormalDistributionLayer
+            args:
+              ent_coef: 2.782559402207126e-05
 
   trainer:
     name: glearn.trainers:ActorCriticTrainer
@@ -31,7 +33,6 @@
               activation: null
       optimizer: adam
       learning_rate: 1.0e-4
-      ent_coef: 2.782559402207126e-05
       gamma: 0.98999999999999999
       episodes: 5000
       keep_prob: 0.8

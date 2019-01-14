@@ -77,10 +77,6 @@ class SummaryWriter(object):
         #     self.summary_families.append(family)
 
     def add_scalar(self, name, tensor, family=None, debug=False):
-        # HACK - avoiding family being repeated twice in tensorboard tag
-        # summary = tf.summary.scalar(name, tensor, family=family)
-        if family is not None:
-            name = f"{family}/{name}"
         summary = tf.summary.scalar(name, tensor, family=None)
 
         if family in self.summaries:
@@ -92,10 +88,6 @@ class SummaryWriter(object):
         return summary
 
     def add_histogram(self, name, values, family=None):
-        # HACK - avoiding family being repeated twice in tensorboard tag
-        # summary = tf.summary.histogram(name, values, family=family)
-        if family is not None:
-            name = f"{family}/{name}"
         summary = tf.summary.histogram(name, values, family=None)
 
         if family in self.summaries:

@@ -5,8 +5,8 @@ from .distribution import DistributionLayer
 
 class CategoricalDistributionLayer(DistributionLayer):
     def __init__(self, network, index, categories=None,
-                 weights_initializer=None, biases_initializer=None):
-        super().__init__(network, index)
+                 weights_initializer=None, biases_initializer=None, **kwargs):
+        super().__init__(network, index, **kwargs)
 
         self.categories = categories
         self.weights_initializer = weights_initializer
@@ -39,7 +39,7 @@ class CategoricalDistributionLayer(DistributionLayer):
 
         # sample from distribution
         if sample:
-            x = x.sample(1, seed=self.seed, name="sampleA")
+            x = x.sample(1, seed=self.seed)
             # x = tf.squeeze(x, axis=0)  # TODO FIXME?
 
         return x
@@ -62,10 +62,10 @@ class CategoricalDistributionLayer(DistributionLayer):
 
 class DiscretizedDistributionLayer(CategoricalDistributionLayer):
     def __init__(self, network, index, divs, low=0, high=1,
-                 weights_initializer=None, biases_initializer=None):
+                 weights_initializer=None, biases_initializer=None, **kwargs):
         super().__init__(network, index, categories=divs,
                          weights_initializer=weights_initializer,
-                         biases_initializer=biases_initializer)
+                         biases_initializer=biases_initializer, **kwargs)
         self.divs = divs
         self.low = low
         self.high = high

@@ -91,12 +91,12 @@ class Network(Loggable):
                 y = layer.build(y)
                 self.add_layer(layer)
             predict = self.get_output_layer().build_predict(y)
-        self.head = predict
+            self.head = predict
 
-        # add activation summary for layer
-        if self.debug_activations:
-            for layer in self.layers:
-                layer.activation_summary(family="evaluate")
+            # add activation summary for layer
+            if self.debug_activations:
+                for layer in self.layers:
+                    layer.activation_summary(family="evaluate")
 
         return predict
 
@@ -112,14 +112,15 @@ class Network(Loggable):
         return math_ops.add_n(losses, name="total_loss")
 
     def build_loss(self, outputs, **kwargs):
-        with tf.name_scope(f"{self.name}_loss"):
-            # build prediction loss
-            loss_definition = self.definition.get("loss", None)
-            predict_loss, accuracy = load_loss(loss_definition, self, outputs, **kwargs)
-            self.add_loss(predict_loss)
+        # build prediction loss
+        loss_definition = self.definition.get("loss", None)
+        predict_loss, accuracy = load_loss(loss_definition, self, outputs, **kwargs)
+        self.add_loss(predict_loss)
 
-            # build combined total loss
-            total_loss = self.get_total_loss()
+        # build combined total loss
+        total_loss = self.get_total_loss()
+
+        self.context.summary.add_scalar("accuracy", accuracy, "evaluate")
 
         return total_loss, accuracy
 

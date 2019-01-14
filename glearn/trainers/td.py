@@ -14,25 +14,24 @@ class TDTrainer(Trainer):
     def build_value_loss(self, value):
         policy = self.policy
 
-        # build advantage and value optimization
-        with tf.name_scope('td'):
-            # calculate advantage, using discounted rewards
-            # discounted_reward = reward + gamma * value  # this happens outside of graph now
-            discounted_reward = policy.create_feed("discounted_reward", ["advantage"], (None, 1))
-            advantage = discounted_reward - value
-            if self.normalize_advantage:  # aborghi implementation
-                advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
-            policy.set_fetch("advantage", advantage)
+        # calculate advantage, using discounted rewards
+        # discounted_reward = reward + gamma * value  # this happens outside of graph now
+        discounted_reward = policy.create_feed("discounted_reward", ["advantage"], (None, 1))
+        advantage = discounted_reward - value
+        if self.normalize_advantage:  # aborghi implementation
+            advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
+        policy.set_fetch("advantage", advantage)
 
-            # value loss minimizes squared advantage
-            value_loss = tf.reduce_mean(tf.square(advantage))
-            policy.set_fetch("value_loss", value_loss, "evaluate")
+        # value loss minimizes squared advantage
+        value_loss = tf.reduce_mean(tf.square(advantage))
+        policy.set_fetch("value_loss", value_loss, "evaluate")
 
         # summaries
         self.summary.add_scalar("value_loss", value_loss, "evaluate")
         self.summary.add_scalar("advantage", tf.reduce_mean(advantage), "evaluate")
         self.summary.add_scalar("advantage_abs", tf.reduce_mean(tf.abs(advantage)), "evaluate")
         self.summary.add_scalar("reward", tf.reduce_mean(discounted_reward), "evaluate")
+
         return value_loss
 
     def prepare_feeds(self, families, feed_map):

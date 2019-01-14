@@ -22,6 +22,9 @@
   ## session run tracing
   # debug_trace: true
 
+  ## print periodic memory information
+  # debug_memory: true
+
   ## add numerics checks (NaNs, etc.)
   # debug_numerics: true
 
