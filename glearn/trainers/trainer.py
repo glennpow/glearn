@@ -210,10 +210,8 @@ class Trainer(Configurable):
         return optimize
 
     def init_optimizer(self):
-        # get accuracy summary from policy
-        accuracy = self.policy.get_fetch("accuracy", "evaluate")
-        if accuracy is not None:
-            self.summary.add_scalar("accuracy", accuracy, "evaluate")
+        # overwrite
+        pass
 
     def prepare_feeds(self, families, feed_map):
         self.policy.prepare_default_feeds(families, feed_map)
@@ -518,8 +516,9 @@ class Trainer(Configurable):
             self.epoch = epoch
             self.iteration_start_time = time.time()
 
-            # epoch summary (TODO - store this in variable)
-            self.summary.add_scalar("epoch", self.global_step / epoch_size, "evaluate")
+            # epoch summary
+            global_epoch = self.current_global_step / epoch_size
+            self.summary.add_simple_value("epoch", global_epoch, "evaluate")
 
             for step in range(epoch_size):
                 # epoch time

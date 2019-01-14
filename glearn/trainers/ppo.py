@@ -60,5 +60,5 @@ class PPOTrainer(ActorCriticTrainer):
 
             self.policy.set_fetch(family, optimize)
 
-        # summaries
-        self.summary.add_scalar("loss", policy_loss, "evaluate")
+            # summaries
+            self.summary.add_scalar("loss", policy_loss, "evaluate")

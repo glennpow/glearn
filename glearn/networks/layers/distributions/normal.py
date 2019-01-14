@@ -7,8 +7,8 @@ class NormalDistributionLayer(DistributionLayer):
     def __init__(self, network, index,
                  mean_activation=tf.nn.tanh, mean_scale=1,
                  sigma_activation=tf.nn.softplus, sigma_scale=1,
-                 weights_initializer=None, biases_initializer=None, l2_loss_coef=None):
-        super().__init__(network, index)
+                 weights_initializer=None, biases_initializer=None, l2_loss_coef=None, **kwargs):
+        super().__init__(network, index, **kwargs)
 
         self.mean_activation = mean_activation
         self.mean_scale = mean_scale
@@ -38,8 +38,10 @@ class NormalDistributionLayer(DistributionLayer):
 
         # mu L2 preactivation loss  (HACK?  this only works when |mu| should be = 0?)
         if self.l2_loss_coef is not None and self.l2_loss_coef > 0:
+            # FIXME - may need axis=-1 here...
             l2_loss = tf.reduce_mean(tf.square(mu)) * self.l2_loss_coef
-            self.references["l2_loss"] = l2_loss
+            self.add_loss(l2_loss)
+            self.summary.add_scalar("l2_loss", l2_loss, "evaluate")
 
         # mu activation and scaling
         mu = self.mean_activation(mu)
@@ -65,6 +67,15 @@ class NormalDistributionLayer(DistributionLayer):
 
         # action clipping
         # x = tf.clip_by_value(x, -2, 2)  # HACK
+
+        # TODO - more summaries
+        # if hasattr(policy_distribution, "stddev"):
+        #     action_stddev = tf.reduce_mean(tf.squeeze(policy_distribution.stddev()))
+        #     self.summary.add_scalar("action_stddev", action_stddev, "evaluate")
+        # mu = policy_distribution.references["mu"]
+        # sigma = policy_distribution.references["sigma"]
+        # self.summary.add_scalar("mu", tf.reduce_mean(mu), "evaluate")
+        # self.summary.add_scalar("sigma", tf.reduce_mean(sigma), "evaluate")
 
         return x
 

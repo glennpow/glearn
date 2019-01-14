@@ -18,10 +18,12 @@
               divs: 3
               low: -2
               high: 2
+              ent_coef: 1.0e-3  # 3.0e-2  # 1.0e-4
           # - name: glearn.networks:NormalDistributionLayer
           #   args:
           #     mean_scale: 2
           #     l2_loss_coef: 0.2
+          #     ent_coef: 1.0e-3  # 3.0e-2  # 1.0e-4
 
   trainer:
     name: glearn.trainers:ActorCriticTrainer
@@ -40,7 +42,6 @@
       optimizer: adam
       learning_rate: 1.0e-3
       gamma: 0.99
-      ent_coef: 1.0e-3  # 3.0e-2  # 1.0e-4
       episodes: 5000
       keep_prob: 0.8
       # epsilon: [1, 0.1, 2000]
