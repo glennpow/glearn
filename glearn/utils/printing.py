@@ -109,7 +109,7 @@ def _format_tabular_data(value):
         value = np.array(value)
         if SQUEEZE_ARRAYS:
             value = np.squeeze(value)
-        value = f"{value}".split('\n')[0]
+        value = f"{value}".replace('\n', ' ')
     if len(value) > MAX_TABULAR_WIDTH:
         value = value[:MAX_TABULAR_WIDTH]
     return typename, value

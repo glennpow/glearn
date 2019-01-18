@@ -12,7 +12,53 @@ class CategoricalDistributionLayer(DistributionLayer):
         self.weights_initializer = weights_initializer
         self.biases_initializer = biases_initializer
 
-    def build(self, inputs, sample=True):
+    def build(self, inputs):
+        self._build_categorical(inputs)
+
+        y = tf.one_hot(self.references["category"], self.categories)
+
+        return y
+
+    def build_predict(self, y):
+        y = super().build_predict(y)
+
+        # log prediction distribution
+        self.context.summary.add_histogram("predict", self.references["category"], "evaluate")
+
+        return y
+
+    def build_loss(self, labels):
+        # evaluate discrete loss
+        neg_logp = self.neg_log_prob(labels)
+        loss = tf.reduce_mean(neg_logp)
+
+        # evaluate accuracy
+        correct = tf.equal(self.references["category"], tf.argmax(labels, 1))
+        accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
+
+        return loss, accuracy
+
+    def prepare_default_feeds(self, families, feed_map):
+        feed_map["dropout"] = 1
+        return feed_map
+
+    def encipher(self, one_hot):
+        return np.argmax(one_hot, axis=-1)
+
+    def neg_log_prob(self, value, **kwargs):
+        # NOTE: unfortunately, using -self.log_prob(value) does not return correct results
+        logits = self.references["logits"]
+        return tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=value)
+
+    def log_prob(self, value, **kwargs):
+        # convert from one-hot
+        return self.distribution.log_prob(self.encipher(value))
+
+    def prob(self, value, **kwargs):
+        # convert from one-hot
+        return self.distribution.prob(self.encipher(value), **kwargs)
+
+    def _build_categorical(self, inputs):
         # get variables
         dropout = self.context.get_or_create_feed("dropout")
 
@@ -22,42 +68,28 @@ class CategoricalDistributionLayer(DistributionLayer):
         biases_initializer = self.load_initializer(self.biases_initializer,
                                                    default=tf.contrib.layers.xavier_initializer())
 
-        # create dense layer for mu
+        # create dense layer for logits
         input_size = np.prod(inputs.shape[1:])
         x = tf.reshape(inputs, (-1, input_size))
-        output_size = self.categories
-        if not isinstance(output_size, int):
-            output_size = self.context.output.size
-        x = self.dense(x, output_size, dropout, None,
-                       weights_initializer=weights_initializer,
-                       biases_initializer=biases_initializer)
+        if not isinstance(self.categories, int):
+            self.categories = self.context.output.size
+        logits = self.dense(x, self.categories, dropout, None,
+                            weights_initializer=weights_initializer,
+                            biases_initializer=biases_initializer)
 
         # categorical distribution
-        self.references["logits"] = x
-        x = tf.distributions.Categorical(logits=x)
-        self.references["distribution"] = x
+        self.references["logits"] = logits
+        distribution = tf.distributions.Categorical(logits=logits)
+        self.references["distribution"] = distribution
 
         # sample from distribution
-        if sample:
-            x = x.sample(1, seed=self.seed)
-            # x = tf.squeeze(x, axis=0)  # TODO FIXME?
+        if self.context.output.deterministic:
+            y = tf.argmax(distribution.probs, -1, name="sample")
+        else:
+            y = distribution.sample(seed=self.seed, name="sample")
+        self.references["category"] = y
 
-        return x
-
-    # TODO... correct batch size...
-    # def build_predict(self, y):
-    #     # make sure output is of correct dimensions
-    #     output_size = self.context.output.size
-    #     if isinstance(self.categories, int) and self.categories != output_size:
-    #         if self.categories < output_size:
-    #             y = tf.pad(y, tf.constant([output_size - self.categories]))
-    #         else:
-    #             y = tf.slice(y, 0, output_size)
-    #     return y
-
-    def prepare_default_feeds(self, families, feed_map):
-        feed_map["dropout"] = 1
-        return feed_map
+        return distribution
 
 
 class DiscretizedDistributionLayer(CategoricalDistributionLayer):
@@ -72,19 +104,23 @@ class DiscretizedDistributionLayer(CategoricalDistributionLayer):
 
     def build(self, inputs):
         # get categorical outputs
-        x = super().build(inputs, sample=False)
+        distribution = self._build_categorical(inputs)
 
         # wrap categorical outputs in bijector which converts into discretized range
         self.bijector = DiscretizedBijector(self.divs, self.low, self.high)
-        x = tf.contrib.distributions.TransformedDistribution(distribution=self.distribution,
-                                                             bijector=self.bijector,
-                                                             name="discretized")
-        self.references["distribution"] = x
+        distribution = tf.contrib.distributions.TransformedDistribution(distribution=distribution,
+                                                                        bijector=self.bijector,
+                                                                        name="discretized")
+        self.references["distribution"] = distribution
 
-        # return sample
-        x = tf.cast(x.sample(1, seed=self.seed), tf.float32)
+        # sample from distribution
+        y = tf.expand_dims(tf.cast(distribution.sample(seed=self.seed), tf.float32), -1)
 
-        return x
+        return y
+
+    @property
+    def probs(self):
+        return self.distribution.distribution.probs
 
 
 class DiscretizedBijector(tf.contrib.distributions.bijectors.Bijector):
@@ -101,8 +137,8 @@ class DiscretizedBijector(tf.contrib.distributions.bijectors.Bijector):
 
     def _inverse(self, y):
         # convert discretized range into categorical
-        # return tf.cast((y - self.low) / (self.high - self.low), tf.int32)
-        return (y - self.low) / (self.high - self.low)
+        # return tf.cast((y - self.low) / (self.high - self.low) * (self.divs - 1), tf.int32)
+        return (y - self.low) / (self.high - self.low) * (self.divs - 1)
 
     def _inverse_log_det_jacobian(self, y):
         return -self._forward_log_det_jacobian(self._inverse(y))

@@ -58,15 +58,11 @@ class NormalDistributionLayer(DistributionLayer):
         self.references["sigma"] = sigma
 
         # normal distribution
-        x = tf.distributions.Normal(loc=mu, scale=sigma)
-        self.references["distribution"] = x
+        distribution = tf.distributions.Normal(loc=mu, scale=sigma)
+        self.references["distribution"] = distribution
 
         # sample from distribution
-        x = x.sample(1, seed=self.seed)
-        x = tf.squeeze(x, axis=0)
-
-        # action clipping
-        # x = tf.clip_by_value(x, -2, 2)  # HACK
+        y = distribution.sample(seed=self.seed)
 
         # TODO - more summaries
         # if hasattr(policy_distribution, "stddev"):
@@ -77,7 +73,7 @@ class NormalDistributionLayer(DistributionLayer):
         # self.summary.add_scalar("mu", tf.reduce_mean(mu), "evaluate")
         # self.summary.add_scalar("sigma", tf.reduce_mean(sigma), "evaluate")
 
-        return x
+        return y
 
     def prepare_default_feeds(self, families, feed_map):
         feed_map["dropout"] = 1

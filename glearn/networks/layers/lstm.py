@@ -83,15 +83,15 @@ class LSTMLayer(NetworkLayer):
 
         return y
 
-    def build_predict(self, y):
-        # get configs
-        batch_size = self.context.config.get("batch_size", 1)
-        timesteps = self.context.config.get("timesteps", 1)
-        vocabulary_size = self.context.dataset.vocabulary.size
+    # def build_predict(self, y):
+    #     # get configs
+    #     batch_size = self.context.config.get("batch_size", 1)
+    #     timesteps = self.context.config.get("timesteps", 1)
+    #     vocabulary_size = self.context.dataset.vocabulary.size
 
-        # create output layer and convert to batched sequences
-        y = self.dense(y, vocabulary_size, self.dropout, tf.nn.softmax)
-        y = tf.cast(tf.argmax(y, axis=1), tf.int32)
-        y = tf.reshape(y, [batch_size, timesteps])
+    #     # create output layer and convert to batched sequences
+    #     y = self.dense(y, vocabulary_size, self.dropout, tf.nn.softmax)
+    #     y = tf.cast(tf.argmax(y, axis=1), tf.int32)
+    #     y = tf.reshape(y, [batch_size, timesteps])
 
-        return y
+    #     return y

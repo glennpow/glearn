@@ -13,3 +13,6 @@
 # rename Batch to Data, and subclass Dataset from it.  Also load datasets using definitions paradigm?
 # define TD/PolicyGradient inheritance.
 X preparing for GPU training, some inputs/vars/operations should require:  with tf.device('/cpu:0'):
+# more glearn script commands (evaluate, tb, etc.)
+# for RL, could use: action = tf.clip_by_value(action, env.action_space.low[0], env.action_space.high[0])
+# remote sweeps.  local sweeps?

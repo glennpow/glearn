@@ -20,4 +20,4 @@ class PolicyGradientTrainer(Trainer):
 
             self.policy.set_fetch(family, optimize)
 
-            self.summary.add_scalar("loss", loss, "evaluate")
+            self.summary.add_scalar("total_loss", loss, "evaluate")

@@ -1,8 +1,14 @@
---- # Pendulum
+--- # Actor Critic
   import: base
 
-  env: Pendulum-v0
-  batch_size: 200
+  env:
+    name: glearn.envs.actor_critic_test:ActorCriticTestEnv
+    args:
+      max_undesired_steps: 10
+      # mode: decaying
+      # reward_multiple: 0
+      # mode: sparse
+  batch_size: 20
 
   policy:
     name: glearn.policies:NetworkPolicy
@@ -13,24 +19,16 @@
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [16]
-          - name: glearn.networks:DiscretizedDistributionLayer
-            args:
-              divs: 3
-              low: -2
-              high: 2
-              ent_coef: 1.0e-3  # 3.0e-2  # 1.0e-4
-          # - name: glearn.networks:NormalDistributionLayer
-          #   args:
-          #     mean_scale: 2
-          #     l2_loss_coef: 0.2
-          #     ent_coef: 1.0e-3  # 3.0e-2  # 1.0e-4
+          - name: glearn.networks:CategoricalDistributionLayer
 
   trainer:
     name: glearn.trainers:ActorCriticTrainer
     args:
       critic:
         optimizer: adam
-        learning_rate: 3.0e-2  # 2.0e-4
+        learning_rate: 2.0e-1
+        # optimizer: sgd
+        # learning_rate: 2.0e-1
         layers:
           - name: glearn.networks:DenseLayer
             args:
@@ -40,11 +38,11 @@
               hidden_sizes: [1]
               activation: null
       optimizer: adam
-      learning_rate: 1.0e-3
+      learning_rate: 2.0e-1
+      # optimizer: sgd
+      # learning_rate: 2.0e-1
       gamma: 0.99
-      # episodes: 5000
-      keep_prob: 0.8
+      # keep_prob: 0.8
       # epsilon: [1, 0.1, 2000]
-      evaluate_interval: 1
-
-      
+      evaluate_interval: 100
+      max_episode_time: 0.1

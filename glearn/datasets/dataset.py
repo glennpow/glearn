@@ -132,20 +132,30 @@ class Dataset(object):
         batch.inputs = inputs[head:head + self.batch_size]
         batch.outputs = outputs[head:head + self.batch_size]
 
-        # encode data through the interfaces
-        batch.inputs = [self.input.encode(o) for o in batch.inputs]
-        batch.outputs = [self.output.encode(o) for o in batch.outputs]
-
         # move batch head
         head = (head + self.batch_size) % len(inputs)
         self.heads[mode] = head
         return batch
 
     def encipher(self, value):
-        return self.output.encode(value)
+        result = value
+
+        # handle discrete values
+        if self.output.discrete:
+            discretized = np.zeros(self.output.shape)
+            discretized[value] = 1
+            result = discretized
+
+        return result
 
     def decipher(self, value):
-        return self.output.decode(value)
+        result = value
+
+        # handle discrete values
+        if self.output.discrete:
+            result = np.argmax(value)
+
+        return result
 
 
 class LabeledDataset(Dataset):
@@ -156,8 +166,8 @@ class LabeledDataset(Dataset):
 
     def encipher(self, value):
         label = self.label_names.index(value)
-        return self.output.encode(label)
+        return super().encipher(label)
 
     def decipher(self, value):
-        label = self.output.decode(value)
+        label = super().decipher(value)
         return self.label_names[label]

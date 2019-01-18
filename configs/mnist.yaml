@@ -15,6 +15,7 @@
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [3136, 1024]
+          - name: glearn.networks:CategoricalDistributionLayer
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer

@@ -16,7 +16,7 @@ from glearn.utils.memory import print_virtual_memory, print_gpu_memory
 
 
 class Trainer(Configurable):
-    def __init__(self, config, policy, epochs=100, episodes=1000, max_episode_time=None,
+    def __init__(self, config, policy, epochs=None, episodes=None, max_episode_time=None,
                  min_episode_reward=None, evaluate_interval=10, epsilon=0, keep_prob=1, **kwargs):
         super().__init__(config)
 
@@ -146,6 +146,14 @@ class Trainer(Configurable):
             self.transitions = []
             self.episode_reward = 0
 
+    def get_interval_size(self):
+        if self.supervised:
+            # interval size is epoch worth of steps
+            return self.dataset.get_epoch_size(mode="train")
+        else:
+            # interval is a single episode
+            return 1
+
     def optimize_loss(self, loss, family="optimize", definition=None, update_global_step=True):
         # default definition
         if definition is None:
@@ -158,9 +166,8 @@ class Trainer(Configurable):
         # learning rate decay
         lr_decay = definition.get("lr_decay", None)
         if lr_decay is not None:
-            lr_decay_epochs = definition.get("lr_decay_epochs", 1)
-            epoch_size = self.dataset.get_epoch_size(mode="train")
-            decay_steps = int(lr_decay_epochs * epoch_size)
+            lr_decay_intervals = definition.get("lr_decay_intervals", 1)
+            decay_steps = int(lr_decay_intervals * self.get_interval_size())
             learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps,
                                                        lr_decay, staircase=True)
 
@@ -254,7 +261,7 @@ class Trainer(Configurable):
         # get desired families
         families = ["predict"]
 
-        # evaluate families and extract single prediction
+        # evaluate and extract single prediction
         results = self.run(families, feed_map)
         return results["predict"][0]
 
@@ -264,10 +271,10 @@ class Trainer(Configurable):
         if isinstance(epsilon, list):
             t = min(1, self.current_global_step / epsilon[2])
             epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
-            self.summary.add_simple_value("epsilon", epsilon, "evaluate")
+            self.summary.add_simple_value("epsilon", epsilon, "train")
 
         # get action
-        if np.random.random() < epsilon:
+        if epsilon > 0 and np.random.random() < epsilon:
             # choose epsilon-greedy random action  (TODO - could implement this in tf)
             return self.output.sample()
         else:
@@ -279,7 +286,7 @@ class Trainer(Configurable):
         action = self.action()
 
         # perform action
-        new_observation, reward, done, info = self.env.step(self.output.decode(action))
+        new_observation, reward, done, info = self.env.step(action)
 
         # build and process transition
         transition = Transition(self.observation, action, reward, new_observation, done, info)
@@ -424,7 +431,7 @@ class Trainer(Configurable):
             print_tabular(table, grouped=True)
 
             # summaries
-            self.summary.add_simple_value("steps_per_second", steps_per_second, "evaluate")
+            self.summary.add_simple_value("steps_per_second", steps_per_second, "train")
 
             # profile memory
             if self.debug_memory:
@@ -509,7 +516,8 @@ class Trainer(Configurable):
 
     def train_supervised_loop(self, train_yield):
         # supervised learning
-        for epoch in range(self.epochs):
+        epoch = 0
+        while self.epochs is None or epoch < self.epochs:
             # start current epoch
             epoch_size = self.dataset.reset(mode="train")
             self.dirty_meta_graph = True  # FIXME - do we need to ever do this again during train?
@@ -518,7 +526,7 @@ class Trainer(Configurable):
 
             # epoch summary
             global_epoch = self.current_global_step / epoch_size
-            self.summary.add_simple_value("epoch", global_epoch, "evaluate")
+            self.summary.add_simple_value("epoch", global_epoch, "train")
 
             for step in range(epoch_size):
                 # epoch time
@@ -533,18 +541,28 @@ class Trainer(Configurable):
 
                 if train_yield(True):
                     return
+            epoch += 1
 
     def train_reinforcement_loop(self, train_yield):
         # reinforcement learning
-        for episode in range(self.episodes):
+        episode = 0  # TODO - store this in saved variable
+        reset_evaluate = True
+
+        while self.episodes is None or episode < self.episodes:
             # start current episode
             self.iteration_start_time = time.time()
             self.episode = episode
             self.reset()
             self.episode_step = 0
 
-            # episode summary (TODO - store this in variable)
-            self.summary.add_simple_value("episode", episode, "evaluate")
+            # episode summary
+            self.summary.add_simple_value("episode", episode, "train")
+
+            if reset_evaluate:
+                episode_rewards = []
+                episode_times = []
+                episode_steps = []
+
 
             while self.training:
                 if train_yield(True):
@@ -564,20 +582,22 @@ class Trainer(Configurable):
                         done = True
 
                 # episode performance
-                episode_reward = self.episode_reward
                 if self.min_episode_reward is not None:
                     # episode poor performance
-                    if episode_reward < self.min_episode_reward:
+                    if self.episode_reward < self.min_episode_reward:
                         done = True
 
                 if done:
+                    # track max episode reward
                     if self.max_episode_reward is None \
                        or self.episode_reward > self.max_episode_reward:
                         self.max_episode_reward = self.episode_reward
 
-                    # summary values
-                    self.summary.add_simple_value("max_episode_reward", self.max_episode_reward,
-                                                  "evaluate")
+                    # track episode reward, time and steps
+                    episode_rewards.append(self.episode_reward)
+                    episode_time = time.time() - self.iteration_start_time
+                    episode_times.append(episode_time)
+                    episode_steps.append(self.episode_step)
 
                     # optimize after episode
                     self.optimize()
@@ -585,7 +605,22 @@ class Trainer(Configurable):
                     # evaluate if time to do so
                     if self.evaluating:
                         self.evaluate(train_yield)
+
+                        # additional summary values
+                        self.summary.add_simple_value("episode_reward", np.mean(episode_rewards),
+                                                      "train")
+                        self.summary.add_simple_value("max_episode_reward",
+                                                      self.max_episode_reward, "train")
+                        self.summary.add_simple_value("episode_time", np.mean(episode_times),
+                                                      "train")
+                        self.summary.add_simple_value("episode_steps", np.mean(episode_steps),
+                                                      "train")
+
+                        reset_evaluate = True
                     break
+
+            episode += 1
+
             if not self.training:
                 return
 
