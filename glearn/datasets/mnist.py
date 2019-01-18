@@ -6,7 +6,7 @@ import numpy as np
 from six.moves import urllib
 import tensorflow as tf
 import gym
-from glearn.datasets.dataset import LabeledDataset
+from glearn.datasets.dataset import DatasetPartition, LabeledDataset
 from glearn.utils.path import script_relpath
 
 
@@ -105,13 +105,14 @@ def _load_data(images_file, labels_file, config):
 
     images = _load_data_file(images_file, 28 * 28, max_count=max_count, header_bytes=16,
                              mapping=decode_image)
+    count = len(images)
     images = np.reshape(images, [-1, 28, 28, 1])
 
     labels = _load_data_file(labels_file, 1, max_count=max_count, header_bytes=8,
                              mapping=decode_label)
     labels = np.reshape(labels, [-1, 10])
 
-    return images, labels
+    return images, labels, count
 
 
 def mnist_dataset(config):
@@ -124,5 +125,13 @@ def mnist_dataset(config):
 
     label_names = [str(i) for i in range(10)]
 
-    return LabeledDataset(config, "MNIST", data, batch_size, output_space=output_space,
-                          label_names=label_names)
+    with tf.device('/cpu:0'):
+        partitions = {}
+        for name, (input_data, output_data, size) in data.items():
+            inputs = tf.data.Dataset.from_tensor_slices(input_data)
+            outputs = tf.data.Dataset.from_tensor_slices(output_data)
+
+            partitions[name] = DatasetPartition(name, inputs, outputs, size, batch_size,
+                                                output_space=output_space, shuffle=1000)
+
+    return LabeledDataset(config, "MNIST", partitions, label_names=label_names)

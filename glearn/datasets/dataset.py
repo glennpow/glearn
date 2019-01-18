@@ -128,7 +128,6 @@ class Dataset(object):
             "Output": self.output,
         }
 
-<<<<<<< HEAD
     def _get_partition(self, partition):
         if partition in self.partitions:
             return self.partitions[partition]
