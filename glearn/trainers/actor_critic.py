@@ -27,6 +27,8 @@ class ActorCriticTrainer(TDTrainer):
         critic_inputs = policy.get_feed("X")
         critic_value = self.critic_network.build_predict(critic_inputs)
         policy.set_fetch("value", critic_value)
+        with tf.name_scope("value/"):
+            avg_critic_value = tf.reduce_mean(critic_value)
 
         # build advantage and critic optimization
         family = "value_optimize"
@@ -35,9 +37,9 @@ class ActorCriticTrainer(TDTrainer):
 
             optimize = self.optimize_loss(value_loss, family, self.critic_definition)
 
-            self.policy.set_fetch(family, optimize)  # FIXME? does it matter that this is in actor?
+            self.policy.set_fetch(family, optimize)
 
-            self.summary.add_scalar("value", tf.reduce_mean(critic_value), "evaluate")
+            self.summary.add_scalar("value", avg_critic_value, "evaluate")
 
     def init_actor(self):
         policy = self.policy
@@ -47,22 +49,20 @@ class ActorCriticTrainer(TDTrainer):
         # build policy optimization
         family = "policy_optimize"
         with tf.name_scope(family):
-            action_shape = (None,) + self.output.shape
-            families = [family, "evaluate"]
-            past_action = policy.create_feed("past_action", families, action_shape)
-            past_advantage = policy.create_feed("past_advantage", families, (None, 1))
+            with tf.name_scope("loss"):
+                action = policy.get_feed("Y")
+                past_advantage = policy.get_fetch("advantage")
 
-            # actor loss
-            policy_distribution = policy.network.get_distribution_layer()
-            neg_logp = -policy_distribution.log_prob(past_action)
-            actor_loss = neg_logp * past_advantage
-            actor_loss = tf.reduce_mean(actor_loss, -1)
-            self.policy_network.add_loss(actor_loss)
+                # actor loss
+                policy_distribution = policy.network.get_distribution_layer()
+                neg_logp = policy_distribution.neg_log_prob(action, name="foo")
+                actor_loss = tf.reduce_mean(neg_logp * past_advantage)
+                self.policy_network.add_loss(actor_loss)
 
-            # total policy loss
-            policy_loss = self.policy_network.get_total_loss()
-            policy_loss = tf.reduce_mean(policy_loss)
-            policy.set_fetch("policy_loss", policy_loss, "evaluate")
+                # total policy loss
+                policy_loss = self.policy_network.get_total_loss()
+                policy_loss = tf.reduce_mean(policy_loss)
+                policy.set_fetch("policy_loss", policy_loss, "evaluate")
             self.summary.add_scalar("policy_loss", policy_loss, "evaluate")
 
             # optimize the policy loss
@@ -70,20 +70,9 @@ class ActorCriticTrainer(TDTrainer):
 
             self.policy.set_fetch(family, optimize)
 
-    def prepare_feeds(self, families, feed_map):
-        if intersects(["policy_optimize", "evaluate"], families):
-            feed_map["past_action"] = self.batch.outputs
-            feed_map["past_advantage"] = self.past_advantage
-
-        return super().prepare_feeds(families, feed_map)
-
     def run(self, families, feed_map={}, **kwargs):
         if not isinstance(families, list):
             families = [families]
-
-        if intersects(["policy_optimize", "evaluate"], families):
-            # get advantage
-            self.past_advantage = super().fetch("advantage", feed_map)
 
         if "policy_optimize" in families:
             # optimize critic value network as well

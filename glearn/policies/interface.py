@@ -8,12 +8,13 @@ class Interface(object):
         # get shape and discreteness for interface
         if isinstance(space, Discrete):
             self.shape, self.size, self.discrete = (space.n, ), space.n, True
+            self.dtype = np.dtype(np.float32)
         elif isinstance(space, Space):
             self.shape, self.size, self.discrete = space.shape, np.prod(space.shape), False
+            self.dtype = space.dtype
         else:
             print(f"Invalid interface space: {space}")
         self.space = space
-        self.dtype = space.dtype
         self.deterministic = deterministic
 
     def __str__(self):
@@ -32,26 +33,3 @@ class Interface(object):
             return result
         else:
             return self.space.sample()
-
-    def encode(self, value):
-        result = value
-
-        # handle discrete values
-        if self.discrete:
-            discretized = np.zeros(self.shape)
-            discretized[value] = 1
-            result = discretized
-
-        return result
-
-    def decode(self, value):
-        result = value
-
-        # handle discrete values
-        if self.discrete:
-            if self.deterministic:
-                result = np.argmax(value)
-            else:
-                result = np.random.choice(range(len(value)), p=value)
-
-        return result

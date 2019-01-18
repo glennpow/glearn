@@ -49,7 +49,7 @@ class PPOTrainer(ActorCriticTrainer):
             policy_loss = -tf.reduce_mean(tf.minimum(surr, clipped_surr))
 
             # entropy
-            policy_loss -= self.ent_coef * policy_distribution.entropy()
+            # policy_loss -= self.ent_coef * policy_distribution.entropy()
 
             policy.set_fetch("policy_loss", policy_loss, "evaluate")
 

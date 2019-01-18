@@ -6,7 +6,7 @@ import numpy as np
 from six.moves import urllib
 import tensorflow as tf
 import gym
-from glearn.datasets.dataset import Dataset
+from glearn.datasets.dataset import LabeledDataset
 from glearn.utils.path import script_relpath
 
 
@@ -67,15 +67,13 @@ def _ensure_download(filename):
     return filepath
 
 
-def load_data(path, element_size, max_count=None, header_bytes=0, mapping=None):
+def _load_data_file(path, element_size, max_count=None, header_bytes=0, mapping=None):
     with open(path, "rb") as f:
         data = f.read()[header_bytes:]
         data = [data[i:i + element_size] for i in range(0, len(data), element_size)]
         if max_count is not None:
             data = data[:max_count]
         if mapping is not None:
-            # HACK? (to get dtype.  is it fine?)
-            # data = list(map(mapping, data))
             data = np.array(list(map(mapping, data)))
         return data
 
@@ -84,6 +82,7 @@ def _load_data(images_file, labels_file, config):
     """Download and parse MNIST dataset."""
     images_file = _ensure_download(images_file)
     labels_file = _ensure_download(labels_file)
+    onehots = np.eye(10)
 
     check_image_file_header(images_file)
     check_labels_file_header(labels_file)
@@ -99,16 +98,18 @@ def _load_data(images_file, labels_file, config):
         label = np.frombuffer(label, dtype=np.uint8)
         label = label.astype(int)
         label = label.flatten()
-        return label
+        onehot = onehots[label]
+        return onehot
 
     max_count = config.get("max_count", None)
 
-    images = load_data(images_file, 28 * 28, max_count=max_count, header_bytes=16,
-                       mapping=decode_image)
+    images = _load_data_file(images_file, 28 * 28, max_count=max_count, header_bytes=16,
+                             mapping=decode_image)
     images = np.reshape(images, [-1, 28, 28, 1])
 
-    labels = load_data(labels_file, 1, max_count=max_count, header_bytes=8, mapping=decode_label)
-    labels = np.eye(10)[labels.reshape(-1)]
+    labels = _load_data_file(labels_file, 1, max_count=max_count, header_bytes=8,
+                             mapping=decode_label)
+    labels = np.reshape(labels, [-1, 10])
 
     return images, labels
 
@@ -121,4 +122,7 @@ def mnist_dataset(config):
     batch_size = config.get("batch_size", 128)
     output_space = gym.spaces.Discrete(10)
 
-    return Dataset(config, "MNIST", data, batch_size, output_space=output_space)
+    label_names = [str(i) for i in range(10)]
+
+    return LabeledDataset(config, "MNIST", data, batch_size, output_space=output_space,
+                          label_names=label_names)

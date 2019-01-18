@@ -88,7 +88,7 @@ class Config(object):
             self.env.seed(self.seed)
 
             self.input = Interface(self.env.observation_space)
-            self.output = Interface(self.env.action_space)
+            self.output = Interface(self.env.action_space, deterministic=False)  # FIXME - stoch?
 
         # init tensorboard summaries and server
         self._init_summaries()

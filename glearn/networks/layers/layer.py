@@ -21,6 +21,10 @@ class NetworkLayer(object):
         return type(self).__name__
 
     @property
+    def config(self):
+        return self.network.config
+
+    @property
     def context(self):
         return self.network.context
 
@@ -32,18 +36,23 @@ class NetworkLayer(object):
     def seed(self):
         return self.network.seed
 
-    def load_initializer(self, definition=None, default=None):
+    def load_callable(self, definition=None, default=None, call=False):
         if definition is None:
-            # use default initializer
+            # use default
             return default
         else:
-            # check if initializer already loaded
+            # check if already a callable
             if callable(definition):
                 return definition
 
-            # load initializer constructor and call
-            initializer_function = get_function(definition)
-            return initializer_function()
+            # load function and call
+            func = get_function(definition)
+            if call:
+                func = func()
+            return func
+
+    def load_initializer(self, definition=None, default=None):
+        return self.load_callable(definition, default, call=True)
 
     def get_variable(self, name, shape, cpu=None, gpu=None, **kwargs):
         device = get_device(cpu=cpu, gpu=gpu)
@@ -63,6 +72,10 @@ class NetworkLayer(object):
     def build_predict(self, y):
         # override
         return y
+
+    def build_loss(self, outputs):
+        # override
+        return tf.constant(0, dtype=tf.float32), tf.constant(0, dtype=tf.float32)
 
     def prepare_default_feeds(self, families, feed_map):
         # override
@@ -102,7 +115,8 @@ class NetworkLayer(object):
             # activation
             if activation is not None:
                 self.references["Z"] = Z
-                A = activation(Z)
+                activation_func = self.load_callable(activation)
+                A = activation_func(Z)
             else:
                 A = Z
             self.references["activation"] = A

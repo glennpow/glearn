@@ -3,7 +3,7 @@ from tensorflow.python.ops import math_ops
 from glearn.utils.log import Loggable
 from glearn.networks.context import num_variable_parameters
 from glearn.networks.layers.layer import load_layer
-from glearn.networks.losses import load_loss
+# from glearn.networks.losses import load_loss
 from glearn.networks.layers.distributions.distribution import DistributionLayer
 
 
@@ -88,7 +88,9 @@ class Network(Loggable):
             layer_definitions = self.definition.get("layers", [])
             for i, layer_config in enumerate(layer_definitions):
                 layer = load_layer(self, i, layer_config)
+                layer.inputs = y
                 y = layer.build(y)
+                layer.outputs = y
                 self.add_layer(layer)
             predict = self.get_output_layer().build_predict(y)
             self.head = predict
@@ -108,17 +110,17 @@ class Network(Loggable):
         losses = tf.get_collection(f"{self.name}_losses")
         if len(losses) == 0:
             self.warning(f"No loss found for network: '{self.name}'")
-            return tf.constant(0)
+            return tf.constant(0, dtype=tf.float32)
         return math_ops.add_n(losses, name="total_loss")
 
-    def build_loss(self, outputs, **kwargs):
+    def build_loss(self, outputs):
         # build prediction loss
-        loss_definition = self.definition.get("loss", None)
-        predict_loss, accuracy = load_loss(loss_definition, self, outputs, **kwargs)
-        self.add_loss(predict_loss)
+        with tf.name_scope("loss"):
+            predict_loss, accuracy = self.get_output_layer().build_loss(outputs)
+            self.add_loss(predict_loss)
 
-        # build combined total loss
-        total_loss = self.get_total_loss()
+            # build combined total loss
+            total_loss = self.get_total_loss()
 
         self.context.summary.add_scalar("accuracy", accuracy, "evaluate")
 

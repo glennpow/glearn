@@ -18,6 +18,6 @@ def load_env(definition):
         env = gym.make(definition)
         env.name = definition
     else:
-        raise Exception(f"Unrecognizable environment identifier: {definition}")
+        raise Exception(f"Unknown environment definition: {definition}")
     env.definition = definition
     return env

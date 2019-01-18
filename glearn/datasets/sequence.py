@@ -86,8 +86,8 @@ class SequenceDataset(Dataset):
 
     def encipher(self, value):
         label = self.vocabulary.encipher(value)
-        return self.output.encode(label)
+        return super().encipher(label)
 
     def decipher(self, value):
-        label = self.output.decode(value)
+        label = super.decipher(value)
         return self.vocabulary.decipher(label)

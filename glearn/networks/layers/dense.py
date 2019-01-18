@@ -5,7 +5,8 @@ from .layer import NetworkLayer
 
 class DenseLayer(NetworkLayer):
     def __init__(self, network, index, hidden_sizes=[128], activation=tf.nn.relu,
-                 weights_initializer=None, biases_initializer=None, weight_decay=None):
+                 weights_initializer=None, biases_initializer=None, weight_decay=None,
+                 multiplier=None):
         super().__init__(network, index)
 
         self.hidden_sizes = hidden_sizes
@@ -13,6 +14,7 @@ class DenseLayer(NetworkLayer):
         self.weights_initializer = weights_initializer
         self.biases_initializer = biases_initializer
         self.weight_decay = weight_decay
+        self.multiplier = multiplier
 
     def build(self, inputs):
         # get variables
@@ -26,31 +28,44 @@ class DenseLayer(NetworkLayer):
 
         # create fully connected layers
         input_size = np.prod(inputs.shape[1:])
-        x = tf.reshape(tf.cast(inputs, tf.float32), (-1, input_size))
+        y = tf.reshape(tf.cast(inputs, tf.float32), (-1, input_size))
         layers = []
         for hidden_size in self.hidden_sizes:
-            x = self.dense(x, hidden_size, self.dropout, self.activation,
+            y = self.dense(y, hidden_size, self.dropout, self.activation,
                            weights_initializer=weights_initializer,
                            biases_initializer=biases_initializer,
                            weight_decay=self.weight_decay)
-            layers.append(x)
+            layers.append(y)
         self.references["layers"] = layers
 
-        return x
+        # multiplier
+        if self.multiplier is not None:
+            y *= self.multiplier
 
-    def build_predict(self, y):
-        # create output layer
-        output_interface = self.network.context.output
-        if output_interface.discrete:
-            y = self.dense(y, output_interface.size, self.dropout, tf.nn.softmax,
-                           weights_initializer=self.references["weights_initializer"],
-                           biases_initializer=self.references["weights_initializer"])
-            self.references["logits"] = self.references["Z"]
-        else:
-            y = self.dense(y, output_interface.size, self.dropout, None,
-                           weights_initializer=self.references["weights_initializer"],
-                           biases_initializer=self.references["weights_initializer"])
         return y
+
+    # def build_predict(self, y):
+    #     # create output layer
+    #     output_interface = self.network.context.output
+    #     if output_interface.discrete:
+    #         y = self.dense(y, output_interface.size, self.dropout, tf.nn.softmax,
+    #                        weights_initializer=self.references["weights_initializer"],
+    #                        biases_initializer=self.references["weights_initializer"])
+    #         self.references["logits"] = self.references["Z"]
+    #     else:
+    #         y = self.dense(y, output_interface.size, self.dropout, None,
+    #                        weights_initializer=self.references["weights_initializer"],
+    #                        biases_initializer=self.references["weights_initializer"])
+    #     return y
+
+    def build_loss(self, outputs):
+        # evaluate continuous loss
+        loss = tf.reduce_mean(tf.square(outputs - self.outputs))
+
+        # evaluate accuracy
+        accuracy = tf.exp(-loss)
+
+        return loss, accuracy
 
     def prepare_default_feeds(self, families, feed_map):
         feed_map["dropout"] = 1
