@@ -27,10 +27,10 @@ class CNNViewerMode(ViewerMode):
                     network.context.set_fetch(f"conv2d_{n}", f, "predict")
                     n += 1
 
-    def view_results(self, families, feed_map, results):
+    def view_results(self, queries, feed_map, results):
         if self.debugging:
             # visualize prediction results
-            if self.supervised and "evaluate" in families:
+            if self.supervised and "evaluate" in queries:
                 self.view_predict(results["X"], results["Y"], results["predict"])
 
             # visualize CNN features

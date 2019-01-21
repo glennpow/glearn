@@ -51,56 +51,56 @@ class NetworkContext(Configurable):
 
         self.debug_runs = self.config.is_debugging("debug_runs")
 
-    def set_feed(self, name, value, families=None):
-        # set feed node, for family or global (None)
-        if families is None:
-            # global family feed
-            families = [GLOBAL_FEED_FAMILY]
+    def set_feed(self, name, value, queries=None):
+        # set feed node, for query or global (None)
+        if queries is None:
+            # global query feed
+            queries = [GLOBAL_FEED_FAMILY]
 
-        # apply to specified families
-        if not isinstance(families, list):
-            families = [families]
-        for family in families:
-            if family in self.feeds:
-                family_feeds = self.feeds[family]
+        # apply to specified queries
+        if not isinstance(queries, list):
+            queries = [queries]
+        for query in queries:
+            if query in self.feeds:
+                query_feeds = self.feeds[query]
             else:
-                family_feeds = {}
-                self.feeds[family] = family_feeds
-            family_feeds[name] = value
+                query_feeds = {}
+                self.feeds[query] = query_feeds
+            query_feeds[name] = value
 
-    def create_feed(self, name, families=None, shape=(), dtype=tf.float32):
+    def create_feed(self, name, queries=None, shape=(), dtype=tf.float32):
         # create placeholder and set as feed
         ph = tf.placeholder(dtype, shape, name=name)
-        self.set_feed(name, ph, families)
+        self.set_feed(name, ph, queries)
         return ph
 
-    def get_or_create_feed(self, name, families=None, shape=(), dtype=tf.float32):
+    def get_or_create_feed(self, name, queries=None, shape=(), dtype=tf.float32):
         # get feed or create if none found
         ph = self.get_feed(name)
         if ph is None:
-            return self.create_feed(name, families, shape, dtype)
+            return self.create_feed(name, queries, shape, dtype)
         return ph
 
-    def get_feed(self, name, family=None):
-        # find feed node for family name
-        family_feeds = self.get_feeds(family)
-        if name in family_feeds:
-            return family_feeds[name]
+    def get_feed(self, name, query=None):
+        # find feed node for query name
+        query_feeds = self.get_feeds(query)
+        if name in query_feeds:
+            return query_feeds[name]
         return None
 
-    def get_feeds(self, families=None):
+    def get_feeds(self, queries=None):
         # get all global feeds
         feeds = self.feeds.get(GLOBAL_FEED_FAMILY, {})
-        if families is not None:
-            # merge with desired family feeds
-            if not isinstance(families, list):
-                families = [families]
-            for family in families:
-                feeds.update(self.feeds.get(family, {}))
+        if queries is not None:
+            # merge with desired query feeds
+            if not isinstance(queries, list):
+                queries = [queries]
+            for query in queries:
+                feeds.update(self.feeds.get(query, {}))
         return feeds
 
-    def build_feed_dict(self, mapping, families=None):
-        feeds = self.get_feeds(families)
+    def build_feed_dict(self, mapping, queries=None):
+        feeds = self.get_feeds(queries)
         feed_dict = {}
         for key, value in mapping.items():
             if isinstance(key, str):
@@ -108,70 +108,70 @@ class NetworkContext(Configurable):
                     feed = feeds[key]
                     feed_dict[feed] = value
                 else:
-                    family_name = GLOBAL_FEED_FAMILY if families is None else ", ".join(families)
-                    self.error(f"Failed to find feed '{key}' for family: {family_name}")
+                    query_name = GLOBAL_FEED_FAMILY if queries is None else ", ".join(queries)
+                    self.error(f"Failed to find feed '{key}' for query: {query_name}")
             else:
                 feed_dict[key] = value
         return feed_dict
 
-    def set_fetch(self, name, value, families=None):
-        # set fetch for families (defaults to name)
-        if families is None:
-            families = [name]
-        elif not isinstance(families, list):
-            families = [families]
+    def set_fetch(self, name, value, queries=None):
+        # set fetch for queries (defaults to name)
+        if queries is None:
+            queries = [name]
+        elif not isinstance(queries, list):
+            queries = [queries]
 
-        # apply to specified families
-        for family in families:
-            if family in self.fetches:
-                family_fetches = self.fetches[family]
+        # apply to specified queries
+        for query in queries:
+            if query in self.fetches:
+                query_fetches = self.fetches[query]
             else:
-                family_fetches = {}
-                self.fetches[family] = family_fetches
-            family_fetches[name] = value
+                query_fetches = {}
+                self.fetches[query] = query_fetches
+            query_fetches[name] = value
 
         # TODO - not sure why this was returning anything here...
-        # self.get_fetch(name, families=families)
+        # self.get_fetch(name, queries=queries)
 
-    def is_fetch(self, name, families=None):
-        return self.get_fetch(name, families=families) is not None
+    def is_fetch(self, name, queries=None):
+        return self.get_fetch(name, queries=queries) is not None
 
-    def get_fetch(self, name, families=None):
-        # find feed node for family (defaults to name)
-        if families is not None and not isinstance(families, list):
-            families = [families]
-        for family, family_fetches in self.fetches.items():
-            if (families is None or family in families) and name in family_fetches:
+    def get_fetch(self, name, queries=None):
+        # find feed node for query (defaults to name)
+        if queries is not None and not isinstance(queries, list):
+            queries = [queries]
+        for query, query_fetches in self.fetches.items():
+            if (queries is None or query in queries) and name in query_fetches:
                 # return if found
-                return family_fetches[name]
+                return query_fetches[name]
         return None
 
-    def get_fetches(self, families):
-        # get all fetches for specified families
-        if not isinstance(families, list):
-            families = [families]
+    def get_fetches(self, queries):
+        # get all fetches for specified queries
+        if not isinstance(queries, list):
+            queries = [queries]
         fetches = {}
-        for family in families:
-            fetches.update(self.fetches.get(family, {}))
+        for query in queries:
+            fetches.update(self.fetches.get(query, {}))
         return fetches
 
-    def run(self, families, feed_map):
+    def run(self, queries, feed_map):
         # get configured fetches
-        fetches = self.get_fetches(families)
+        fetches = self.get_fetches(queries)
 
         if len(fetches) > 0:
             if self.debug_runs:
-                families_s = ', '.join(families)
+                queries_s = ', '.join(queries)
                 feeds_s = ', '.join(list(feed_map.keys()))
                 fetches_s = ', '.join(list(fetches.keys()))
-                message = (f"Run | Families: '{families_s}' | Feeds: '{feeds_s}'"
+                message = (f"Run | Families: '{queries_s}' | Feeds: '{feeds_s}'"
                            f" | Fetches: '{fetches_s}'")
                 self.log(message, "cyan", bold=True)
 
             # build final feed_dict
-            feed_dict = self.build_feed_dict(feed_map, families=families)
+            feed_dict = self.build_feed_dict(feed_map, queries=queries)
 
-            # run family
+            # run query
             results = self.sess.run(fetches, feed_dict)
 
             # store results

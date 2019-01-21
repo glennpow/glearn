@@ -98,7 +98,7 @@ class Network(Loggable):
             # add activation summary for layer
             if self.debug_activations:
                 for layer in self.layers:
-                    layer.activation_summary(family="evaluate")
+                    layer.activation_summary(query="evaluate")
 
         return predict
 
@@ -126,8 +126,8 @@ class Network(Loggable):
 
         return total_loss, accuracy
 
-    def prepare_default_feeds(self, families, feed_map):
+    def prepare_default_feeds(self, queries, feed_map):
         # add default feed values
         for layer in self.layers:
-            feed_map = layer.prepare_default_feeds(families, feed_map)
+            feed_map = layer.prepare_default_feeds(queries, feed_map)
         return feed_map

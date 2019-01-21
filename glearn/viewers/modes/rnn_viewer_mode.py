@@ -24,8 +24,8 @@ class RNNViewerMode(ViewerMode):
         rows = math.ceil(size / cols)
         self.viewer.set_size(cols, rows)
 
-    def view_results(self, families, feed_map, results):
-        if self.debugging and "evaluate" in families:
+    def view_results(self, queries, feed_map, results):
+        if self.debugging and "evaluate" in queries:
             cols, rows = self.viewer.get_size()
 
             if "embeddings" in results:

@@ -31,13 +31,13 @@ class ActorCriticTrainer(TDTrainer):
             avg_critic_value = tf.reduce_mean(critic_value)
 
         # build advantage and critic optimization
-        family = "value_optimize"
-        with tf.name_scope(family):
+        query = "value_optimize"
+        with tf.name_scope(query):
             value_loss = self.build_value_loss(critic_value)
 
-            optimize = self.optimize_loss(value_loss, family, self.critic_definition)
+            optimize = self.optimize_loss(value_loss, query, self.critic_definition)
 
-            self.policy.set_fetch(family, optimize)
+            self.policy.set_fetch(query, optimize)
 
             self.summary.add_scalar("value", avg_critic_value, "evaluate")
 
@@ -47,8 +47,8 @@ class ActorCriticTrainer(TDTrainer):
         self.policy_network = policy.network
 
         # build policy optimization
-        family = "policy_optimize"
-        with tf.name_scope(family):
+        query = "policy_optimize"
+        with tf.name_scope(query):
             with tf.name_scope("loss"):
                 action = policy.get_feed("Y")
                 past_advantage = policy.get_fetch("advantage")
@@ -66,18 +66,18 @@ class ActorCriticTrainer(TDTrainer):
             self.summary.add_scalar("policy_loss", policy_loss, "evaluate")
 
             # optimize the policy loss
-            optimize = self.optimize_loss(policy_loss, family, update_global_step=False)
+            optimize = self.optimize_loss(policy_loss, query, update_global_step=False)
 
-            self.policy.set_fetch(family, optimize)
+            self.policy.set_fetch(query, optimize)
 
-    def run(self, families, feed_map={}, **kwargs):
-        if not isinstance(families, list):
-            families = [families]
+    def run(self, queries, feed_map={}, **kwargs):
+        if not isinstance(queries, list):
+            queries = [queries]
 
-        if "policy_optimize" in families:
+        if "policy_optimize" in queries:
             # optimize critic value network as well
-            families += ["value_optimize"]
+            queries += ["value_optimize"]
 
-        results = super().run(families, feed_map, **kwargs)
+        results = super().run(queries, feed_map, **kwargs)
 
         return results

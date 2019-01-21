@@ -50,8 +50,8 @@ class TDTrainer(Trainer):
         feed_map = {"X": states}
         return self.fetch("value", feed_map)
 
-    def prepare_feeds(self, families, feed_map):
-        if intersects(["policy_optimize", "value_optimize", "evaluate"], families):
+    def prepare_feeds(self, queries, feed_map):
+        if intersects(["policy_optimize", "value_optimize", "evaluate"], queries):
             # build value feed map with rewards
             if self.batch is not None:
                 transitions = self.batch.info["transitions"]
@@ -70,7 +70,7 @@ class TDTrainer(Trainer):
                 shape = np.shape(feed_map["X"])[:-1] + (1,)
                 feed_map["discounted_reward"] = np.zeros(shape)
 
-        return super().prepare_feeds(families, feed_map)
+        return super().prepare_feeds(queries, feed_map)
 
     def process_transition(self, transition):
         if self.precompute_discounted_rewards:

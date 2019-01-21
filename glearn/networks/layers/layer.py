@@ -77,7 +77,7 @@ class NetworkLayer(object):
         # override
         return tf.constant(0, dtype=tf.float32), tf.constant(0, dtype=tf.float32)
 
-    def prepare_default_feeds(self, families, feed_map):
+    def prepare_default_feeds(self, queries, feed_map):
         # override
         return feed_map
 
@@ -127,7 +127,7 @@ class NetworkLayer(object):
                 A = tf.nn.dropout(A, dropout)
         return A
 
-    def activation_summary(self, family=None):
+    def activation_summary(self, query=None):
         activation = self.references.get("activation")
         if activation is not None:
-            self.context.summary.add_activation(activation, family=family)
+            self.context.summary.add_activation(activation, query=query)

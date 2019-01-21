@@ -154,7 +154,7 @@ class Trainer(Configurable):
             # interval is a single episode
             return 1
 
-    def optimize_loss(self, loss, family="optimize", definition=None, update_global_step=True):
+    def optimize_loss(self, loss, query="optimize", definition=None, update_global_step=True):
         # default definition
         if definition is None:
             definition = self.kwargs
@@ -208,11 +208,11 @@ class Trainer(Configurable):
         optimize = optimizer.apply_gradients(grads_tvars, global_step=optimizer_global_step)
 
         # add learning rate and gradient summaries
-        self.summary.add_scalar("learning_rate", learning_rate, family)
+        self.summary.add_scalar("learning_rate", learning_rate, query)
         if self.debug_gradients:
             self.summary.add_gradients(zip(grads, tvars), "evaluate")
         if max_grad_norm is not None:
-            self.summary.add_scalar("clipped_ratio", clipped_ratio, family)
+            self.summary.add_scalar("clipped_ratio", clipped_ratio, query)
 
         return optimize
 
@@ -220,33 +220,33 @@ class Trainer(Configurable):
         # overwrite
         pass
 
-    def prepare_feeds(self, families, feed_map):
-        self.policy.prepare_default_feeds(families, feed_map)
+    def prepare_feeds(self, queries, feed_map):
+        self.policy.prepare_default_feeds(queries, feed_map)
 
         # dropout
-        if intersects(["policy_optimize", "value_optimize"], families):
+        if intersects(["policy_optimize", "value_optimize"], queries):
             feed_map["dropout"] = self.keep_prob
         else:
             feed_map["dropout"] = 1
 
         return feed_map
 
-    def run(self, families, feed_map={}, render=True):
-        if not isinstance(families, list):
-            families = [families]
+    def run(self, queries, feed_map={}, render=True):
+        if not isinstance(queries, list):
+            queries = [queries]
 
-        # run policy for families with feeds
-        feed_map = self.prepare_feeds(families, feed_map)
-        results = self.policy.run(families, feed_map)
+        # run policy for queries with feeds
+        feed_map = self.prepare_feeds(queries, feed_map)
+        results = self.policy.run(queries, feed_map)
 
         # view results
         if render:
-            self.viewer.view_results(families, feed_map, results)
+            self.viewer.view_results(queries, feed_map, results)
 
         return results
 
     def fetch(self, name, feed_map={}, squeeze=False):
-        # shortcut to fetch a single family/value
+        # shortcut to fetch a single query/value
         results = self.run(name, feed_map)
         fetch_result = results[name]
 
@@ -258,11 +258,11 @@ class Trainer(Configurable):
         # input as feed map
         feed_map = {"X": [inputs]}
 
-        # get desired families
-        families = ["predict"]
+        # get desired queries
+        queries = ["predict"]
 
         # evaluate and extract single prediction
-        results = self.run(families, feed_map)
+        results = self.run(queries, feed_map)
         return results["predict"][0]
 
     def action(self):
@@ -326,7 +326,7 @@ class Trainer(Configurable):
         # get either supervised or unsupervised batch data and feeds
         self.batch, feed_map = self.get_batch()
 
-        # run all desired families
+        # run all desired queries
         results = self.run(["policy_optimize"], feed_map)
 
         # get current global step (TODO: add global_step fetch into above run)
@@ -348,7 +348,7 @@ class Trainer(Configurable):
 
     def evaluate(self, train_yield):
         # Evaluate using the test dataset
-        families = ["evaluate"]
+        queries = ["evaluate"]
 
         # prepare dataset partition
         if self.supervised:
@@ -356,7 +356,7 @@ class Trainer(Configurable):
         else:
             epoch_size = 1
 
-        # get batch data and desired families
+        # get batch data and desired queries
         eval_start_time = time.time()
         averaged_results = {}
         report_step = random.randrange(epoch_size)
@@ -368,8 +368,8 @@ class Trainer(Configurable):
             reporting = step == report_step
             self.batch, feed_map = self.get_batch(mode="test")
 
-            # run evaluate families
-            results = self.run(families, feed_map, render=reporting)
+            # run evaluate queries
+            results = self.run(queries, feed_map, render=reporting)
 
             # gather reporting results
             if reporting:
@@ -555,14 +555,13 @@ class Trainer(Configurable):
             self.reset()
             self.episode_step = 0
 
-            # episode summary
+            # episode count summary
             self.summary.add_simple_value("episode", episode, "train")
 
             if reset_evaluate:
                 episode_rewards = []
                 episode_times = []
                 episode_steps = []
-
 
             while self.training:
                 if train_yield(True):
@@ -606,7 +605,7 @@ class Trainer(Configurable):
                     if self.evaluating:
                         self.evaluate(train_yield)
 
-                        # additional summary values
+                        # episode summary values
                         self.summary.add_simple_value("episode_reward", np.mean(episode_rewards),
                                                       "train")
                         self.summary.add_simple_value("max_episode_reward",
@@ -615,6 +614,10 @@ class Trainer(Configurable):
                                                       "train")
                         self.summary.add_simple_value("episode_steps", np.mean(episode_steps),
                                                       "train")
+
+                        # env summary values
+                        if hasattr(self.env, "evaluate"):
+                            self.env.evaluate(self.policy)
 
                         reset_evaluate = True
                     break

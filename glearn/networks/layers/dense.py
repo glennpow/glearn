@@ -67,6 +67,6 @@ class DenseLayer(NetworkLayer):
 
         return loss, accuracy
 
-    def prepare_default_feeds(self, families, feed_map):
+    def prepare_default_feeds(self, queries, feed_map):
         feed_map["dropout"] = 1
         return feed_map

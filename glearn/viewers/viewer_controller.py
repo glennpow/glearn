@@ -72,9 +72,9 @@ class ViewerController(Configurable):
         if self.viewer is not None and hasattr(self.viewer, "render"):
             self.viewer.render()
 
-    def view_results(self, families, feed_map, results):
+    def view_results(self, queries, feed_map, results):
         if hasattr(self.viewer, "view_results"):
-            self.viewer.view_results(families, feed_map, results)
+            self.viewer.view_results(queries, feed_map, results)
 
     def on_key_press(self, key, modifiers):
         for listener in self.listeners:

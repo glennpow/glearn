@@ -30,8 +30,8 @@ class NetworkPolicy(Policy):
         self.set_fetch("loss", loss, ["evaluate"])
         self.set_fetch("accuracy", accuracy, ["evaluate"])
 
-    def prepare_default_feeds(self, families, feed_map):
-        feed_map = super().prepare_default_feeds(families, feed_map)
+    def prepare_default_feeds(self, queries, feed_map):
+        feed_map = super().prepare_default_feeds(queries, feed_map)
 
         # add default feed values
-        return self.network.prepare_default_feeds(families, feed_map)
+        return self.network.prepare_default_feeds(queries, feed_map)
