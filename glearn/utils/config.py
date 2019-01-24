@@ -59,22 +59,11 @@ class Config(object):
 
         # prepare log and save/load paths
         if version is None:
-            next_version = 1
-            self.log_dir = f"{TEMP_DIR}/{self.project}/{next_version}"
-            self.load_path = None
-            self.save_path = f"{self.log_dir}/model.ckpt"
-        elif version.isdigit():
-            version = int(version)
-            next_version = version + 1
-            self.log_dir = f"{TEMP_DIR}/{self.project}/{next_version}"
-            self.load_path = f"{TEMP_DIR}/{self.project}/{version}/model.ckpt"
-            self.save_path = f"{self.log_dir}/model.ckpt"
-        else:
-            next_version = None
-            self.log_dir = f"{TEMP_DIR}/{self.project}/{version}"
-            self.load_path = f"{TEMP_DIR}/{self.project}/{version}/model.ckpt"
-            self.save_path = None
+            version = 1
         self.version = version
+        self.log_dir = f"{TEMP_DIR}/{self.project}/{version}"
+        self.load_path = f"{self.log_dir}/model.ckpt"
+        self.save_path = self.load_path
         self.tensorboard_path = f"{self.log_dir}/tensorboard/"
 
         # create render viewer controller
