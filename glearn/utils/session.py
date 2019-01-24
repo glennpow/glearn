@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-class DebuggableSession(tf.Session):
+class DebuggableSession(tf.InteractiveSession):
     def __init__(self, config, config_proto=None, **kwargs):
         if config_proto is None:
             config_kwargs = config.get("session_config", None)

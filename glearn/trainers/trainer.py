@@ -1,6 +1,5 @@
 import os
 import time
-import atexit
 import random
 import numpy as np
 import tensorflow as tf
@@ -487,22 +486,21 @@ class Trainer(Configurable):
             # start TF session
             self.start_session()
 
-            # cleanup TF session
-            def cleanup():
+            try:
+                # get current global step, and prepare evaluation counters
+                global_step = tf.train.global_step(self.sess, self.global_step)
+                self.current_global_step = global_step
+                self.last_eval_time = None
+                self.last_eval_step = self.current_global_step
+
+                # do supervised or reinforcement loop
+                if self.supervised:
+                    self.train_supervised_loop(train_yield)
+                else:
+                    self.train_reinforcement_loop(train_yield)
+            finally:
+                # cleanup TF session after evaluation
                 self.stop_session()
-            atexit.register(cleanup)
-
-            # get current global step, and prepare evaluation counters
-            global_step = tf.train.global_step(self.sess, self.global_step)
-            self.current_global_step = global_step
-            self.last_eval_time = None
-            self.last_eval_step = self.current_global_step
-
-            # do supervised or reinforcement loop
-            if self.supervised:
-                self.train_supervised_loop(train_yield)
-            else:
-                self.train_reinforcement_loop(train_yield)
 
         if profile:
             # profile training loop

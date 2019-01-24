@@ -12,7 +12,13 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [200]
+              hidden_sizes: [400]
+          # - name: glearn.networks:DiscretizedDistributionLayer
+          #   args:
+          #     divs: 3
+          #     low: -2
+          #     high: 2
+          #     ent_coef: 1.0e-4
           - name: glearn.networks:NormalDistributionLayer
             args:
               ent_coef: 2.782559402207126e-05
@@ -33,10 +39,13 @@
               activation: null
       optimizer: adam
       learning_rate: 1.0e-4
-      gamma: 0.98999999999999999
-      episodes: 5000
-      keep_prob: 0.8
-      epsilon: [1, 0.1, 10]
+      gamma: 0.999
+      episodes: 1000
+      # keep_prob: 0.8
+      epsilon: [1, 0.1, 250]
       evaluate_interval: 1
 
+  sweeps:
+    "trainer.args.learning_rate": [1.0e-1, 1.0e-2, 1.0e-4]
+    "critic.learning_rate": [4.6e-1, 4.6e-2, 4.6e-4]
       

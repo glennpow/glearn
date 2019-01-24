@@ -18,43 +18,49 @@ class SummaryWriter(object):
 
     def __init__(self, config):
         self.config = config
-        self.path = config.tensorboard_path
 
-        log(f"Tensorboard log root directory: {self.path}")
-
-        self.summaries = {}
-        self.summary_fetches = {}
-        self.summary_results = {}
-        self.run_metadatas = {}
-        self.writers = {}
+        # prepare clean tensorboard directory
         self.server = None
+        tensorboard_path = config.tensorboard_path or config.summary_path
+        log(f"Tensorboard directory: {tensorboard_path}", color="white", bold=True)
+        shutil.rmtree(tensorboard_path, ignore_errors=True)
 
     @property
     def sess(self):
         return self.config.sess
 
     def start(self, **kwargs):
+        self.summary_path = self.config.summary_path
+        self.tensorboard_path = self.config.tensorboard_path or self.summary_path
+
+        self.summaries = {}
+        self.summary_fetches = {}
+        self.summary_results = {}
+        self.run_metadatas = {}
+        self.writers = {}
+
+        # get graph
         self.kwargs = kwargs
         if "graph" not in self.kwargs:
             self.kwargs["graph"] = self.sess.graph
 
         # prepare clean directory
-        shutil.rmtree(self.path, ignore_errors=True)
-        os.makedirs(self.path, exist_ok=True)
+        shutil.rmtree(self.summary_path, ignore_errors=True)
+        os.makedirs(self.summary_path, exist_ok=True)
 
         # start tensorboard server
         server = self.config.get("tensorboard", False)
-        if server:
-            self.server = Popen(["tensorboard", "--logdir", self.path])
+        if server and self.server is None:
+            self.server = Popen(["tensorboard", "--logdir", self.tensorboard_path])
             log(f"Started tensorboard server: http://{self.config.ip}:6006")
 
-    def stop(self):
+    def stop(self, stop_server=True):
         for _, writer in self.writers.items():
             writer.close()
         self.writers = {}
 
         # stop server
-        if self.server is not None:
+        if stop_server and self.server is not None:
             self.server.terminate()
             self.server = None
 
@@ -151,7 +157,7 @@ class SummaryWriter(object):
         # flush summary data
         for query in queries:
             # get writer
-            path = os.path.abspath(self.path)
+            path = os.path.abspath(self.summary_path)
             if query is None:
                 path = os.path.join(path, DEFAULT_SUBDIRECTORY)
             else:

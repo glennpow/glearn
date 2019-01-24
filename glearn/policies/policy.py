@@ -8,6 +8,7 @@ class Policy(NetworkContext):
         super().__init__(config)
 
         self.multithreaded = config.get("multithreaded", False)  # TODO get this from dataset
+        self.threads = None
 
         if self.rendering:
             self.init_viewer()
@@ -35,10 +36,11 @@ class Policy(NetworkContext):
             print(f"Started training threads: {num_threads}")
 
     def stop_threading(self):
-        if self.multithreaded:
+        if self.multithreaded and self.threads:
             # join all threads
             self.coord.request_stop()
             self.coord.join(self.threads)
+            self.threads = None
 
     def build_model(self):
         # create input/output nodes
