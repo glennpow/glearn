@@ -26,6 +26,14 @@ class Interface(object):
         ]
         return f"Interface({', '.join(properties)})"
 
+    @property
+    def stochastic(self):
+        return not self.deterministic
+
+    @property
+    def continuous(self):
+        return not self.discrete
+
     def sample(self):
         if self.discrete:
             result = np.zeros(self.size)

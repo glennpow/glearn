@@ -15,7 +15,6 @@ COLOR_NUMBERS = dict(
     crimson=38
 )
 MAX_TABULAR_WIDTH = 120
-SQUEEZE_ARRAYS = True
 
 
 def colorize(string, color, bold=False, highlight=False):
@@ -36,7 +35,8 @@ def print_update(message, color=None, bold=False, highlight=False):
     sys.stdout.write("\033[K")
 
 
-def print_tabular(values, grouped=False, color=None, bold=False, show_type=True, padding=2):
+def print_tabular(values, grouped=False, color=None, bold=False, show_type=True, padding=2,
+                  squeeze=True):
     # Create strings for printing
     if not grouped:
         values = {None: values}
@@ -45,7 +45,7 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
         group_format = []
         formatted[header] = group_format
         for (key, val) in group.items():
-            ftype, fval = _format_tabular_data(val)
+            ftype, fval = _format_tabular_data(val, squeeze=squeeze)
             if show_type:
                 group_format.append([key, fval, ftype])
             else:
@@ -67,16 +67,15 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
             table_width = max(header_width, table_width)
 
     # Write out the data
-    equals = '═' * table_width
-    top = "┌" + equals + "┐"
-    bottom = "└" + equals + "┘"
-    dotted = "├" + ('-' * table_width) + "┤"
-    dashes = "│" + ('░' * table_width) + "│"
+    top = "┌" + ('░' * table_width) + "┐"
+    bottom = "└" + ('─' * table_width) + "┘"
+    header_top = "├" + ('░' * table_width) + "┤"
+    header_bottom = "├" + ('╶' * table_width) + "┤"
     lines = []
     for header, group in formatted.items():
-        lines.append(top if len(lines) == 0 else dashes)
+        lines.append(top if len(lines) == 0 else header_top)
         if header is not None:
-            lines += ["│" + (" " * padding + header).ljust(table_width) + "│", dotted]
+            lines += ["│" + (" " * padding + header).ljust(table_width) + "│", header_bottom]
         group_widths = widths[header]
         for f in group:
             cols = []
@@ -94,7 +93,7 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
     print(message)
 
 
-def _format_tabular_data(value):
+def _format_tabular_data(value, squeeze=False):
     typename = type(value).__name__
     if isinstance(value, str):
         pass
@@ -107,7 +106,7 @@ def _format_tabular_data(value):
         if isinstance(value, abc.Iterable):
             typename = f"{typename}{np.shape(value)}"
         value = np.array(value)
-        if SQUEEZE_ARRAYS:
+        if squeeze:
             value = np.squeeze(value)
         value = f"{value}".replace('\n', ' ')
     if len(value) > MAX_TABULAR_WIDTH:

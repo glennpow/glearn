@@ -3,7 +3,6 @@ from tensorflow.python.ops import math_ops
 from glearn.utils.log import Loggable
 from glearn.networks.context import num_variable_parameters
 from glearn.networks.layers.layer import load_layer
-# from glearn.networks.losses import load_loss
 from glearn.networks.layers.distributions.distribution import DistributionLayer
 
 
@@ -24,6 +23,10 @@ class Network(Loggable):
     @property
     def seed(self):
         return self.context.seed
+
+    @property
+    def summary(self):
+        return self.context.summary
 
     def add_layer(self, layer):
         self.layers.append(layer)
@@ -122,7 +125,7 @@ class Network(Loggable):
             # build combined total loss
             total_loss = self.get_total_loss()
 
-        self.context.summary.add_scalar("accuracy", accuracy, "evaluate")
+        self.summary.add_scalar("accuracy", accuracy, "evaluate")
 
         return total_loss, accuracy
 

@@ -88,7 +88,8 @@ class Config(object):
             self.env.seed(self.seed)
 
             self.input = Interface(self.env.observation_space)
-            self.output = Interface(self.env.action_space, deterministic=False)  # FIXME - stoch?
+            # FIXME - network output should determine if stochastic (distribution) or deterministic
+            self.output = Interface(self.env.action_space, deterministic=False)
 
         # init tensorboard summaries and server
         self._init_summaries()

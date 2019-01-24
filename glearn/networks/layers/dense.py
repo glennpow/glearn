@@ -44,20 +44,6 @@ class DenseLayer(NetworkLayer):
 
         return y
 
-    # def build_predict(self, y):
-    #     # create output layer
-    #     output_interface = self.network.context.output
-    #     if output_interface.discrete:
-    #         y = self.dense(y, output_interface.size, self.dropout, tf.nn.softmax,
-    #                        weights_initializer=self.references["weights_initializer"],
-    #                        biases_initializer=self.references["weights_initializer"])
-    #         self.references["logits"] = self.references["Z"]
-    #     else:
-    #         y = self.dense(y, output_interface.size, self.dropout, None,
-    #                        weights_initializer=self.references["weights_initializer"],
-    #                        biases_initializer=self.references["weights_initializer"])
-    #     return y
-
     def build_loss(self, outputs):
         # evaluate continuous loss
         loss = tf.reduce_mean(tf.square(outputs - self.outputs))

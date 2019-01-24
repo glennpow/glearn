@@ -23,7 +23,7 @@ class CategoricalDistributionLayer(DistributionLayer):
         y = super().build_predict(y)
 
         # log prediction distribution
-        self.context.summary.add_histogram("predict", self.references["category"], "evaluate")
+        self.summary.add_histogram("predict", self.references["category"], "evaluate")
 
         return y
 
@@ -86,7 +86,7 @@ class CategoricalDistributionLayer(DistributionLayer):
         if self.context.output.deterministic:
             y = tf.argmax(distribution.probs, -1, name="sample")
         else:
-            y = distribution.sample(seed=self.seed, name="sample")
+            y = distribution.sample(name="sample")
         self.references["category"] = y
 
         return distribution
@@ -114,7 +114,7 @@ class DiscretizedDistributionLayer(CategoricalDistributionLayer):
         self.references["distribution"] = distribution
 
         # sample from distribution
-        y = tf.expand_dims(tf.cast(distribution.sample(seed=self.seed), tf.float32), -1)
+        y = tf.expand_dims(tf.cast(distribution.sample(), tf.float32), -1)
 
         return y
 

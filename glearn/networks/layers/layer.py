@@ -29,6 +29,10 @@ class NetworkLayer(object):
         return self.network.context
 
     @property
+    def summary(self):
+        return self.network.summary
+
+    @property
     def trainable(self):
         return self.network.trainable
 
@@ -70,7 +74,11 @@ class NetworkLayer(object):
         return inputs
 
     def build_predict(self, y):
-        # override
+        # clip output
+        if self.config.output.continuous:
+            output_space = self.config.output.space
+            y = tf.clip_by_value(y, output_space.low, output_space.high)
+
         return y
 
     def build_loss(self, outputs):
@@ -113,8 +121,8 @@ class NetworkLayer(object):
             Z = tf.add(Z, b)
 
             # activation
+            self.references["Z"] = Z
             if activation is not None:
-                self.references["Z"] = Z
                 activation_func = self.load_callable(activation)
                 A = activation_func(Z)
             else:
@@ -130,4 +138,4 @@ class NetworkLayer(object):
     def activation_summary(self, query=None):
         activation = self.references.get("activation")
         if activation is not None:
-            self.context.summary.add_activation(activation, query=query)
+            self.summary.add_activation(activation, query=query)

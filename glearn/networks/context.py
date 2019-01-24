@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from glearn.utils.config import Configurable
+from glearn.utils.printing import print_tabular
 
 
 GLOBAL_FEED_FAMILY = "*"
@@ -162,11 +163,16 @@ class NetworkContext(Configurable):
         if len(fetches) > 0:
             if self.debug_runs:
                 queries_s = ', '.join(queries)
-                feeds_s = ', '.join(list(feed_map.keys()))
                 fetches_s = ', '.join(list(fetches.keys()))
-                message = (f"Run | Families: '{queries_s}' | Feeds: '{feeds_s}'"
-                           f" | Fetches: '{fetches_s}'")
-                self.log(message, "cyan", bold=True)
+                info = {
+                    "Run": {
+                        "Queries": queries_s,
+                        "Fetches": fetches_s,
+                    },
+                    "Feeds": feed_map,
+                }
+
+                print_tabular(info, grouped=True, show_type=True, color="cyan", bold=True)
 
             # build final feed_dict
             feed_dict = self.build_feed_dict(feed_map, queries=queries)

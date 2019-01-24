@@ -154,7 +154,7 @@ class Trainer(Configurable):
             # interval is a single episode
             return 1
 
-    def optimize_loss(self, loss, query="optimize", definition=None, update_global_step=True):
+    def optimize_loss(self, loss, query, definition=None, update_global_step=True):
         # default definition
         if definition is None:
             definition = self.kwargs
@@ -452,7 +452,7 @@ class Trainer(Configurable):
 
         # check for invalid values in the current graph
         if self.debug_numerics:
-            self.policy.set_fetch("check", tf.add_check_numerics_ops(), "optimize")
+            self.policy.set_fetch("check", tf.add_check_numerics_ops(), "policy_optimize")
 
         # prepare viewer
         self.viewer.prepare(self)
