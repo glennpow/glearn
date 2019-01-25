@@ -1,5 +1,6 @@
 import os
 import shutil
+import atexit
 import tensorflow as tf
 from subprocess import Popen
 from glearn.utils.log import log
@@ -52,15 +53,20 @@ class SummaryWriter(object):
         server = self.config.get("tensorboard", False)
         if server and self.server is None:
             self.server = Popen(["tensorboard", "--logdir", self.tensorboard_path])
+            atexit.register(self.stop_server)
+
             log(f"Started tensorboard server: http://{self.config.ip}:6006")
 
-    def stop(self, stop_server=True):
+    def stop(self):
         for _, writer in self.writers.items():
             writer.close()
         self.writers = {}
 
+    def stop_server(self):
         # stop server
-        if stop_server and self.server is not None:
+        if self.server is not None:
+            log(f"Stopping tensorboard server")
+
             self.server.terminate()
             self.server = None
 

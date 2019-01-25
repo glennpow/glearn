@@ -1,4 +1,5 @@
 import os
+import time
 import yaml
 import json
 import collections
@@ -210,6 +211,9 @@ class Config(object):
         # start summary logging and tensorboard
         self._start_summaries()
 
+        # start checkpoint saving/loading
+        self._start_checkpoints()
+
     def has(self, key):
         return key in self.current_properties
 
@@ -253,15 +257,17 @@ class Config(object):
         # set default session
         self.sess = DebuggableSession(self)
 
+        # get global step
+        self.global_step = tf.train.get_or_create_global_step()
+
     def start_session(self):
         # initialize all global variables
         self.sess.run(tf.global_variables_initializer())
 
-    def stop_session(self):
+    def close_session(self):
         if self.sess:
             # stop summary logging and tensorboard
-            final_evaluation = self.current_evaluation + 1 >= self.num_evaluations
-            self._stop_summaries(stop_server=final_evaluation)
+            self._stop_summaries()
 
             self.sess.close()
             self.sess = None
@@ -280,9 +286,49 @@ class Config(object):
                 self.summary = NullSummaryWriter()
         self.summary.start()
 
-    def _stop_summaries(self, stop_server=True):
+    def _stop_summaries(self):
         if self.summary is not None:
-            self.summary.stop(stop_server=stop_server)
+            self.summary.stop()
+
+    def _start_checkpoints(self):
+        print("_start_checkpoints")
+        # init saver
+        if self.save_path is None and self.load_path is None:
+            self.saver = None
+            return
+        else:
+            # TODO - Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2, ...)
+            self.saver = tf.train.Saver()
+
+        # load any previously saved data for the current version
+        self.load()
+
+        # prepare save directory
+        if self.save_path is not None:
+            log(f"Preparing to save checkpoints: {self.save_path}")
+            save_dir = os.path.dirname(self.save_path)
+            os.makedirs(save_dir, exist_ok=True)
+            self.dirty_meta_graph = True
+            # TODO - clear old dir?
+
+    def save(self):
+        if self.save_path is not None:
+            t0 = time.time()
+            save_path = self.saver.save(self.sess, self.save_path, global_step=self.global_step,
+                                        write_meta_graph=self.dirty_meta_graph)
+            self.dirty_meta_graph = False
+
+            # TODO - could show total file size as well...
+            log(f"Saved model: {save_path}  ({time.time() - t0:.2} secs)")
+
+    def load(self):
+        if self.load_path is not None:
+            if os.path.exists(f"{self.load_path}.index"):
+                try:
+                    log(f"Loading model: {self.load_path}")
+                    self.saver.restore(self.sess, self.load_path)
+                except Exception as e:
+                    self.error(str(e))
 
 
 class Configurable(Loggable):
@@ -336,6 +382,10 @@ class Configurable(Loggable):
     @property
     def summary(self):
         return self.config.summary
+
+    @property
+    def global_step(self):
+        return self.config.global_step
 
 
 def load_config(identifier, version=None, render=False, debug=False, search_defaults=True):

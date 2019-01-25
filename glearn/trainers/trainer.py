@@ -1,4 +1,3 @@
-import os
 import time
 import random
 import numpy as np
@@ -42,9 +41,6 @@ class Trainer(Configurable):
         self.episode_reward = 0
         self.batch = None
 
-        # get global step
-        self.global_step = tf.train.get_or_create_global_step()
-
         if self.rendering:
             self.init_viewer()
         self.init_optimizer()
@@ -81,62 +77,6 @@ class Trainer(Configurable):
         print()
         print_tabular(info, grouped=True, show_type=False, color="white", bold=True)
         print()
-
-    def start_session(self):
-        self.config.start_session()
-        self.policy.start_session()
-
-        self.init_checkpoints()
-
-    def stop_session(self):
-        self.policy.stop_session()
-        self.config.stop_session()
-
-    @property
-    def save_path(self):
-        return self.config.save_path
-
-    @property
-    def load_path(self):
-        return self.config.load_path
-
-    def init_checkpoints(self):
-        # init saver
-        if self.save_path is None and self.load_path is None:
-            self.saver = None
-            return
-        else:
-            # TODO - Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2, ...)
-            self.saver = tf.train.Saver()
-
-        # load any previously saved data for the current version
-        if self.load_path is not None:
-            self.load(self.load_path)
-
-        # prepare save directory
-        if self.save_path is not None:
-            self.log(f"Preparing to save checkpoints: {self.save_path}")
-            save_dir = os.path.dirname(self.save_path)
-            os.makedirs(save_dir, exist_ok=True)
-            self.dirty_meta_graph = True
-            # TODO - clear old dir?
-
-    def save(self, path):
-        t0 = time.time()
-        save_path = self.saver.save(self.sess, path, global_step=self.global_step,
-                                    write_meta_graph=self.dirty_meta_graph)
-        self.dirty_meta_graph = False
-
-        # TODO - could show total file size as well...
-        self.log(f"Saved model: {save_path}  ({time.time() - t0:.2} secs)")
-
-    def load(self, path):
-        if os.path.exists(f"{path}.index"):
-            try:
-                self.log(f"Loading model: {path}")
-                self.saver.restore(self.sess, path)
-            except Exception as e:
-                self.error(str(e))
 
     def reset(self):
         # reset env and episode
@@ -193,9 +133,14 @@ class Trainer(Configurable):
             clipped_grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
 
             # metric to observe clipped gradient ratio
-            unequal = [tf.reduce_mean(tf.cast(tf.not_equal(grad, clipped_grad), tf.float32))
-                       for grad, clipped_grad in list(zip(grads, clipped_grads))]
-            clipped_ratio = tf.reduce_mean(unequal)
+            if self.debugging:
+                safe_grads = [grad if grad is not None else 0 for grad in grads]
+                safe_clipped_grads = [grad if grad is not None else 0 for grad in clipped_grads]
+                unequal = [tf.reduce_mean(tf.cast(tf.not_equal(grad, clipped_grad), tf.float32))
+                           for grad, clipped_grad in list(zip(safe_grads, safe_clipped_grads))]
+                clipped_ratio = tf.reduce_mean(unequal)
+                if max_grad_norm is not None:
+                    self.summary.add_scalar("clipped_ratio", clipped_ratio, query)
 
             grads = clipped_grads
 
@@ -210,8 +155,6 @@ class Trainer(Configurable):
         self.summary.add_scalar("learning_rate", learning_rate, query)
         if self.debug_gradients:
             self.summary.add_gradients(zip(grads, tvars), "evaluate")
-        if max_grad_norm is not None:
-            self.summary.add_scalar("clipped_ratio", clipped_ratio, query)
 
         return optimize
 
@@ -438,8 +381,7 @@ class Trainer(Configurable):
                 print_gpu_memory()
 
         # save model
-        if self.save_path is not None:
-            self.save(self.save_path)
+        self.config.save()
 
         print()
 
@@ -483,24 +425,17 @@ class Trainer(Configurable):
 
         # main training loop
         def train_loop():
-            # start TF session
-            self.start_session()
+            # get current global step, and prepare evaluation counters
+            global_step = tf.train.global_step(self.sess, self.global_step)
+            self.current_global_step = global_step
+            self.last_eval_time = None
+            self.last_eval_step = self.current_global_step
 
-            try:
-                # get current global step, and prepare evaluation counters
-                global_step = tf.train.global_step(self.sess, self.global_step)
-                self.current_global_step = global_step
-                self.last_eval_time = None
-                self.last_eval_step = self.current_global_step
-
-                # do supervised or reinforcement loop
-                if self.supervised:
-                    self.train_supervised_loop(train_yield)
-                else:
-                    self.train_reinforcement_loop(train_yield)
-            finally:
-                # cleanup TF session after evaluation
-                self.stop_session()
+            # do supervised or reinforcement loop
+            if self.supervised:
+                self.train_supervised_loop(train_yield)
+            else:
+                self.train_reinforcement_loop(train_yield)
 
         if profile:
             # profile training loop
@@ -518,7 +453,7 @@ class Trainer(Configurable):
         while self.epochs is None or epoch < self.epochs:
             # start current epoch
             epoch_size = self.dataset.reset(mode="train")
-            self.dirty_meta_graph = True  # FIXME - do we need to ever do this again during train?
+            self.config.dirty_meta_graph = True  # FIXME - do we need to do this during training?
             self.epoch = epoch
             self.iteration_start_time = time.time()
 

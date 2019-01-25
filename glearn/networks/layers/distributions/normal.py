@@ -53,6 +53,7 @@ class NormalDistributionLayer(DistributionLayer):
                            biases_initializer=biases_initializer)
         if self.sigma_scale != 1:
             sigma *= self.sigma_scale
+        sigma += 1e-5
         self.references["sigma"] = sigma
         self.summary.add_scalar("sigma", tf.reduce_mean(sigma), "evaluate")
 
