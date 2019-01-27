@@ -64,7 +64,8 @@ class NormalDistributionLayer(DistributionLayer):
         # sample from distribution
         y = distribution.sample()
 
-        # TODO - more summaries
+        # log prediction distribution
+        self.summary.add_histogram("predict", y, "evaluate")
         # if hasattr(policy_distribution, "stddev"):
         #     action_stddev = tf.reduce_mean(tf.squeeze(policy_distribution.stddev()))
         #     self.summary.add_scalar("action_stddev", action_stddev, "evaluate")
