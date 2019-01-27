@@ -130,19 +130,20 @@ class Trainer(Configurable):
 
         # apply gradient clipping
         if max_grad_norm is not None:
-            clipped_grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
+            with tf.name_scope("clipped_gradients"):
+                clipped_grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
 
-            # metric to observe clipped gradient ratio
-            if self.debugging:
-                safe_grads = [grad if grad is not None else 0 for grad in grads]
-                safe_clipped_grads = [grad if grad is not None else 0 for grad in clipped_grads]
-                unequal = [tf.reduce_mean(tf.cast(tf.not_equal(grad, clipped_grad), tf.float32))
-                           for grad, clipped_grad in list(zip(safe_grads, safe_clipped_grads))]
-                clipped_ratio = tf.reduce_mean(unequal)
-                if max_grad_norm is not None:
-                    self.summary.add_scalar("clipped_ratio", clipped_ratio, query)
+                # metric to observe clipped gradient ratio
+                if self.debugging:
+                    safe_grads = [g if g is not None else 0 for g in grads]
+                    safe_clipped_grads = [g if g is not None else 0 for g in clipped_grads]
+                    unequal = [tf.reduce_mean(tf.cast(tf.not_equal(g, clipped_g), tf.float32))
+                               for g, clipped_g in list(zip(safe_grads, safe_clipped_grads))]
+                    clipped_ratio = tf.reduce_mean(unequal)
+                    if max_grad_norm is not None:
+                        self.summary.add_scalar("clipped_ratio", clipped_ratio, query)
 
-            grads = clipped_grads
+                grads = clipped_grads
 
         if require_unzip:
             grads_tvars = zip(grads, tvars)

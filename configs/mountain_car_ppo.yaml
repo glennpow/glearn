@@ -1,0 +1,51 @@
+--- # Mountain Car
+  import: base
+
+  env: MountainCarContinuous-v0
+  batch_size: 128
+
+  policy:
+    name: glearn.policies:NetworkPolicy
+    args:
+      network:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [400]
+          # - name: glearn.networks:DiscretizedDistributionLayer
+          #   args:
+          #     divs: 3
+          #     low: -2
+          #     high: 2
+          #     ent_coef: 1.0e-4
+          - name: glearn.networks:NormalDistributionLayer
+            args:
+              ent_coef: 2.782559402207126e-05
+
+  trainer:
+    name: glearn.trainers:PPOTrainer
+    args:
+      critic:
+        optimizer: adam
+        learning_rate: 0.00046415888336127773
+        max_grad_norm: 5
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [100]
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1]
+              activation: null
+      optimizer: adam
+      learning_rate: 1.0e-4
+      max_grad_norm: 5
+      gamma: 0.999
+      episodes: 1000
+      # keep_prob: 0.8
+      epsilon: [1, 0.1, 250]
+      evaluate_interval: 1
+
+  # sweeps:
+  #   "trainer.args.learning_rate": [1.0e-2, 1.0e-3, 1.0e-4]
+  #   "critic.learning_rate": [4.6e-1, 4.6e-2, 4.6e-4]
