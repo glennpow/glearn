@@ -85,7 +85,6 @@ class Trainer(Configurable):
         # reset env and episode
         if self.env is not None:
             self.observation = self.env.reset()
-            self.transitions = []
             self.episode_reward = 0
 
     def get_interval_size(self):
@@ -294,7 +293,9 @@ class Trainer(Configurable):
         return results
 
     def should_evaluate(self):
-        return self.current_global_step % self.evaluate_interval == 0
+        if self.reinforcement and len(self.transitions) < self.batch_size:
+            return False
+        return not self.training or self.current_global_step % self.evaluate_interval == 0
 
     def evaluate(self, experiment_yield):
         # Evaluate using the test dataset
@@ -545,16 +546,26 @@ class Trainer(Configurable):
                     episode_times.append(episode_time)
                     episode_steps.append(self.episode_step)
 
+                    # stats update
+                    episode_num = len(episode_rewards)
+                    transitions = len(self.transitions)
+                    print_update(f"Simulating | Episode: {episode_num} | Time: {episode_time:.02}"
+                                 f" | Reward: {self.episode_reward} | Transitions: {transitions}")
+
                     # optimize when enough transitions have been gathered
+                    processed_transitions = False
                     if self.should_optimize():
+                        processed_transitions = True
                         self.optimize()
 
                     # evaluate if time to do so
                     if self.should_evaluate():
+                        processed_transitions = True
                         self.evaluate(experiment_yield)
 
                         # episode summary values
-                        self.summary.add_simple_value("episode_reward", np.mean(episode_rewards),
+                        avg_rewards = np.mean(episode_rewards)
+                        self.summary.add_simple_value("episode_reward", avg_rewards,
                                                       "experiment")
                         self.summary.add_simple_value("max_episode_reward",
                                                       self.max_episode_reward, "experiment")
@@ -568,6 +579,14 @@ class Trainer(Configurable):
                             self.env.evaluate(self.policy)
 
                         reset_evaluate = True
+
+                        if not self.training:
+                            self.current_global_step += 1
+
+                    # clear transitions after processing
+                    if processed_transitions:
+                        self.transitions = []
+
                     break
 
             if not self.running:
