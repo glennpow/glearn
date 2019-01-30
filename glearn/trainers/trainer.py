@@ -14,14 +14,15 @@ from glearn.utils.memory import print_virtual_memory, print_gpu_memory
 
 
 class Trainer(Configurable):
-    def __init__(self, config, policy, epochs=None, episodes=None, max_episode_time=None,
-                 min_episode_reward=None, evaluate_interval=10, epsilon=0, keep_prob=1, **kwargs):
+    def __init__(self, config, policy, epochs=None, episodes=None,
+                 max_episode_time=None, min_episode_reward=None, evaluate_interval=10, epsilon=0,
+                 keep_prob=1, **kwargs):
         super().__init__(config)
 
         self.policy = policy
         self.kwargs = kwargs
 
-        self.batch_size = config.get("batch_size", 1)
+        self.batch_size = self.config.get("batch_size", 1)
         self.debug_gradients = self.config.is_debugging("debug_gradients")
         self.debug_memory = self.config.is_debugging("debug_memory")
         self.debug_numerics = self.config.is_debugging("debug_numerics")
@@ -31,6 +32,7 @@ class Trainer(Configurable):
         self.max_episode_time = max_episode_time
         self.min_episode_reward = min_episode_reward
         self.evaluate_interval = evaluate_interval
+
         self.epsilon = epsilon
         self.keep_prob = keep_prob
 
@@ -48,6 +50,7 @@ class Trainer(Configurable):
     def __str__(self):
         properties = [
             "supervised" if self.supervised else "reinforcement",
+            "training" if self.training else "evaluating",
         ]
         return f"{type(self).__name__}({', '.join(properties)})"
 
@@ -66,7 +69,7 @@ class Trainer(Configurable):
             info["Dataset"] = self.dataset.get_info()
         else:
             info["Environment"] = {
-                "Description": self.project,
+                "Description": self.env.name,
                 "Input": self.input,
                 "Output": self.output,
             }
@@ -210,11 +213,11 @@ class Trainer(Configurable):
 
     def action(self):
         # decaying epsilon-greedy
-        epsilon = self.epsilon
+        epsilon = self.epsilon if self.training else 0
         if isinstance(epsilon, list):
             t = min(1, self.current_global_step / epsilon[2])
             epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
-            self.summary.add_simple_value("epsilon", epsilon, "train")
+            self.summary.add_simple_value("epsilon", epsilon, "experiment")
 
         # get action
         if epsilon > 0 and np.random.random() < epsilon:
@@ -265,6 +268,14 @@ class Trainer(Configurable):
     def post_optimize(self, feed_map):
         pass
 
+    def should_optimize(self):
+        if not self.training:
+            return False
+        if self.supervised:
+            return True
+        else:
+            return len(self.transitions) >= self.batch_size
+
     def optimize(self):
         # get either supervised or unsupervised batch data and feeds
         self.batch, feed_map = self.get_batch()
@@ -274,22 +285,18 @@ class Trainer(Configurable):
 
         # get current global step (TODO: add global_step fetch into above run)
         global_step = tf.train.global_step(self.sess, self.global_step)
-        global_step += 1  # HACK: +1, this doesn't seem to be updated yet
         self.current_global_step = global_step
 
         # print log
         iteration_name = "Epoch" if self.supervised else "Episode"
         iteration = self.epoch if self.supervised else self.episode
-        step = self.epoch_step if self.supervised else self.episode_step
-        print_update(f"Optimizing | {iteration_name}: {iteration} | Step: {step} | "
-                     f"Global Step: {global_step} | Eval. Steps: {self.evaluate_interval}")
+        print_update(f"Optimizing | {iteration_name}: {iteration} | Global Step: {global_step}")
         return results
 
-    @property
-    def evaluating(self):
+    def should_evaluate(self):
         return self.current_global_step % self.evaluate_interval == 0
 
-    def evaluate(self, train_yield):
+    def evaluate(self, experiment_yield):
         # Evaluate using the test dataset
         queries = ["evaluate"]
 
@@ -326,15 +333,15 @@ class Trainer(Configurable):
                     else:
                         averaged_results[k] = v
 
-            if train_yield():
+            if experiment_yield():
                 return
 
         if report_results is not None:
             # log stats for current evaluation
             current_time = time.time()
-            train_elapsed_time = current_time - self.train_start_time
+            train_elapsed_time = current_time - self.start_time
             iteration_elapsed_time = current_time - self.iteration_start_time
-            eval_elapsed_time = eval_start_time - (self.last_eval_time or self.train_start_time)
+            eval_elapsed_time = eval_start_time - (self.last_eval_time or self.start_time)
             eval_steps = self.current_global_step - (self.last_eval_step or 0)
             steps_per_second = eval_steps / eval_elapsed_time
             self.last_eval_time = current_time
@@ -374,7 +381,7 @@ class Trainer(Configurable):
             print_tabular(table, grouped=True)
 
             # summaries
-            self.summary.add_simple_value("steps_per_second", steps_per_second, "train")
+            self.summary.add_simple_value("steps_per_second", steps_per_second, "experiment")
 
             # profile memory
             if self.debug_memory:
@@ -386,11 +393,11 @@ class Trainer(Configurable):
 
         print()
 
-    def train(self, render=False, profile=False):
+    def start(self, render=False, profile=False):
         self.max_episode_reward = None
-        self.training = True
+        self.running = True
         self.paused = False
-        self.train_start_time = time.time()
+        self.start_time = time.time()
 
         # check for invalid values in the current graph
         if self.debug_numerics:
@@ -399,18 +406,18 @@ class Trainer(Configurable):
         # prepare viewer
         self.viewer.prepare(self)
 
-        # print training info
+        # print experiment info
         self.print_info()
 
-        # yield after each training iteration
-        def train_yield(flush_summary=False):
+        # yield after each experiment iteration
+        def experiment_yield(flush_summary=False):
             # write summary results
             if flush_summary:
                 self.policy.summary.flush(global_step=self.current_global_step)
 
             while True:
-                # check if training stopped
-                if not self.training:
+                # check if experiment stopped
+                if not self.running:
                     return True
 
                 # render frame
@@ -424,8 +431,8 @@ class Trainer(Configurable):
                     break
             return False
 
-        # main training loop
-        def train_loop():
+        # main experiment loop
+        def experiment_loop():
             # get current global step, and prepare evaluation counters
             global_step = tf.train.global_step(self.sess, self.global_step)
             self.current_global_step = global_step
@@ -434,52 +441,58 @@ class Trainer(Configurable):
 
             # do supervised or reinforcement loop
             if self.supervised:
-                self.train_supervised_loop(train_yield)
+                self.experiment_supervised_loop(experiment_yield)
             else:
-                self.train_reinforcement_loop(train_yield)
+                self.experiment_reinforcement_loop(experiment_yield)
 
         if profile:
-            # profile training loop
-            profile_path = run_profile(train_loop, self.config)
+            # profile experiment loop
+            profile_path = run_profile(experiment_loop, self.config)
 
             # show profiling results
             open_profile(profile_path)
         else:
             # run training loop without profiling
-            train_loop()
+            experiment_loop()
 
-    def train_supervised_loop(self, train_yield):
+    def experiment_supervised_loop(self, experiment_yield):
         # supervised learning
-        epoch = 0
-        while self.epochs is None or epoch < self.epochs:
-            # start current epoch
-            epoch_size = self.dataset.reset(mode="train")
-            self.config.dirty_meta_graph = True  # FIXME - do we need to do this during training?
-            self.epoch = epoch
+        if self.training:
+            # train desired epochs
+            epoch = 0
+            while self.epochs is None or epoch < self.epochs:
+                # start current epoch
+                epoch_size = self.dataset.reset(mode="train")
+                self.epoch = epoch
+                self.iteration_start_time = time.time()
+
+                # epoch summary
+                global_epoch = self.current_global_step / epoch_size
+                self.summary.add_simple_value("epoch", global_epoch, "experiment")
+
+                for step in range(epoch_size):
+                    # epoch time
+                    self.epoch_step = step + 1
+
+                    # optimize batch
+                    self.optimize()
+
+                    # evaluate if time to do so
+                    if self.should_evaluate():
+                        self.evaluate(experiment_yield)
+
+                    if experiment_yield(True):
+                        return
+                epoch += 1
+        else:
+            # evaluate single epoch
+            self.epoch = 0
             self.iteration_start_time = time.time()
+            self.evaluate(experiment_yield)
 
-            # epoch summary
-            global_epoch = self.current_global_step / epoch_size
-            self.summary.add_simple_value("epoch", global_epoch, "train")
-
-            for step in range(epoch_size):
-                # epoch time
-                self.epoch_step = step + 1
-
-                # optimize batch
-                self.optimize()
-
-                # evaluate if time to do so
-                if self.evaluating:
-                    self.evaluate(train_yield)
-
-                if train_yield(True):
-                    return
-            epoch += 1
-
-    def train_reinforcement_loop(self, train_yield):
+    def experiment_reinforcement_loop(self, experiment_yield):
         # reinforcement learning
-        episode = 0  # TODO - store this in saved variable
+        episode = 0
         reset_evaluate = True
 
         while self.episodes is None or episode < self.episodes:
@@ -490,15 +503,15 @@ class Trainer(Configurable):
             self.episode_step = 0
 
             # episode count summary
-            self.summary.add_simple_value("episode", episode, "train")
+            self.summary.add_simple_value("episode", episode, "experiment")
 
             if reset_evaluate:
                 episode_rewards = []
                 episode_times = []
                 episode_steps = []
 
-            while self.training:
-                if train_yield(True):
+            while self.running:
+                if experiment_yield(True):
                     return
 
                 # rollout
@@ -532,22 +545,23 @@ class Trainer(Configurable):
                     episode_times.append(episode_time)
                     episode_steps.append(self.episode_step)
 
-                    # optimize after episode
-                    self.optimize()
+                    # optimize when enough transitions have been gathered
+                    if self.should_optimize():
+                        self.optimize()
 
                     # evaluate if time to do so
-                    if self.evaluating:
-                        self.evaluate(train_yield)
+                    if self.should_evaluate():
+                        self.evaluate(experiment_yield)
 
                         # episode summary values
                         self.summary.add_simple_value("episode_reward", np.mean(episode_rewards),
-                                                      "train")
+                                                      "experiment")
                         self.summary.add_simple_value("max_episode_reward",
-                                                      self.max_episode_reward, "train")
+                                                      self.max_episode_reward, "experiment")
                         self.summary.add_simple_value("episode_time", np.mean(episode_times),
-                                                      "train")
+                                                      "experiment")
                         self.summary.add_simple_value("episode_steps", np.mean(episode_steps),
-                                                      "train")
+                                                      "experiment")
 
                         # env summary values
                         if hasattr(self.env, "evaluate"):
@@ -556,10 +570,10 @@ class Trainer(Configurable):
                         reset_evaluate = True
                     break
 
-            episode += 1
-
-            if not self.training:
+            if not self.running:
                 return
+
+            episode += 1
 
     @property
     def viewer(self):
@@ -581,9 +595,9 @@ class Trainer(Configurable):
     def on_key_press(self, key, modifiers):
         # feature visualization keys
         if key == pyglet.window.key.ESCAPE:
-            self.warning("Training cancelled by user")
+            self.warning("Experiment cancelled by user")
             self.viewer.close()
-            self.training = False
+            self.running = False
         elif key == pyglet.window.key.SPACE:
-            self.warning(f"Training {'unpaused' if self.paused else 'paused'} by user")
+            self.warning(f"Experiment {'unpaused' if self.paused else 'paused'} by user")
             self.paused = not self.paused

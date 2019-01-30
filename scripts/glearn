@@ -3,6 +3,8 @@
 import os
 import argparse
 from glearn.train import train as local_train
+from glearn.evaluate import evaluate as local_evaluate
+from glearn.tensorboard import tensorboard as local_tensorboard
 from glearn.utils.subprocess_utils import parse_command_args
 
 try:
@@ -15,7 +17,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--verbose", action="store_true")
 
-    parse_command_args(parser, [train, deploy])
+    parse_command_args(parser, [train, evaluate, tb, deploy])
 
 
 def get_root_dir():
@@ -41,6 +43,40 @@ def train_usage(parser):
 
 
 train.usage = train_usage
+
+
+def evaluate(args):
+    config_path = args.config
+    version = args.version
+    render = not args.no_render
+    debug = args.debug
+
+    local_evaluate(config_path, version=version, render=render, debug=debug)
+
+
+def evaluate_usage(parser):
+    parser.add_argument("config", type=str)
+    parser.add_argument("--version", "-v", default=None)
+    parser.add_argument("--no-render", action="store_true")
+    parser.add_argument("--debug", action="store_true")
+
+
+evaluate.usage = evaluate_usage
+
+
+def tb(args):
+    config_path = args.config
+    version = args.version
+
+    local_tensorboard(config_path, version=version)
+
+
+def tb_usage(parser):
+    parser.add_argument("config", type=str)
+    parser.add_argument("--version", "-v", default=None)
+
+
+tb.usage = tb_usage
 
 
 def deploy(args):

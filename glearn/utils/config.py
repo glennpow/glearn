@@ -23,11 +23,17 @@ TEMP_DIR = "/tmp/glearn"
 
 
 class Config(object):
-    def __init__(self, path, version=None, render=False, debug=False):
+    def __init__(self, path, version=None, render=False, debug=False, training=False):
         self.path = path
         self.version = version or 1
         self.rendering = render
         self.debugging = debug
+        self.training = training
+
+        # get default log paths
+        config_name, _ = os.path.splitext(os.path.basename(path))
+        self.log_dir = f"{TEMP_DIR}/{config_name}/{self.version}"
+        self.tensorboard_path = f"{self.log_dir}/summaries/"
 
         # determine local or external IP address
         local_ip = socket.gethostbyname(socket.gethostname())
@@ -91,6 +97,15 @@ class Config(object):
                 target[k] = v
         return target
 
+    def __getitem__(self, indices):
+        assert isinstance(indices, int)
+        self.current_evaluation = indices
+        if self.current_evaluation < self.num_evaluations:
+            self._start_evaluation()
+            return self
+        else:
+            raise IndexError
+
     def __iter__(self):
         # prepare to iterate through evaluations
         self.current_evaluation = 0
@@ -98,7 +113,6 @@ class Config(object):
 
     def __next__(self):
         # iterate through evaluations
-        self.num_evaluations = len(self.evaluations) if self.evaluations else 1
         if self.current_evaluation < self.num_evaluations:
             self._start_evaluation()
             self.current_evaluation += 1
@@ -125,6 +139,7 @@ class Config(object):
                 self.evaluations = [c for d in sweeps for c in _build_combinations(d)]
             elif isinstance(sweeps, dict):
                 self.evaluations = _build_combinations(sweeps)
+        self.num_evaluations = len(self.evaluations) if self.evaluations else 1
 
     def _start_evaluation(self):
         message = f"Starting Evaluation: {self.current_evaluation + 1} / {self.num_evaluations}"
@@ -176,21 +191,15 @@ class Config(object):
         if self.has("env"):
             # make env
             self.env = load_env(self.get("env"))
-            self.project = self.env.name
         elif self.has("dataset"):
             # make dataset
             self.dataset = load_dataset(self)
-            self.project = self.dataset.name
         if self.env is None and self.dataset is None:
             raise Exception("Failed to find training env or dataset in config")
 
         # prepare log and save/load paths
-        self.log_dir = f"{TEMP_DIR}/{self.project}/{self.version}"
-        self.summary_path = f"{self.log_dir}/summaries/"
-        self.tensorboard_path = self.summary_path
-        if self.evaluations:
-            self.log_dir = f"{self.log_dir}/{self.current_evaluation + 1}"
-            self.summary_path = f"{self.summary_path}/{self.current_evaluation + 1}"
+        self.log_dir = f"{self.log_dir}/{self.current_evaluation + 1}"
+        self.summary_path = f"{self.tensorboard_path}/{self.current_evaluation + 1}"
         self.load_path = f"{self.log_dir}/model.ckpt"
         self.save_path = self.load_path
 
@@ -291,7 +300,6 @@ class Config(object):
             self.summary.stop()
 
     def _start_checkpoints(self):
-        print("_start_checkpoints")
         # init saver
         if self.save_path is None and self.load_path is None:
             self.saver = None
@@ -305,14 +313,12 @@ class Config(object):
 
         # prepare save directory
         if self.save_path is not None:
-            log(f"Preparing to save checkpoints: {self.save_path}")
             save_dir = os.path.dirname(self.save_path)
             os.makedirs(save_dir, exist_ok=True)
             self.dirty_meta_graph = True
-            # TODO - clear old dir?
 
     def save(self):
-        if self.save_path is not None:
+        if self.training and self.save_path is not None:
             t0 = time.time()
             save_path = self.saver.save(self.sess, self.save_path, global_step=self.global_step,
                                         write_meta_graph=self.dirty_meta_graph)
@@ -344,8 +350,8 @@ class Configurable(Loggable):
         return self.condfig.is_debugging(key)
 
     @property
-    def project(self):
-        return self.config.project
+    def training(self):
+        return self.config.training
 
     @property
     def dataset(self):
@@ -388,13 +394,13 @@ class Configurable(Loggable):
         return self.config.global_step
 
 
-def load_config(identifier, version=None, render=False, debug=False, search_defaults=True):
+def load_config(identifier, search_defaults=True, **kwargs):
     # locate the desired config
     config_path = find_config(identifier, search_defaults=search_defaults)
     if config_path is None or not os.path.exists(config_path):
         raise ValueError(f"Failed to locate config using identifier: '{identifier}'")
 
-    return Config(config_path, version=version, render=render, debug=debug)
+    return Config(config_path, **kwargs)
 
 
 def find_config(identifier, search_defaults=True):

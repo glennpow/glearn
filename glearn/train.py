@@ -5,9 +5,10 @@ from glearn.utils.config import load_config
 from glearn.utils.log import log_error
 
 
-def train(config_path, version=None, render=False, debug=False, profile=False):
+def train(config_path, version=None, render=False, debug=False, profile=False, training=True):
     # load config
-    config = load_config(config_path, version=version, render=render, debug=debug)
+    config = load_config(config_path, version=version, render=render, debug=debug,
+                         training=training)
 
     # run each evaluation
     for evaluation_config in config:
@@ -21,17 +22,17 @@ def train(config_path, version=None, render=False, debug=False, profile=False):
             # create trainer
             trainer = load_trainer(evaluation_config, policy)
 
-            # start TF session  (TODO - refactor)
+            # start session  (TODO - refactor this to be cleaner)
             config.start_session()
             policy.start_session()
 
-            # train policy
-            trainer.train(render=render, profile=profile)
+            # start evaluation
+            trainer.start(render=render, profile=profile)
         except Exception as e:
             log_error(f"Evaluation failed: {e}")
             traceback.print_exc()
         finally:
-            # cleanup TF session after evaluation
+            # cleanup session after evaluation
             if policy:
                 policy.stop_session()
             config.close_session()

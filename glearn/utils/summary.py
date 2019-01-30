@@ -19,12 +19,7 @@ class SummaryWriter(object):
 
     def __init__(self, config):
         self.config = config
-
-        # prepare clean tensorboard directory
         self.server = None
-        tensorboard_path = config.tensorboard_path or config.summary_path
-        log(f"Tensorboard directory: {tensorboard_path}", color="white", bold=True)
-        shutil.rmtree(tensorboard_path, ignore_errors=True)
 
     @property
     def sess(self):
@@ -32,7 +27,6 @@ class SummaryWriter(object):
 
     def start(self, **kwargs):
         self.summary_path = self.config.summary_path
-        self.tensorboard_path = self.config.tensorboard_path or self.summary_path
 
         self.summaries = {}
         self.summary_fetches = {}
@@ -45,25 +39,35 @@ class SummaryWriter(object):
         if "graph" not in self.kwargs:
             self.kwargs["graph"] = self.sess.graph
 
-        # prepare clean directory
-        shutil.rmtree(self.summary_path, ignore_errors=True)
-        os.makedirs(self.summary_path, exist_ok=True)
-
-        # start tensorboard server
         server = self.config.get("tensorboard", False)
-        if server and self.server is None:
-            self.server = Popen(["tensorboard", "--logdir", self.tensorboard_path])
-            atexit.register(self.stop_server)
+        if server:
+            # start tensorboard server
+            if self.server is None:
+                shutil.rmtree(self.config.tensorboard_path, ignore_errors=True)
 
-            log(f"Started tensorboard server: http://{self.config.ip}:6006")
+                self.start_server()
+        else:
+            # prepare summary directory
+            shutil.rmtree(self.summary_path, ignore_errors=True)
+        os.makedirs(self.summary_path, exist_ok=True)
 
     def stop(self):
         for _, writer in self.writers.items():
             writer.close()
         self.writers = {}
 
+    def start_server(self):
+        if self.server is None:
+            # start tensorboard server
+            path = self.config.tensorboard_path
+            port = 6006
+            self.server = Popen(["tensorboard", "--logdir", path])
+            atexit.register(self.stop_server)
+
+            log(f"Started tensorboard server: http://{self.config.ip}:{port}  ({path})")
+
     def stop_server(self):
-        # stop server
+        # stop tensorboard server
         if self.server is not None:
             log(f"Stopping tensorboard server")
 

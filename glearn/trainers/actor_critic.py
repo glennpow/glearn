@@ -1,7 +1,6 @@
 import tensorflow as tf
 from glearn.trainers.td import TDTrainer
 from glearn.networks import load_network
-from glearn.utils.collections import intersects
 
 
 class ActorCriticTrainer(TDTrainer):
@@ -43,7 +42,6 @@ class ActorCriticTrainer(TDTrainer):
 
     def init_actor(self):
         policy = self.policy
-        assert hasattr(policy, "network")
         self.policy_network = policy.network
 
         # build policy optimization
@@ -51,12 +49,12 @@ class ActorCriticTrainer(TDTrainer):
         with tf.name_scope(query):
             with tf.name_scope("loss"):
                 action = policy.get_feed("Y")
-                past_advantage = policy.get_fetch("advantage")
+                advantage = policy.get_fetch("advantage")
 
                 # actor loss
                 policy_distribution = policy.network.get_distribution_layer()
                 neg_logp = policy_distribution.neg_log_prob(action, name="foo")
-                actor_loss = tf.reduce_mean(neg_logp * past_advantage)
+                actor_loss = tf.reduce_mean(neg_logp * advantage)
                 self.policy_network.add_loss(actor_loss)
 
                 # total policy loss
