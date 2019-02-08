@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from glearn.utils.config import Configurable
 from glearn.utils.printing import print_tabular
+from glearn.utils.collections import subtraction
 
 
 GLOBAL_FEED_FAMILY = "*"
@@ -51,6 +52,7 @@ class NetworkContext(Configurable):
         self.latest_results = {}
 
         self.debug_runs = self.config.is_debugging("debug_runs")
+        self.debug_runs_ignored = self.config.get("debug_runs_ignored", None)
 
     def set_feed(self, name, value, queries=None):
         # set feed node, for query or global (None)
@@ -131,9 +133,6 @@ class NetworkContext(Configurable):
                 self.fetches[query] = query_fetches
             query_fetches[name] = value
 
-        # TODO - not sure why this was returning anything here...
-        # self.get_fetch(name, queries=queries)
-
     def is_fetch(self, name, queries=None):
         return self.get_fetch(name, queries=queries) is not None
 
@@ -162,17 +161,18 @@ class NetworkContext(Configurable):
 
         if len(fetches) > 0:
             if self.debug_runs:
-                queries_s = ', '.join(queries)
-                fetches_s = ', '.join(list(fetches.keys()))
-                info = {
-                    "Run": {
-                        "Queries": queries_s,
-                        "Fetches": fetches_s,
-                    },
-                    "Feeds": feed_map,
-                }
+                if not self.debug_runs_ignored or subtraction(queries, self.debug_runs_ignored):
+                    queries_s = ', '.join(queries)
+                    fetches_s = ', '.join(list(fetches.keys()))
+                    info = {
+                        "Run": {
+                            "Queries": queries_s,
+                            "Fetches": fetches_s,
+                        },
+                        "Feeds": feed_map,
+                    }
 
-                print_tabular(info, grouped=True, show_type=True, color="cyan", bold=True)
+                    print_tabular(info, grouped=True, show_type=True, color="cyan", bold=True)
 
             # build final feed_dict
             feed_dict = self.build_feed_dict(feed_map, queries=queries)
@@ -184,4 +184,46 @@ class NetworkContext(Configurable):
             self.latest_results.update(results)
 
             return results
+
+        self.warning(f"No fetches found for queries: {queries}")
         return {}
+
+
+class NetworkContextProxy(Configurable):
+    def __init__(self, config, context):
+        super().__init__(config)
+
+        self.context = context
+
+    def set_feed(self, name, value, queries=None):
+        return self.context.set_feed(name, value, queries=queries)
+
+    def create_feed(self, name, queries=None, shape=(), dtype=tf.float32):
+        return self.context.create_feed(name, queries=queries, shape=shape, dtype=dtype)
+
+    def get_or_create_feed(self, name, queries=None, shape=(), dtype=tf.float32):
+        return self.context.get_or_create_feed(name, queries=queries, shape=shape, dtype=dtype)
+
+    def get_feed(self, name, query=None):
+        return self.context.get_feed(name, query=query)
+
+    def get_feeds(self, queries=None):
+        return self.context.get_feeds(queries=queries)
+
+    def build_feed_dict(self, mapping, queries=None):
+        return self.context.build_feed_dict(mapping=mapping, queries=queries)
+
+    def set_fetch(self, name, value, queries=None):
+        return self.context.set_fetch(name, value, queries=queries)
+
+    def is_fetch(self, name, queries=None):
+        return self.context.is_fetch(name, queries=queries)
+
+    def get_fetch(self, name, queries=None):
+        return self.context.get_fetch(name, queries=queries)
+
+    def get_fetches(self, queries):
+        return self.context.get_fetches(queries)
+
+    def run(self, queries, feed_map):
+        return self.context.run(queries, feed_map=feed_map)

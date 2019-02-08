@@ -12,3 +12,7 @@ def intersects(l1, l2):
 
 def intersection(l1, l2):
     return [v for v in l1 if v in l2]
+
+
+def subtraction(l1, l2):
+    return [v for v in l1 if v not in l2]

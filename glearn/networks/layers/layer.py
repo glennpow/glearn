@@ -74,11 +74,7 @@ class NetworkLayer(object):
         return inputs
 
     def build_predict(self, y):
-        # clip output
-        if self.config.output.continuous:
-            output_space = self.config.output.space
-            y = tf.clip_by_value(y, output_space.low, output_space.high)
-
+        # override
         return y
 
     def build_loss(self, outputs):

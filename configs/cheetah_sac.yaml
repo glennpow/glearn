@@ -1,8 +1,8 @@
---- # Mountain Car
+--- # Half Cheetah
   import: base
 
-  env: MountainCarContinuous-v0
-  batch_size: 128
+  env: HalfCheetah-v2
+  batch_size: 256
 
   policy:
     name: glearn.policies:NetworkPolicy
@@ -11,39 +11,39 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [400]
+              hidden_sizes: [256, 256]
           - name: glearn.networks:NormalDistributionLayer
+        optimizer: adam
+        learning_rate: 3.0e-4
+        max_grad_norm: 5
 
   trainer:
     name: glearn.trainers:SoftActorCriticTrainer
     args:
       Q:
-        optimizer: adam
-        learning_rate: 3.0e-4
-        max_grad_norm: 5
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [100]
+              hidden_sizes: [256]
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [1]
               activation: null
+        optimizer: adam
+        learning_rate: 3.0e-4
+        max_grad_norm: 5
       V:
-        optimizer: adam
-        learning_rate: 3.0e-4
-        max_grad_norm: 5
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [100]
+              hidden_sizes: [256]
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [1]
               activation: null
-      optimizer: adam
-      learning_rate: 3.0e-4
-      max_grad_norm: 5
+        optimizer: adam
+        learning_rate: 3.0e-4
+        max_grad_norm: 5
       gamma: 0.99
       tau: 5.0e-3
       ent_coef: 2.782559402207126e-05

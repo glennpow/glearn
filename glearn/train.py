@@ -11,10 +11,8 @@ def train(config_path, version=None, render=False, debug=False, profile=False, t
                          training=training)
 
     # run each evaluation
+    error = False
     for evaluation_config in config:
-        policy = None
-        trainer = None
-
         try:
             # create policy
             policy = load_policy(evaluation_config)
@@ -22,17 +20,14 @@ def train(config_path, version=None, render=False, debug=False, profile=False, t
             # create trainer
             trainer = load_trainer(evaluation_config, policy)
 
-            # start session  (TODO - refactor this to be cleaner)
-            config.start_session()
-            policy.start_session()
-
-            # start evaluation
-            trainer.start(render=render, profile=profile)
+            # perform evaluation
+            trainer.execute(render=render, profile=profile)
         except Exception as e:
             log_error(f"Evaluation failed: {e}")
             traceback.print_exc()
-        finally:
-            # cleanup session after evaluation
-            if policy:
-                policy.stop_session()
-            config.close_session()
+            error = True
+            break
+
+    # allow local runs to keep tensorboard alive
+    if config.local and not error:
+        input("Experiment complete.  Press enter to continue...")

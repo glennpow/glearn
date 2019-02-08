@@ -2,33 +2,7 @@ import numpy as np
 import tensorflow as tf
 import gym
 from glearn.policies.interface import Interface
-
-
-class Transition(object):
-    def __init__(self, observation, action, reward, new_observation, done, info):
-        self.observation = observation
-        self.action = action
-        self.reward = reward
-        self.new_observation = new_observation
-        self.done = done
-        self.info = info
-
-
-class Batch(object):
-    def __init__(self, dataset=None, mode="train"):
-        self.dataset = dataset
-        self.mode = mode
-        self.inputs = []
-        self.outputs = []
-        self.info = {}
-
-
-def transition_batch(transitions):
-    batch = Batch()
-    batch.inputs = [e.observation for e in transitions]
-    batch.outputs = [e.action for e in transitions]
-    batch.info["transitions"] = transitions
-    return batch
+from glearn.data.batch import Batch
 
 
 class Dataset(object):
@@ -128,7 +102,8 @@ class Dataset(object):
         head = self.heads[mode]
 
         # get slices of data
-        batch = Batch(dataset=self, mode=mode)
+        batch = Batch(mode=mode)
+        batch.dataset = self
         batch.inputs = inputs[head:head + self.batch_size]
         batch.outputs = outputs[head:head + self.batch_size]
 

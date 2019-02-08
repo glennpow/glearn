@@ -15,6 +15,7 @@
 
   ## log session run calls
   # debug_runs: true
+  # debug_runs_ignored: [predict]
 
   ## session run tracing
   # debug_trace: true

@@ -9,33 +9,33 @@ class ViewerController(Configurable):
         super().__init__(config)
 
         self.listeners = []
-        self.viewer = None
+        self._viewer = None
 
         if render and config.has("viewer"):
             try:
                 ViewerClass = get_class(config.get("viewer"))
-                self.viewer = ViewerClass(config)
+                self._viewer = ViewerClass(config)
                 self.init_viewer()
 
                 if self.env is not None:
-                    self.env.unwrapped.viewer = self.viewer
+                    self.env.unwrapped.viewer = self._viewer
             except Exception as e:
                 print(f"Failed to load viewer: {e}")
 
     def get_viewer(self):
-        if self.viewer is not None:
-            return self.viewer
+        if self._viewer is not None:
+            return self._viewer
         if self.env is not None:
             return self.env.unwrapped.viewer
         return None
 
     def init_viewer(self):
         # register for events from viewer
-        self.viewer.window.push_handlers(self)
+        self._viewer.window.push_handlers(self)
 
     def close(self):
-        if self.viewer is not None:
-            self.viewer.close()
+        if self._viewer is not None:
+            self._viewer.close()
 
     def __getattr__(self, attr):
         viewer = self.get_viewer()
@@ -45,36 +45,36 @@ class ViewerController(Configurable):
 
     @property
     def rendering(self):
-        return self.viewer is not None
+        return self._viewer is not None
 
     @property
     def width(self):
-        if self.viewer is not None:
-            return self.viewer.width
+        if self._viewer is not None:
+            return self._viewer.width
         return 0
 
     @property
     def height(self):
-        if self.viewer is not None:
-            return self.viewer.height
+        if self._viewer is not None:
+            return self._viewer.height
         return 0
 
     def get_size(self):
-        if self.viewer is not None:
-            return (int(self.viewer.width), int(self.viewer.height))
+        if self._viewer is not None:
+            return (int(self._viewer.width), int(self._viewer.height))
         return (0, 0)
 
     def prepare(self, trainer):
-        if hasattr(self.viewer, "prepare"):
-            self.viewer.prepare(trainer)
+        if hasattr(self._viewer, "prepare"):
+            self._viewer.prepare(trainer)
 
     def render(self):
-        if self.viewer is not None and hasattr(self.viewer, "render"):
-            self.viewer.render()
+        if self._viewer is not None and hasattr(self._viewer, "render"):
+            self._viewer.render()
 
     def view_results(self, queries, feed_map, results):
-        if hasattr(self.viewer, "view_results"):
-            self.viewer.view_results(queries, feed_map, results)
+        if hasattr(self._viewer, "view_results"):
+            self._viewer.view_results(queries, feed_map, results)
 
     def on_key_press(self, key, modifiers):
         for listener in self.listeners:

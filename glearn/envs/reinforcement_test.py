@@ -3,7 +3,7 @@ import gym
 from gym import spaces
 
 
-class ActorCriticTestEnv(gym.Env):
+class ReinforcementTestEnv(gym.Env):
     def __init__(self, action_size=4, desired=1, mode=None, reward_multiple=1,
                  max_undesired_steps=None):
         self.action_size = action_size

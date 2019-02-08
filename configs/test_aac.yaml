@@ -1,8 +1,8 @@
---- # Actor Critic
+--- # Test Advantage Actor Critic
   import: base
 
   env:
-    name: glearn.envs.actor_critic_test:ActorCriticTestEnv
+    name: glearn.envs.reinforcement_test:ReinforcementTestEnv
     args:
       max_undesired_steps: 10
       # mode: decaying
@@ -14,21 +14,20 @@
     name: glearn.policies:NetworkPolicy
     args:
       network:
-        optimizes: false
         layers:
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [16]
           - name: glearn.networks:CategoricalDistributionLayer
+        optimizer: adam
+        learning_rate: 2.0e-1
 
   trainer:
-    name: glearn.trainers:ActorCriticTrainer
+    name: glearn.trainers:AdvantageActorCriticTrainer
     args:
       critic:
         optimizer: adam
         learning_rate: 2.0e-1
-        # optimizer: sgd
-        # learning_rate: 2.0e-1
         layers:
           - name: glearn.networks:DenseLayer
             args:
@@ -37,12 +36,6 @@
             args:
               hidden_sizes: [1]
               activation: null
-      optimizer: adam
-      learning_rate: 2.0e-1
-      # optimizer: sgd
-      # learning_rate: 2.0e-1
       gamma: 0.99
-      # keep_prob: 0.8
-      # epsilon: [1, 0.1, 2000]
       evaluate_interval: 100
       max_episode_time: 0.1

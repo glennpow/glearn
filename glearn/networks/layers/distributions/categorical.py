@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow.contrib.distributions as tfd
 from .distribution import DistributionLayer
 
 
@@ -23,7 +24,7 @@ class CategoricalDistributionLayer(DistributionLayer):
         y = super().build_predict(y)
 
         # log prediction distribution
-        self.summary.add_histogram("predict", self.references["category"], "evaluate")
+        self.summary.add_histogram("category", self.references["category"])
 
         return y
 
@@ -86,7 +87,7 @@ class CategoricalDistributionLayer(DistributionLayer):
         if self.context.output.deterministic:
             y = tf.argmax(distribution.probs, -1, name="sample")
         else:
-            y = distribution.sample(name="sample")
+            y = self.sample(name="sample")
         self.references["category"] = y
 
         return distribution
@@ -123,7 +124,7 @@ class DiscretizedDistributionLayer(CategoricalDistributionLayer):
         return self.distribution.distribution.probs
 
 
-class DiscretizedBijector(tf.contrib.distributions.bijectors.Bijector):
+class DiscretizedBijector(tfd.bijectors.Bijector):
     def __init__(self, divs, low=0, high=1, validate_args=False, name="discretized"):
         super().__init__(validate_args=validate_args, forward_min_event_ndims=0,
                          is_constant_jacobian=True, name=name)

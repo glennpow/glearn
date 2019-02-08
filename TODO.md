@@ -2,16 +2,30 @@
 # use tf.Dataset for all experiments.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+# trainer should probably be the network context, no?
 # from "trainer.py", extract "evaluator.py", "optimizer.py", etc.  (and could subclass supervised/reinforcement)
-# use tf.name_scope(None) around all summaries?
-# concatenate all historic tensorboard data for previous versions of a model.
 ? refactor loss (probably needs to be in trainer, use policy.get_logits() or something)
-# gather multiple episodes for RL (5+)
 # empirical rewards (curiosity?)
 ? prepare_feeds should just look at fetches, not queries (requires callback from policy.run to trainer)
 # rename Batch to Data, and subclass Dataset from it.  Also load datasets using definitions paradigm?
-# define TD/PolicyGradient inheritance.
-X preparing for GPU training, some inputs/vars/operations should require:  with tf.device('/cpu:0'):
-# more glearn script commands (evaluate, tb, etc.)
-# for RL, could use: action = tf.clip_by_value(action, env.action_space.low[0], env.action_space.high[0])
-# remote sweeps.  local sweeps?
+# config to stop all sweeps after first exception
+
+
+## SOON
+
+# ability to set sweeps such as: "policy..learning_rate": [1, 2]  which would match all learning_rates under policy
+# show Q_loss in tb
+
+
+### SAC
+
+# proper replay buffer
+# optimize after many episodes   (>20k env steps)
+# when time to optimize RL, could/should run multiple batches (5+).
+
+
+
+### Gaussian
+
+mu is only trained from state
+sigma doesn't come from state, init to high value (0.1)

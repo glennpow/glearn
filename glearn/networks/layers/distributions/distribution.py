@@ -1,27 +1,8 @@
-import tensorflow as tf
+# import tensorflow as tf
 from glearn.networks.layers.layer import NetworkLayer
 
 
 class DistributionLayer(NetworkLayer):
-    def __init__(self, network, index, ent_coef=None):
-        super().__init__(network, index)
-
-        self.ent_coef = ent_coef
-
-    def build_predict(self, y):
-        y = super().build_predict(y)
-
-        # entropy exploration factor
-        if self.config.reinforcement and self.ent_coef is not None and self.ent_coef > 0:
-            entropy = tf.reduce_mean(self.distribution.entropy())
-            self.summary.add_scalar("entropy", entropy, "evaluate")
-
-            entropy_loss = -self.ent_coef * entropy
-            self.add_loss(entropy_loss)
-            self.summary.add_scalar("entropy_loss", entropy_loss, "evaluate")
-
-        return y
-
     @property
     def distribution(self):
         return self.references["distribution"]

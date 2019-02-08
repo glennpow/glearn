@@ -32,8 +32,9 @@ class Config(object):
 
         # get default log paths
         config_name, _ = os.path.splitext(os.path.basename(path))
-        self.log_dir = f"{TEMP_DIR}/{config_name}/{self.version}"
-        self.tensorboard_path = f"{self.log_dir}/summaries/"
+        self.root_log_dir = f"{TEMP_DIR}/{config_name}/{self.version}"
+        # self.tensorboard_path = f"{self.root_log_dir}/summaries/"
+        self.tensorboard_path = f"{self.root_log_dir}"
 
         # determine local or external IP address
         local_ip = socket.gethostbyname(socket.gethostname())
@@ -143,6 +144,7 @@ class Config(object):
 
     def _start_evaluation(self):
         message = f"Starting Evaluation: {self.current_evaluation + 1} / {self.num_evaluations}"
+        print()
 
         if self.evaluations:
             # copy params for this evaluation
@@ -198,7 +200,7 @@ class Config(object):
             raise Exception("Failed to find training env or dataset in config")
 
         # prepare log and save/load paths
-        self.log_dir = f"{self.log_dir}/{self.current_evaluation + 1}"
+        self.log_dir = f"{self.root_log_dir}/{self.current_evaluation + 1}"
         self.summary_path = f"{self.tensorboard_path}/{self.current_evaluation + 1}"
         self.load_path = f"{self.log_dir}/model.ckpt"
         self.save_path = self.load_path
@@ -262,12 +264,22 @@ class Config(object):
     def supervised(self):
         return self.dataset is not None
 
+    def get_interval_size(self, mode="train"):
+        if self.supervised:
+            # interval size is epoch worth of steps
+            return self.dataset.get_epoch_size(mode=mode)
+        else:
+            # interval is a single episode
+            return 1
+
     def _init_session(self):
         # set default session
         self.sess = DebuggableSession(self)
 
         # get global step
-        self.global_step = tf.train.get_or_create_global_step()
+        with tf.variable_scope("global_step"):
+            self.global_step = tf.train.get_or_create_global_step()
+            self.global_step_update = tf.assign(self.global_step, self.global_step + 1)
 
     def start_session(self):
         # initialize all global variables
@@ -286,6 +298,9 @@ class Config(object):
 
             if self.env:
                 self.env.close()
+
+    def update_global_step(self):
+        return self.sess.run(self.global_step_update)
 
     def _start_summaries(self):
         if self.summary is None:
@@ -342,6 +357,10 @@ class Configurable(Loggable):
         self.config = config
 
     @property
+    def local(self):
+        return self.config.local
+
+    @property
     def debugging(self):
         return self.config.debugging
 
@@ -392,6 +411,14 @@ class Configurable(Loggable):
     @property
     def global_step(self):
         return self.config.global_step
+
+    @property
+    def viewer(self):
+        return self.config.viewer
+
+    @property
+    def rendering(self):
+        return self.config.viewer.rendering
 
 
 def load_config(identifier, search_defaults=True, **kwargs):

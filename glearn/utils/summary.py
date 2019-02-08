@@ -7,7 +7,7 @@ from glearn.utils.log import log
 
 
 SUMMARY_KEY_PREFIX = "_summary_"
-DEFAULT_SUBDIRECTORY = "events"
+DEFAULT_QUERY = "evaluate"
 
 
 class SummaryWriter(object):
@@ -80,12 +80,14 @@ class SummaryWriter(object):
         return self.summary_results[query]
 
     def add_simple_value(self, name, value, query=None, debug=False):
+        query = query or DEFAULT_QUERY
         summary_results = self.get_summary_results(query)
         summary_results.values[name] = value  # TODO - average
 
     def add_scalar(self, name, tensor, query=None, debug=False):
         summary = tf.summary.scalar(name, tensor)
 
+        query = query or DEFAULT_QUERY
         if query in self.summaries:
             query_summaries = self.summaries[query]
         else:
@@ -97,6 +99,7 @@ class SummaryWriter(object):
     def add_histogram(self, name, values, query=None):
         summary = tf.summary.histogram(name, values)
 
+        query = query or DEFAULT_QUERY
         if query in self.summaries:
             query_summaries = self.summaries[query]
         else:
@@ -169,9 +172,8 @@ class SummaryWriter(object):
             # get writer
             path = os.path.abspath(self.summary_path)
             if query is None:
-                path = os.path.join(path, DEFAULT_SUBDIRECTORY)
-            else:
-                path = os.path.join(path, query)
+                query = DEFAULT_QUERY
+            path = os.path.join(path, query)
             if query in self.writers:
                 writer = self.writers[query]
             else:

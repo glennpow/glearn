@@ -103,7 +103,7 @@ class LSTMLayer(NetworkLayer):
         timesteps = context.config.get("timesteps", 1)
         # timesteps = context.input.shape[0]
         vocabulary_size = context.dataset.vocabulary.size  # FIXME - ...better way of exposing
-        predict = self.network.head
+        predict = self.network.outputs
         logits = self.references["Z"]
 
         # calculate loss
