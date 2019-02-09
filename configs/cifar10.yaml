@@ -43,17 +43,18 @@
                 name: tensorflow:constant_initializer
                 args:
                   value: 0.1
+          - name: glearn.networks:CategoricalDistributionLayer
+        optimizer: adam
+        learning_rate: 2.0e-4
+        lr_decay: 0.5
+        lr_decay_intervals: 40
+        max_grad_norm: 5
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
     args:
-      optimizer: adam  # sgd
-      learning_rate: 2.0e-4  # 0.001
-      lr_decay: 0.5
-      lr_decay_intervals: 40
       epochs: 1500
       keep_prob: 0.8
-      max_grad_norm: 5
       evaluate_interval: 100
 
   viewer:

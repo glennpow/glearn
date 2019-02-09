@@ -4,11 +4,13 @@
   env:
     name: glearn.envs.reinforcement_test:ReinforcementTestEnv
     args:
-      continuous: true
+      discrete: false
       max_undesired_steps: 10
-      # mode: decaying
+
+      # reward_mode: decaying
       # reward_multiple: 0
-      # mode: sparse
+
+      # reward_mode: sparse
   batch_size: 256
 
   policy:
@@ -20,6 +22,8 @@
             args:
               hidden_sizes: [400]
           - name: glearn.networks:NormalDistributionLayer
+            args:
+              squash: false  # HACK - must be true for SAC
         optimizer: adam
         learning_rate: 1.0e-2
         max_grad_norm: 5
@@ -54,8 +58,9 @@
       gamma: 0.0  # 0.99
       tau: 5.0e-3
       ent_coef: 2.782559402207126e-05
-      evaluate_interval: 100
+      evaluate_interval: 1  # 100
       episodes: 2000
+      max_episode_time: 1
 
   # sweeps:
   #   "V.learning_rate": [1.0e-1, 1.0e-2, 1.0e-3]
