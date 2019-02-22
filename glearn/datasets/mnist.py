@@ -82,7 +82,6 @@ def _load_data(images_file, labels_file, config):
     directory = script_relpath("../../data/mnist")
     images_file = _ensure_download(directory, images_file)
     labels_file = _ensure_download(directory, labels_file)
-    onehots = np.eye(10)
 
     check_image_file_header(images_file)
     check_labels_file_header(labels_file)
@@ -98,8 +97,7 @@ def _load_data(images_file, labels_file, config):
         label = np.frombuffer(label, dtype=np.uint8)
         label = label.astype(int)
         label = label.flatten()
-        onehot = onehots[label]
-        return onehot
+        return label
 
     max_count = config.get("max_count", None)
 
@@ -108,7 +106,7 @@ def _load_data(images_file, labels_file, config):
     images = np.reshape(images, [-1, 28, 28, 1])
     labels = _load_data_file(labels_file, 1, max_count=max_count, header_bytes=8,
                              mapping=decode_label)
-    labels = np.reshape(labels, [-1, 10])
+    labels = np.reshape(labels, [-1, 1])
     return images, labels
 
 

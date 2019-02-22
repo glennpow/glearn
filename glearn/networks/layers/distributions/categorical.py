@@ -16,7 +16,7 @@ class CategoricalDistributionLayer(DistributionLayer):
     def build(self, inputs):
         self._build_categorical(inputs)
 
-        y = tf.one_hot(self.references["category"], self.categories)
+        y = self.references["category"]
 
         return y
 
@@ -33,7 +33,7 @@ class CategoricalDistributionLayer(DistributionLayer):
         loss = tf.reduce_mean(self.neg_log_prob(labels))
 
         # evaluate accuracy
-        correct = tf.equal(self.references["category"], self.encipher(labels))
+        correct = tf.equal(self.references["category"], labels)
         accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
 
         return loss, accuracy
@@ -42,21 +42,19 @@ class CategoricalDistributionLayer(DistributionLayer):
         feed_map["dropout"] = 1
         return feed_map
 
-    def encipher(self, one_hot):
-        return tf.argmax(one_hot, axis=-1, output_type=tf.int32)
-
     def neg_log_prob(self, value, **kwargs):
         # NOTE: unfortunately, using -self.log_prob(value) does not return correct results
         logits = self.references["logits"]
-        return tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=value)
+        labels = tf.one_hot(value, self.categories)
+        return tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels)
 
     def log_prob(self, value, **kwargs):
         # convert from one-hot
-        return self.distribution.log_prob(self.encipher(value))
+        return self.distribution.log_prob(value)
 
     def prob(self, value, **kwargs):
         # convert from one-hot
-        return self.distribution.prob(self.encipher(value), **kwargs)
+        return self.distribution.prob(value, **kwargs)
 
     def _build_categorical(self, inputs):
         # get variables
@@ -87,6 +85,7 @@ class CategoricalDistributionLayer(DistributionLayer):
             y = tf.argmax(distribution.probs, -1, name="sample", output_type=tf.int32)
         else:
             y = self.sample(name="sample")
+        y = tf.expand_dims(y, -1)
         self.references["category"] = y
 
         return distribution
