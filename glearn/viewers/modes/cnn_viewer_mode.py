@@ -28,14 +28,13 @@ class CNNViewerMode(ViewerMode):
                     n += 1
 
     def view_results(self, queries, feed_map, results):
-        if self.debugging:
-            # visualize prediction results
-            if self.supervised and "evaluate" in queries:
-                self.view_predict(feed_map["X"], feed_map["Y"], results["predict"])
+        # visualize prediction results
+        if self.supervised and "evaluate" in queries:
+            self.view_predict(feed_map["X"], feed_map["Y"], results["predict"])
 
-            # visualize CNN features
-            if "conv2d_0" in results:
-                self.view_features(results)
+        # visualize CNN features
+        if "conv2d_0" in results:
+            self.view_features(results)
 
     def on_key_press(self, key, modifiers):
         super().on_key_press(key, modifiers)

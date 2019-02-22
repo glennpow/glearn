@@ -1,3 +1,5 @@
+
+import sys
 import numpy as np
 from glearn.utils.config import Configurable
 from glearn.utils.reflection import get_class
@@ -37,7 +39,8 @@ class AdvancedViewer(Configurable):
 
     def close(self):
         if self.isopen:
-            self.window.close()
+            if sys.meta_path is not None:
+                self.window.close()
             self.isopen = False
 
     def __del__(self):
