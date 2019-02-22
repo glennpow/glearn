@@ -16,6 +16,8 @@ def tensorboard(config_path, version=None):
 
         while True:
             time.sleep(1)
+    except (KeyboardInterrupt, SystemExit):
+        pass
     except Exception as e:
         log_error(f"Tensorboard failed: {e}")
         traceback.print_exc()

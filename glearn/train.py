@@ -2,7 +2,7 @@ import traceback
 from glearn.policies import load_policy
 from glearn.trainers import load_trainer
 from glearn.utils.config import load_config
-from glearn.utils.log import log_error
+from glearn.utils.log import log_error, log_warning
 
 
 def train(config_path, version=None, render=False, debug=False, profile=False, training=True):
@@ -22,6 +22,9 @@ def train(config_path, version=None, render=False, debug=False, profile=False, t
 
             # perform evaluation
             trainer.execute(render=render, profile=profile)
+        except (KeyboardInterrupt, SystemExit):
+            log_warning("Program halting by request.")
+            break
         except Exception as e:
             log_error(f"Evaluation failed: {e}")
             traceback.print_exc()
