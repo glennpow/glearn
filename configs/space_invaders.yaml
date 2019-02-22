@@ -15,12 +15,13 @@
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [3136, 1024]
+          - name: glearn.networks:CategoricalDistributionLayer
+        optimizer: adam
+        learning_rate: 2.0e-4
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
     args:
-      optimizer: adam
-      learning_rate: 2.0e-4
       episodes: 5000
       keep_prob: 0.8
       evaluate_interval: 1

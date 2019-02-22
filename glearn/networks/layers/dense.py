@@ -31,6 +31,10 @@ class DenseLayer(NetworkLayer):
         y = tf.reshape(tf.cast(inputs, tf.float32), (-1, input_size))
         layers = []
         for hidden_size in self.hidden_sizes:
+            # zero means output size
+            if hidden_size == 0:
+                hidden_size = self.context.output.size
+
             y = self.dense(y, hidden_size, self.dropout, self.activation,
                            weights_initializer=weights_initializer,
                            biases_initializer=biases_initializer,

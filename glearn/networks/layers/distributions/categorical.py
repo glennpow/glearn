@@ -30,11 +30,10 @@ class CategoricalDistributionLayer(DistributionLayer):
 
     def build_loss(self, labels):
         # evaluate discrete loss
-        neg_logp = self.neg_log_prob(labels)
-        loss = tf.reduce_mean(neg_logp)
+        loss = tf.reduce_mean(self.neg_log_prob(labels))
 
         # evaluate accuracy
-        correct = tf.equal(self.references["category"], tf.argmax(labels, 1))
+        correct = tf.equal(self.references["category"], self.encipher(labels))
         accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
 
         return loss, accuracy
@@ -44,7 +43,7 @@ class CategoricalDistributionLayer(DistributionLayer):
         return feed_map
 
     def encipher(self, one_hot):
-        return np.argmax(one_hot, axis=-1)
+        return tf.argmax(one_hot, axis=-1, output_type=tf.int32)
 
     def neg_log_prob(self, value, **kwargs):
         # NOTE: unfortunately, using -self.log_prob(value) does not return correct results
@@ -85,7 +84,7 @@ class CategoricalDistributionLayer(DistributionLayer):
 
         # sample from distribution
         if self.context.output.deterministic:
-            y = tf.argmax(distribution.probs, -1, name="sample")
+            y = tf.argmax(distribution.probs, -1, name="sample", output_type=tf.int32)
         else:
             y = self.sample(name="sample")
         self.references["category"] = y
