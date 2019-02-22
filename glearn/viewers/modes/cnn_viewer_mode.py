@@ -31,7 +31,7 @@ class CNNViewerMode(ViewerMode):
         if self.debugging:
             # visualize prediction results
             if self.supervised and "evaluate" in queries:
-                self.view_predict(results["X"], results["Y"], results["predict"])
+                self.view_predict(feed_map["X"], feed_map["Y"], results["predict"])
 
             # visualize CNN features
             if "conv2d_0" in results:
@@ -90,8 +90,8 @@ class CNNViewerMode(ViewerMode):
                 y = row * height
                 image[y:y + height, x:x + width] = input_image
 
-                expected = self.dataset.decipher(outputs[index])
-                predicted = self.dataset.decipher(predict[index])
+                expected = outputs[index][0]
+                predicted = predict[index][0]
                 correct = predicted == expected
                 predict_s = f"{predicted}"
                 color = (0, 255, 0, 255) if correct else (255, 0, 0, 255)
