@@ -9,12 +9,9 @@
     args:
       network:
         layers:
-          - name: glearn.networks:Conv2dLayer
-            args:
-              filters: [[5, 5, 32], [5, 5, 64]]
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [3136, 1024]
+              hidden_sizes: [256, 256]
           - name: glearn.networks:CategoricalDistributionLayer
         optimizer: adam
         learning_rate: 2.0e-4
@@ -30,5 +27,3 @@
     name: glearn.viewers.advanced_viewer:AdvancedViewer
     args:
       zoom: 4
-      modes:
-        - name: glearn.viewers.modes:CNNViewerMode

@@ -1,4 +1,3 @@
-# import tensorflow as tf
 from glearn.networks.layers.layer import NetworkLayer
 
 

@@ -82,11 +82,21 @@ class NormalDistributionLayer(DistributionLayer):
 
         return y
 
+    def build_loss(self, outputs):
+        # evaluate discrete loss
+        loss = tf.reduce_mean(self.neg_log_prob(outputs))
+
+        # evaluate accuracy
+        correct = tf.exp(-tf.abs(self.outputs - outputs))
+        accuracy = tf.reduce_mean(correct)
+
+        return loss, accuracy
+
     def prepare_default_feeds(self, queries, feed_map):
         feed_map["dropout"] = 1
         return feed_map
 
-    # FIXME - these functions below are required only since the bijector didn't work.
+    # FIXME - these functions below are required only since the TanhBijector didn't work.
 
     def log_prob(self, value, **kwargs):
         if self.squash:
@@ -99,16 +109,24 @@ class NormalDistributionLayer(DistributionLayer):
             return super().log_prob(value, **kwargs)
 
     def mean(self, **kwargs):
-        return tf.tanh(super().mean(**kwargs))
+        y = super().mean(**kwargs)
+        if self.squash:
+            y = tf.tanh(y)
+        return y
 
     def mode(self, **kwargs):
-        return tf.tanh(super().mode(**kwargs))
+        y = super().mode(**kwargs)
+        if self.squash:
+            y = tf.tanh(y)
+        return y
 
     def prob(self, value, **kwargs):
-        return super().prob(tf.atanh(value), **kwargs)
+        if self.squash:
+            value = tf.atanh(value)
+        return super().prob(value, **kwargs)
 
-    def sample(self, sample_shape=(), **kwargs):
-        y = super().sample(sample_shape=sample_shape, **kwargs)
+    def sample(self, **kwargs):
+        y = super().sample(**kwargs)
         if self.squash:
             return tf.tanh(y)
         return y

@@ -11,14 +11,14 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [128, 128]
+              hidden_sizes: [128, 128, 8]
+        optimizer: adam
+        learning_rate: 2.0e-4
   # policy: glearn.policies:RandomPolicy  # HACK
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
     args:
-      optimizer: adam
-      learning_rate: 2.0e-4
       episodes: 5000
       keep_prob: 0.8
       epsilon: [1, 0.1, 10]

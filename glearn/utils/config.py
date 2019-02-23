@@ -181,6 +181,7 @@ class Config(object):
 
             # log evaluation info
             log(message, color="white", bold=True)
+        print()
 
         # init session
         self._init_session()
