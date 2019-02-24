@@ -1,4 +1,6 @@
 import sys
+import termios
+import tty
 from collections import abc, OrderedDict
 import numpy as np
 
@@ -15,6 +17,17 @@ COLOR_NUMBERS = dict(
     crimson=38
 )
 MAX_TABULAR_WIDTH = 120
+
+
+def getch():
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
 
 
 def colorize(string, color, bold=False, highlight=False):

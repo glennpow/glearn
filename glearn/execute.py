@@ -4,7 +4,8 @@ from glearn.policies import load_policy
 from glearn.policies.random import RandomPolicy
 from glearn.trainers import load_trainer
 from glearn.utils.config import load_config
-from glearn.utils.log import log_error, log_warning
+from glearn.utils.log import log, log_error, log_warning
+from glearn.utils.printing import getch
 
 
 def execute(config_path, training, version=None, render=False, debug=False, profile=False,
@@ -39,4 +40,5 @@ def execute(config_path, training, version=None, render=False, debug=False, prof
 
     # allow local runs to keep tensorboard alive
     if config.local and not error:
-        input("Experiment complete.  Press enter to terminate...")
+        log("Experiment complete.  Press any key to terminate...")
+        getch()
