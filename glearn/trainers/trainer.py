@@ -50,12 +50,24 @@ class Trainer(NetworkContextProxy):
         return f"{type(self).__name__}({', '.join(properties)})"
 
     def get_info(self):
-        return {
+        info = {
             "Description": str(self),
             "Total Global Parameters": num_global_parameters(),
             "Total Trainable Parameters": num_trainable_parameters(),
             "Total Saveable Objects": len(saveable_objects()),
+            "Evaluate Interval": self.evaluate_interval,
         }
+        if self.supervised:
+            info.update({
+                "Epochs": self.epochs,
+            })
+        else:
+            info.update({
+                "Episodes": self.episodes,
+                "Max Episode Time": self.max_episode_time,
+                "Min Episode Reward": self.min_episode_reward,
+            })
+        return info
 
     def print_info(self):
         # gather info

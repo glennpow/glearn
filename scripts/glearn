@@ -2,6 +2,7 @@
 
 import os
 import argparse
+from glearn.menu import menu as local_menu
 from glearn.train import train as local_train
 from glearn.evaluate import evaluate as local_evaluate
 from glearn.tensorboard import tensorboard as local_tensorboard
@@ -17,11 +18,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--verbose", action="store_true")
 
-    parse_command_args(parser, [train, evaluate, tb, deploy])
+    parse_command_args(parser, [menu, train, evaluate, tb, deploy], default="menu")
 
 
 def get_root_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+
+
+def menu(args):
+    local_menu()
 
 
 def train(args):
@@ -50,8 +55,9 @@ def evaluate(args):
     version = args.version
     render = not args.no_render
     debug = args.debug
+    random = args.random
 
-    local_evaluate(config_path, version=version, render=render, debug=debug)
+    local_evaluate(config_path, version=version, render=render, debug=debug, random=random)
 
 
 def evaluate_usage(parser):
@@ -59,6 +65,7 @@ def evaluate_usage(parser):
     parser.add_argument("--version", "-v", default=None)
     parser.add_argument("--no-render", action="store_true")
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--random", action="store_true")
 
 
 evaluate.usage = evaluate_usage

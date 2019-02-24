@@ -2,7 +2,7 @@ from glearn.policies.policy import Policy
 
 
 class RandomPolicy(Policy):
-    def run(self, sess, queries, feed_map, **kwargs):
+    def run(self, queries, feed_map):
         results = {}
         output = []
         for i in range(len(feed_map["X"])):

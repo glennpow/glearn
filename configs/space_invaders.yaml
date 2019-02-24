@@ -1,5 +1,5 @@
 --- # Space Invaders
-  import: base
+  import: _base
 
   env: SpaceInvaders-v0
   batch_size: 128

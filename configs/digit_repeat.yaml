@@ -1,5 +1,5 @@
 --- # Digit Repeat
-  import: base
+  import: _base
 
   dataset: digit_repeat
   batch_size: 20

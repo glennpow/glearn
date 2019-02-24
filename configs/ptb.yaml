@@ -1,5 +1,5 @@
 --- # PTB
-  import: base
+  import: _base
 
   dataset: ptb
   batch_size: 20

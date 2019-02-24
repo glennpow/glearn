@@ -1,5 +1,5 @@
 --- # CIFAR-10
-  import: base
+  import: _base
 
   dataset: cifar10
   batch_size: 128

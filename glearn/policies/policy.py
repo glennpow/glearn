@@ -83,6 +83,10 @@ class Policy(NetworkContext):
         # override
         pass
 
+    def optimize_loss(self, loss=None):
+        # override
+        return None
+
     def reset(self):
         # override
         pass

@@ -54,16 +54,11 @@ def _load_data(filename):
     # Load the pickled data-file.
     data = _unpickle(filename)
 
-    # Get the raw images.
-    raw_images = data[b'data']
+    # Convert the images.
+    images = _convert_images(data[b'data'])
 
     # Get the class-labels for each image.
-    onehots = np.eye(IMAGE_CLASSES)
-    labels = np.array(data[b'labels'])
-    labels = [onehots[label] for label in labels]
-
-    # Convert the images.
-    images = _convert_images(raw_images)
+    labels = np.array(data[b'labels']).reshape((-1, 1))
 
     return images, labels
 
@@ -92,7 +87,7 @@ def cifar10_dataset(config):
     # Pre-allocate the arrays for the images and class-numbers for efficiency.
     images_shape = [NUM_TRAINING_IMAGES, IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNELS]
     images = np.zeros(shape=images_shape, dtype=float)
-    labels_shape = [NUM_TRAINING_IMAGES, IMAGE_CLASSES]
+    labels_shape = [NUM_TRAINING_IMAGES, 1]
     labels = np.zeros(shape=labels_shape, dtype=int)
     data["train"] = (images, labels)
 

@@ -1,5 +1,5 @@
 --- # Test Advantage Actor Critic
-  import: base
+  import: _base
 
   env:
     name: glearn.envs.reinforcement_test:ReinforcementTestEnv

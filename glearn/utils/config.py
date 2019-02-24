@@ -20,6 +20,7 @@ from glearn.viewers import load_view_controller
 
 
 TEMP_DIR = "/tmp/glearn"
+CONFIG_EXTENSIONS = [".yaml", ".yml", "json"]
 
 
 class Config(object):
@@ -431,6 +432,19 @@ def load_config(identifier, search_defaults=True, **kwargs):
     return Config(config_path, **kwargs)
 
 
+def list_configs():
+    root = script_relpath("../../configs")
+    files = os.listdir(root)
+    configs = []
+    for f in files:
+        if os.path.isfile(os.path.join(root, f)) and f[0] != "_":
+            name, ext = os.path.splitext(f)
+            if ext in CONFIG_EXTENSIONS:
+                configs.append(name)
+    configs.sort()
+    return configs
+
+
 def find_config(identifier, search_defaults=True):
     # first try the identifier as if is the full path
     options = [identifier]
@@ -439,12 +453,11 @@ def find_config(identifier, search_defaults=True):
         # does it need an extension?
         _, ext = os.path.splitext(identifier)
         if len(ext) == 0:
-            options.append(f"{identifier}.yaml")
-            options.append(f"{identifier}.json")
+            options += [f"{identifier}{ext}" for ext in CONFIG_EXTENSIONS]
 
         # is it relative to the project root?
-        root = script_relpath("../..")
-        options += [os.path.join(root, "configs", p) for p in options]
+        root = script_relpath("../../configs")
+        options += [os.path.join(root, p) for p in options]
 
     for path in options:
         if os.path.exists(path):

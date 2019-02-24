@@ -1,5 +1,5 @@
 --- # MNIST
-  import: base
+  import: _base
 
   dataset: mnist
   batch_size: 128

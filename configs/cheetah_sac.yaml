@@ -1,5 +1,5 @@
 --- # Half Cheetah
-  import: base
+  import: _base
 
   env: HalfCheetah-v2
   batch_size: 256
