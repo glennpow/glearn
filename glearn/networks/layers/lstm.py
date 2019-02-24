@@ -3,13 +3,11 @@ from .layer import NetworkLayer
 
 
 class LSTMLayer(NetworkLayer):
-    def __init__(self, network, index, hidden_sizes=[128],
-                 cell_type="basic", cell_args={"forget_bias": 1},
+    def __init__(self, network, index, hidden_sizes=[128], cell_args={"forget_bias": 1},
                  embedding_lookup=False, activation=tf.nn.relu, embedding_initializer=None):
         super().__init__(network, index)
 
         self.hidden_sizes = hidden_sizes
-        self.cell_type = cell_type
         self.cell_args = cell_args
         self.embedding_lookup = embedding_lookup
         self.activation = activation
@@ -25,12 +23,11 @@ class LSTMLayer(NetworkLayer):
         # get configs
         batch_size = self.context.config.get("batch_size", 1)
         timesteps = self.context.config.get("timesteps", 1)
-        # timesteps = self.context.input.shape[0]
-        vocabulary_size = self.context.dataset.vocabulary.size  # FIXME - ...better way of exposing
+        vocabulary_size = self.context.dataset.vocabulary.size
 
         # initializer
         if self.embedding_initializer is None:
-            SCALE = 0.05  # TODO - expose
+            SCALE = 0.05  # TODO - expose?
             embedding_initializer = tf.random_uniform_initializer(-SCALE, SCALE)
         else:
             embedding_initializer = self.load_initializer(self.embedding_initializer)
@@ -57,12 +54,7 @@ class LSTMLayer(NetworkLayer):
         # define lstm cell(s)
         cells = []
         for hidden_size in self.hidden_sizes:
-            if self.cell_type == "basic":  # TODO - deprecate
-                is_training = True  # HACK FIXME
-                cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, **self.cell_args,
-                                                    state_is_tuple=True, reuse=not is_training)
-            else:
-                cell = tf.contrib.rnn.LSTMBlockCell(hidden_size, **self.cell_args)
+            cell = tf.contrib.rnn.LSTMBlockCell(hidden_size, **self.cell_args)
             cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self.dropout)
             cells.append(cell)
         if len(cells) == 1:
@@ -79,37 +71,36 @@ class LSTMLayer(NetworkLayer):
 
         # reshape for output
         y = tf.reshape(tf.concat(x, 1), [-1, self.hidden_sizes[-1]])
-        self.references["hidden"] = y
+        self.references["hidden_state"] = state
 
         return y
 
-    # def build_predict(self, y):
-    #     # get configs
-    #     batch_size = self.context.config.get("batch_size", 1)
-    #     timesteps = self.context.config.get("timesteps", 1)
-    #     vocabulary_size = self.context.dataset.vocabulary.size
+    def build_predict(self, y):
+        # get configs
+        batch_size = self.context.config.get("batch_size", 1)
+        timesteps = self.context.config.get("timesteps", 1)
+        vocabulary_size = self.context.dataset.vocabulary.size
 
-    #     # create output layer and convert to batched sequences
-    #     y = self.dense(y, vocabulary_size, self.dropout, tf.nn.softmax)
-    #     y = tf.cast(tf.argmax(y, axis=1), tf.int32)
-    #     y = tf.reshape(y, [batch_size, timesteps])
+        # create output layer and convert to batched sequences
+        y = self.dense(y, vocabulary_size, self.dropout, tf.nn.softmax)
+        y = tf.cast(tf.argmax(y, axis=1), tf.int32)
+        y = tf.reshape(y, [batch_size, timesteps])
 
-    #     return y
+        return y
 
     def build_loss(self, outputs):
         # get variables
         context = self.network.context
         batch_size = context.config.get("batch_size", 1)
         timesteps = context.config.get("timesteps", 1)
-        # timesteps = context.input.shape[0]
-        vocabulary_size = context.dataset.vocabulary.size  # FIXME - ...better way of exposing
+        vocabulary_size = context.dataset.vocabulary.size
         predict = self.network.outputs
         logits = self.references["Z"]
 
         # calculate loss
         logits_shape = [batch_size, timesteps, vocabulary_size]
         logits = tf.reshape(logits, logits_shape)
-        weights = tf.ones([batch_size, timesteps])  # , dtype=self.input.dtype)
+        weights = tf.ones([batch_size, timesteps])
         sequence_loss = tf.contrib.seq2seq.sequence_loss(logits, outputs, weights,
                                                          average_across_timesteps=False,
                                                          average_across_batch=True)

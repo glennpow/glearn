@@ -49,11 +49,9 @@ class CategoricalDistributionLayer(DistributionLayer):
         return tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels)
 
     def log_prob(self, value, **kwargs):
-        # convert from one-hot
         return self.distribution.log_prob(value)
 
     def prob(self, value, **kwargs):
-        # convert from one-hot
         return self.distribution.prob(value, **kwargs)
 
     def _build_categorical(self, inputs):

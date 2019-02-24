@@ -2,7 +2,7 @@ from glearn.utils.printing import print_tabular
 
 
 def menu():
-    options = {}  # TODO - train/eval, debug/-, verbose/-, profile/-
+    options = {}  # TODO - train/eval, debug/-, verbose/-, profile/-, random/-, ...version?
     option_count = 0
 
     from glearn.utils.config import list_configs

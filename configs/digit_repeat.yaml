@@ -15,16 +15,15 @@
             args:
               hidden_sizes: [128]
               embedding_lookup: true  # HACK - should be false
-        loss: glearn.networks.losses:sequence_loss
+        optimizer: adam
+        learning_rate: 2.0e-4
+        max_grad_norm: 5
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
     args:
-      optimizer: adam
-      learning_rate: 2.0e-4
       epochs: 200
       keep_prob: 0.5
-      max_grad_norm: 5
       evaluate_interval: 20
 
   viewer:
