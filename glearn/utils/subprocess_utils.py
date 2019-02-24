@@ -1,3 +1,4 @@
+import sys
 import json
 import logging
 from subprocess import check_call, check_output, Popen, PIPE
@@ -37,14 +38,18 @@ def shell_call(command, verbose=False, ignore_exceptions=False, response_type=No
     str
         Command response.  Can be None if no response received.
     """
+    is_shell = "shell" in kwargs and kwargs["shell"]
     if isinstance(command, list):
         command = [str(token) for token in command]
         command_str = ' '.join(command)
 
-        if "shell" in kwargs and kwargs["shell"]:
+        if is_shell:
             command = command_str
     elif isinstance(command, str):
         command_str = command
+
+        if not is_shell:
+            command = command.split()
     try:
         if verbose:
             _log(f"Calling command: {command_str}", "green", bold=True)
@@ -60,7 +65,7 @@ def shell_call(command, verbose=False, ignore_exceptions=False, response_type=No
                     return json.loads(output)
                 return output
         else:
-            check_call(command, env=env, **kwargs)
+            return check_call(command, env=env, **kwargs)
     except Exception as e:
         _log(f"Exception encountered during system call ({command_str}):  {e}", "red", bold=True)
         if not ignore_exceptions:
@@ -175,7 +180,7 @@ def parallel_shell_calls(commands, verbose=False, ignore_exceptions=False,
     return responses
 
 
-def parse_command_args(parser, commands, performer=None):
+def parse_command_args(parser, commands, args=None, performer=None, default=None):
     """
     Adds subparser arguments for a list of commands for a CLI call.
 
@@ -192,10 +197,14 @@ def parse_command_args(parser, commands, performer=None):
         The function's name will be expected as the CLI command argument.
         If the function has a custom property "usage", which points to another function,
         then this function will be called to add the various subparser arguments.
+    args : list(str)
+        Command line arguments, or None to use the system-supplied list.
     performer : function(name=str, args=Arguments, perform=function())
         An optional function that can wrap the call of the specified command.  (Default: None)
         The performing command 'name' and 'args' are supplied.
         This performer function should call the 'perform' argument when execution is desired.
+    default : str
+        The name of the default command to use when none is specified.
 
     Examples
     --------
@@ -227,9 +236,13 @@ def parse_command_args(parser, commands, performer=None):
         # $ python main.py --user=john far --boo
     """
     subparsers = parser.add_subparsers()
+    command_found = False
+    cli_args = args or sys.argv[1:]
 
-    for i in range(len(commands)):
-        command = commands[i]
+    for command in commands:
+        command_name = command.__name__
+        if command_name in cli_args:
+            command_found = True
 
         def parse_command(subparser, command):
             sig = signature(command)
@@ -251,13 +264,28 @@ def parse_command_args(parser, commands, performer=None):
             if hasattr(command, "usage"):
                 command.usage(subparser)
 
-        command_name = command.__name__
         subparser = subparsers.add_parser(command_name)
         parse_command(subparser, command)
 
+    # check if should use default command
+    if not command_found:
+        if default is not None:
+            # identify global args
+            global_args = [s for a in parser._actions for s in a.option_strings]
+            last_global_arg = -1
+            for i, arg in enumerate(cli_args):
+                if arg in global_args:
+                    last_global_arg = i
+
+            # add default command
+            cli_args.insert(last_global_arg + 1, default)
+        else:
+            if "-h" not in cli_args and "--help" not in cli_args:
+                logger.error("No command or default specified.")
+
     if not hasattr(parser, "__inner__"):
         # run desired command, unless it's an inner parser
-        args, unparsed = parser.parse_known_args()
+        args, unparsed = parser.parse_known_args(args=cli_args)
         args.__unparsed__ = unparsed
         args.func(args)
 

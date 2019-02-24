@@ -54,14 +54,11 @@ def _load_data(filename):
     # Load the pickled data-file.
     data = _unpickle(filename)
 
-    # Get the raw images.
-    raw_images = data[b'data']
+    # Convert the images.
+    images = _convert_images(data[b'data'])
 
     # Get the class-labels for each image.
-    labels = np.array(data[b'labels'])
-
-    # Convert the images.
-    images = _convert_images(raw_images)
+    labels = np.array(data[b'labels']).reshape((-1, 1))
 
     return images, labels
 
@@ -90,7 +87,7 @@ def cifar10_dataset(config):
     # Pre-allocate the arrays for the images and class-numbers for efficiency.
     images_shape = [NUM_TRAINING_IMAGES, IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNELS]
     images = np.zeros(shape=images_shape, dtype=float)
-    labels_shape = [NUM_TRAINING_IMAGES]
+    labels_shape = [NUM_TRAINING_IMAGES, 1]
     labels = np.zeros(shape=labels_shape, dtype=int)
     data["train"] = (images, labels)
 
@@ -110,11 +107,10 @@ def cifar10_dataset(config):
         labels[begin:end] = labels_batch
         begin = end
 
+    batch_size = config.get("batch_size", 128)
     output_space = gym.spaces.Discrete(IMAGE_CLASSES)
 
-    batch_size = config.get("batch_size", 128)
     label_names = _load_label_names()
 
-    # TODO fix HACK - use a producer like PTB...
     return LabeledDataset("CIFAR-10", data, batch_size, output_space=output_space,
-                          epoch_size=None, label_names=label_names)
+                          label_names=label_names)

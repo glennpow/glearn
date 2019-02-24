@@ -1,5 +1,5 @@
 --- # Maze
-  import: base
+  import: _base
 
   env:
     name: glearn.envs.maze:MazeEnv
@@ -15,13 +15,12 @@
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [128, 128]
-  # policy: glearn.policies:RandomPolicy  # HACK
+        optimizer: adam
+        learning_rate: 2.0e-4
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
     args:
-      optimizer: adam
-      learning_rate: 2.0e-4
       episodes: 5000
       keep_prob: 0.8
       epsilon: [1, 0.1, 10]

@@ -1,0 +1,67 @@
+--- # Test Soft Actor Critic
+  import: _base
+
+  env:
+    name: glearn.envs.reinforcement_test:ReinforcementTestEnv
+    args:
+      discrete: false
+      max_undesired_steps: 10
+
+      # reward_mode: decaying
+      # reward_multiple: 0
+
+      # reward_mode: sparse
+  batch_size: 256
+
+  policy:
+    name: glearn.policies:NetworkPolicy
+    args:
+      network:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [400]
+          - name: glearn.networks:NormalDistributionLayer
+            args:
+              squash: false  # HACK - must be true for SAC
+        optimizer: adam
+        learning_rate: 1.0e-2
+        max_grad_norm: 5
+
+  trainer:
+    name: glearn.trainers:SoftActorCriticTrainer
+    args:
+      Q:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [100]
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1]
+              activation: null
+        optimizer: adam
+        learning_rate: 1.0e-2
+        max_grad_norm: 5
+      V:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [100]
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1]
+              activation: null
+        optimizer: adam
+        learning_rate: 1.0e-2
+        max_grad_norm: 5
+      gamma: 0.0  # 0.99
+      tau: 5.0e-3
+      ent_coef: 2.782559402207126e-05
+      evaluate_interval: 1  # 100
+      episodes: 2000
+      max_episode_time: 1
+
+  # sweeps:
+  #   "V.learning_rate": [1.0e-1, 1.0e-2, 1.0e-3]
+  #   "policy.args.network.learning_rate": [1.0e-2, 1.0e-3, 1.0e-4]

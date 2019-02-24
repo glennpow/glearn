@@ -1,5 +1,5 @@
 --- # PTB
-  import: base
+  import: _base
 
   dataset: ptb
   batch_size: 20
@@ -15,18 +15,17 @@
             args:
               hidden_sizes: [650]
               embedding_lookup: true
-        loss: glearn.networks.losses:sequence_loss
+        optimizer: adam
+        learning_rate: 2.0e-4
+        # lr_decay: 0.5
+        # lr_decay_intervals: 6
+        max_grad_norm: 5
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
     args:
-      optimizer: sgd
-      learning_rate: 1.0
-      lr_decay: 0.5
-      lr_decay_intervals: 6
       epochs: 39
       keep_prob: 0.5
-      max_grad_norm: 5
       evaluate_interval: 10
 
   viewer:

@@ -1,0 +1,63 @@
+--- # Mountain Car
+  import: _base
+
+  env: MountainCarContinuous-v0
+  batch_size: 256
+
+  policy:
+    name: glearn.policies:NetworkPolicy
+    args:
+      network:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [400]
+          - name: glearn.networks:NormalDistributionLayer
+            args:
+              squash: true
+        optimizer: adam
+        learning_rate: 3.0e-4
+        max_grad_norm: 5
+
+  trainer:
+    name: glearn.trainers:SoftActorCriticTrainer
+    args:
+      Q:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [100]
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1]
+              activation: null
+        optimizer: adam
+        learning_rate: 3.0e-4
+        # lr_decay: 0.5
+        # lr_decay_intervals: 100
+        max_grad_norm: 5
+      V:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [100]
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1]
+              activation: null
+        optimizer: adam
+        learning_rate: 3.0e-4
+        lr_decay: 0.5
+        lr_decay_intervals: 100
+        max_grad_norm: 5
+      gamma: 0.99
+      tau: 5.0e-3
+      ent_coef: 2.782559402207126e-05
+      episodes: 500
+      # keep_prob: 0.8
+      evaluate_interval: 10
+
+  sweeps:
+    # learning_rate: [1.0e-2, 1.0e-3, 1.0e-4]
+    "policy.args.network.learning_rate": [3.0e-1, 3.0e-4, 3.0e-7]
+    "Q.learning_rate": [1.0e-3]  # [1.0e-2, 1.0e-3, 1.0e-4]

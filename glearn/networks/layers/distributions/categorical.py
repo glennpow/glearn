@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow.contrib.distributions as tfd
 from .distribution import DistributionLayer
 
 
@@ -15,7 +16,7 @@ class CategoricalDistributionLayer(DistributionLayer):
     def build(self, inputs):
         self._build_categorical(inputs)
 
-        y = tf.one_hot(self.references["category"], self.categories)
+        y = self.references["category"]
 
         return y
 
@@ -23,17 +24,16 @@ class CategoricalDistributionLayer(DistributionLayer):
         y = super().build_predict(y)
 
         # log prediction distribution
-        self.summary.add_histogram("predict", self.references["category"], "evaluate")
+        self.summary.add_histogram("category", self.references["category"])
 
         return y
 
     def build_loss(self, labels):
         # evaluate discrete loss
-        neg_logp = self.neg_log_prob(labels)
-        loss = tf.reduce_mean(neg_logp)
+        loss = tf.reduce_mean(self.neg_log_prob(labels))
 
         # evaluate accuracy
-        correct = tf.equal(self.references["category"], tf.argmax(labels, 1))
+        correct = tf.equal(self.references["category"], labels)
         accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
 
         return loss, accuracy
@@ -42,21 +42,17 @@ class CategoricalDistributionLayer(DistributionLayer):
         feed_map["dropout"] = 1
         return feed_map
 
-    def encipher(self, one_hot):
-        return np.argmax(one_hot, axis=-1)
-
     def neg_log_prob(self, value, **kwargs):
         # NOTE: unfortunately, using -self.log_prob(value) does not return correct results
         logits = self.references["logits"]
-        return tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=value)
+        labels = tf.one_hot(value, self.categories)
+        return tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels)
 
     def log_prob(self, value, **kwargs):
-        # convert from one-hot
-        return self.distribution.log_prob(self.encipher(value))
+        return self.distribution.log_prob(value)
 
     def prob(self, value, **kwargs):
-        # convert from one-hot
-        return self.distribution.prob(self.encipher(value), **kwargs)
+        return self.distribution.prob(value, **kwargs)
 
     def _build_categorical(self, inputs):
         # get variables
@@ -84,9 +80,10 @@ class CategoricalDistributionLayer(DistributionLayer):
 
         # sample from distribution
         if self.context.output.deterministic:
-            y = tf.argmax(distribution.probs, -1, name="sample")
+            y = tf.argmax(distribution.probs, -1, name="sample", output_type=tf.int32)
         else:
-            y = distribution.sample(name="sample")
+            y = self.sample(name="sample")
+        y = tf.expand_dims(y, -1)
         self.references["category"] = y
 
         return distribution
@@ -123,7 +120,7 @@ class DiscretizedDistributionLayer(CategoricalDistributionLayer):
         return self.distribution.distribution.probs
 
 
-class DiscretizedBijector(tf.contrib.distributions.bijectors.Bijector):
+class DiscretizedBijector(tfd.bijectors.Bijector):
     def __init__(self, divs, low=0, high=1, validate_args=False, name="discretized"):
         super().__init__(validate_args=validate_args, forward_min_event_ndims=0,
                          is_constant_jacobian=True, name=name)

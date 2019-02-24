@@ -84,7 +84,7 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
             for i in range(n_cols):
                 col_width = group_widths[i] if i < n_cols - 1 else table_width - col_sum
                 col_sum += col_width + 1
-                cols.append((" " * padding + f[i]).ljust(col_width))
+                cols.append((" " * padding + str(f[i])).ljust(col_width))
             lines.append("│" + "│".join(cols) + "│")
     lines.append(bottom)
     message = '\n'.join(lines)

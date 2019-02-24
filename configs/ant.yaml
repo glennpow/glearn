@@ -1,5 +1,5 @@
 --- # Ant
-  import: base
+  import: _base
 
   env: glearn.envs.ant:AntEnv
   batch_size: 128
@@ -11,14 +11,13 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [128, 128]
-  # policy: glearn.policies:RandomPolicy  # HACK
+              hidden_sizes: [128, 128, 0]
+        optimizer: adam
+        learning_rate: 2.0e-4
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer
     args:
-      optimizer: adam
-      learning_rate: 2.0e-4
       episodes: 5000
       keep_prob: 0.8
       epsilon: [1, 0.1, 10]

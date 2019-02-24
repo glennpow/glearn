@@ -1,5 +1,5 @@
 --- # Mountain Car
-  import: base
+  import: _base
 
   env: MountainCarContinuous-v0
   batch_size: 1024
@@ -19,8 +19,6 @@
           #     high: 2
           #     ent_coef: 1.0e-4
           - name: glearn.networks:NormalDistributionLayer
-            args:
-              ent_coef: 2.782559402207126e-05
 
   trainer:
     name: glearn.trainers:PPOTrainer
@@ -42,6 +40,7 @@
       max_grad_norm: 5
       gamma: 0.999
       episodes: 1000
+      ent_coef: 2.782559402207126e-05
       # keep_prob: 0.8
       evaluate_interval: 10
 

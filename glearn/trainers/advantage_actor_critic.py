@@ -3,10 +3,11 @@ from glearn.trainers.temporal_difference import TemporalDifferenceTrainer
 from glearn.networks import load_network
 
 
-class ActorCriticTrainer(TemporalDifferenceTrainer):
-    def __init__(self, config, policy, critic, **kwargs):
+class AdvantageActorCriticTrainer(TemporalDifferenceTrainer):
+    def __init__(self, config, policy, critic, normalize_advantage=False, **kwargs):
         # get basic params
         self.critic_definition = critic
+        self.normalize_advantage = normalize_advantage
 
         super().__init__(config, policy, **kwargs)
 
@@ -19,10 +20,8 @@ class ActorCriticTrainer(TemporalDifferenceTrainer):
         self.init_actor()
 
     def init_critic(self):
-        policy = self.policy
-
         # build critic network
-        self.critic_network = load_network("value", policy, self.critic_definition)
+        self.critic_network = load_network("value", self.context, self.critic_definition)
         critic_inputs = self.get_feed("X")
         critic_value = self.critic_network.build_predict(critic_inputs)
         self.set_fetch("value", critic_value)
@@ -39,6 +38,33 @@ class ActorCriticTrainer(TemporalDifferenceTrainer):
             self.set_fetch(query, optimize)
 
             self.summary.add_scalar("value", avg_critic_value)
+
+    def build_value_loss(self, value):
+        with tf.name_scope("loss"):
+            # calculate advantage estimate (td_error), using discounted rewards (td_target)
+            discounted_reward = self.get_feed("td_target")
+            advantage = discounted_reward - value
+
+            # aborghi implementation
+            if self.normalize_advantage:
+                advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
+
+            self.set_fetch("advantage", advantage)
+
+            # value loss minimizes squared advantage
+            value_loss = tf.reduce_mean(tf.square(advantage))
+            self.set_fetch("value_loss", value_loss, "evaluate")
+
+            # averages
+            discounted_reward = tf.reduce_mean(discounted_reward)
+            advantage = tf.reduce_mean(advantage)
+
+        # summaries
+        self.summary.add_scalar("value_loss", value_loss)
+        self.summary.add_scalar("discount_reward", discounted_reward)
+        self.summary.add_scalar("advantage", advantage)
+
+        return value_loss
 
     def init_actor(self):
         policy = self.policy

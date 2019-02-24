@@ -3,27 +3,26 @@ import random
 import numpy as np
 import tensorflow as tf
 import pyglet
-from glearn.datasets.dataset import Transition, transition_batch
-from glearn.utils.collections import intersects
-from glearn.utils.config import Configurable
+from glearn.data.transition import Transition, TransitionBatch
 from glearn.networks.context import num_global_parameters, num_trainable_parameters, \
-    saveable_objects
+    saveable_objects, NetworkContextProxy
+from glearn.utils.collections import intersects
 from glearn.utils.printing import print_update, print_tabular
 from glearn.utils.profile import run_profile, open_profile
 from glearn.utils.memory import print_virtual_memory, print_gpu_memory
 
 
-class Trainer(Configurable):
+class Trainer(NetworkContextProxy):
     def __init__(self, config, policy, epochs=None, episodes=None,
                  max_episode_time=None, min_episode_reward=None, evaluate_interval=10, epsilon=0,
                  keep_prob=1, **kwargs):
-        super().__init__(config)
+        super().__init__(config, context=policy)
 
         self.policy = policy
+        self.policy_scope = None
         self.kwargs = kwargs
 
         self.batch_size = self.config.get("batch_size", 1)
-        self.debug_gradients = self.config.is_debugging("debug_gradients")
         self.debug_memory = self.config.is_debugging("debug_memory")
         self.debug_numerics = self.config.is_debugging("debug_numerics")
 
@@ -38,14 +37,10 @@ class Trainer(Configurable):
 
         self.epoch_step = 0
         self.episode_step = 0
-        self.observation = None
+        self.state = None
         self.transitions = []
         self.episode_reward = 0
         self.batch = None
-
-        if self.rendering:
-            self.init_viewer()
-        self.init_optimizer()
 
     def __str__(self):
         properties = [
@@ -55,12 +50,24 @@ class Trainer(Configurable):
         return f"{type(self).__name__}({', '.join(properties)})"
 
     def get_info(self):
-        return {
+        info = {
             "Description": str(self),
             "Total Global Parameters": num_global_parameters(),
             "Total Trainable Parameters": num_trainable_parameters(),
             "Total Saveable Objects": len(saveable_objects()),
+            "Evaluate Interval": self.evaluate_interval,
         }
+        if self.supervised:
+            info.update({
+                "Epochs": self.epochs,
+            })
+        else:
+            info.update({
+                "Episodes": self.episodes,
+                "Max Episode Time": self.max_episode_time,
+                "Min Episode Reward": self.min_episode_reward,
+            })
+        return info
 
     def print_info(self):
         # gather info
@@ -81,87 +88,38 @@ class Trainer(Configurable):
         print_tabular(info, grouped=True, show_type=False, color="white", bold=True)
         print()
 
+    def on_policy(self):
+        # override
+        return False
+
+    def off_policy(self):
+        return not self.on_policy()
+
     def reset(self):
         # reset env and episode
         if self.env is not None:
-            self.observation = self.env.reset()
+            self.state = self.env.reset()
             self.episode_reward = 0
 
-    def get_interval_size(self):
-        if self.supervised:
-            # interval size is epoch worth of steps
-            return self.dataset.get_epoch_size(mode="train")
+    def build_models(self):
+        # initialize render viewer
+        if self.rendering:
+            self.init_viewer()
+
+        # build policy model
+        if self.policy_scope is not None:
+            with tf.variable_scope(f"{self.policy_scope}/"):
+                self.build_policy()
         else:
-            # interval is a single episode
-            return 1
+            self.build_policy()
 
-    def optimize_loss(self, loss, query, definition=None, update_global_step=True):
-        # default definition
-        if definition is None:
-            definition = self.kwargs
+        # build trainer model
+        self.build_trainer()
 
-        global_step = self.global_step
+    def build_policy(self):
+        self.policy.build_policy()
 
-        learning_rate = definition.get("learning_rate", 1e-2)
-
-        # learning rate decay
-        lr_decay = definition.get("lr_decay", None)
-        if lr_decay is not None:
-            lr_decay_intervals = definition.get("lr_decay_intervals", 1)
-            decay_steps = int(lr_decay_intervals * self.get_interval_size())
-            learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps,
-                                                       lr_decay, staircase=True)
-
-        # create optimizer
-        optimizer_name = definition.get("optimizer", "sgd")
-        if optimizer_name == "sgd":
-            optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-        elif optimizer_name == "adam":
-            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-        else:
-            raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
-
-        # get gradients and trainable variables
-        grads_tvars = optimizer.compute_gradients(loss)
-
-        # check if we require unzipping grad/vars
-        max_grad_norm = definition.get("max_grad_norm", None)
-        require_unzip = self.debug_gradients or max_grad_norm is not None
-        if require_unzip:
-            grads, tvars = zip(*grads_tvars)
-
-        # apply gradient clipping
-        if max_grad_norm is not None:
-            with tf.name_scope("clipped_gradients"):
-                clipped_grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
-
-                # metric to observe clipped gradient ratio
-                if self.debugging:
-                    safe_grads = [g if g is not None else 0 for g in grads]
-                    safe_clipped_grads = [g if g is not None else 0 for g in clipped_grads]
-                    unequal = [tf.reduce_mean(tf.cast(tf.not_equal(g, clipped_g), tf.float32))
-                               for g, clipped_g in list(zip(safe_grads, safe_clipped_grads))]
-                    clipped_ratio = tf.reduce_mean(unequal)
-                    if max_grad_norm is not None:
-                        self.summary.add_scalar("clipped_ratio", clipped_ratio, query)
-
-                grads = clipped_grads
-
-        if require_unzip:
-            grads_tvars = zip(grads, tvars)
-
-        # apply gradients
-        optimizer_global_step = global_step if update_global_step else None
-        optimize = optimizer.apply_gradients(grads_tvars, global_step=optimizer_global_step)
-
-        # add learning rate and gradient summaries
-        self.summary.add_scalar("learning_rate", learning_rate, query)
-        if self.debug_gradients:
-            self.summary.add_gradients(zip(grads, tvars), "evaluate")
-
-        return optimize
-
-    def init_optimizer(self):
+    def build_trainer(self):
         # overwrite
         pass
 
@@ -182,7 +140,7 @@ class Trainer(Configurable):
 
         # run policy for queries with feeds
         feed_map = self.prepare_feeds(queries, feed_map)
-        results = self.policy.run(queries, feed_map)
+        results = super().run(queries, feed_map)
 
         # view results
         if render:
@@ -220,28 +178,28 @@ class Trainer(Configurable):
 
         # get action
         if epsilon > 0 and np.random.random() < epsilon:
-            # choose epsilon-greedy random action  (TODO - could implement this in tf)
+            # choose epsilon-greedy random action
             return self.output.sample()
         else:
             # choose optimal policy action
-            return self.predict(self.observation)
+            return self.predict(self.state)
 
     def rollout(self):
         # get action
         action = self.action()
 
         # perform action
-        new_observation, reward, done, info = self.env.step(action)
+        next_state, reward, done, info = self.env.step(action)
 
         # build and process transition
-        transition = Transition(self.observation, action, reward, new_observation, done, info)
+        transition = Transition(self.state, action, reward, next_state, done, info)
         self.process_transition(transition)
 
         # record transition
         self.transitions.append(transition)
 
         # update stats
-        self.observation = new_observation
+        self.state = next_state
         self.episode_reward += transition.reward
         return transition
 
@@ -253,8 +211,8 @@ class Trainer(Configurable):
             # supervised batch of samples
             return self.dataset.get_batch(mode=mode)
         else:
-            # unsupervised experience replay batch of samples
-            batch = transition_batch(self.transitions[:self.batch_size])
+            # reinforcement experience replay batch of samples (TODO - ReplayBuffer)
+            batch = TransitionBatch(self.transitions[:self.batch_size], mode=mode)
             feed_map = {
                 "X": batch.inputs,
                 "Y": batch.outputs,
@@ -275,15 +233,16 @@ class Trainer(Configurable):
         else:
             return len(self.transitions) >= self.batch_size
 
-    def optimize(self):
-        # get either supervised or unsupervised batch data and feeds
-        self.batch, feed_map = self.get_batch()
+    def optimize(self, batch, feed_map):
+        # run desired queries
+        return self.run(["policy_optimize"], feed_map)
 
-        # run all desired queries
-        results = self.run(["policy_optimize"], feed_map)
+    def optimize_and_report(self, batch, feed_map):
+        results = self.optimize(batch, feed_map)
 
-        # get current global step (TODO: add global_step fetch into above run)
-        global_step = tf.train.global_step(self.sess, self.global_step)
+        # get current global step
+        # global_step = tf.train.global_step(self.sess, self.global_step)
+        global_step = self.config.update_global_step()
         self.current_global_step = global_step
 
         # print log
@@ -327,7 +286,7 @@ class Trainer(Configurable):
                 report_results = results
                 report_feed_map = {k: v for k, v in feed_map.items() if isinstance(k, str)}
             for k, v in results.items():
-                if self.policy.is_fetch(k, "evaluate") and \
+                if self.is_fetch(k, "evaluate") and \
                    (isinstance(v, float) or isinstance(v, int)):
                     if k in averaged_results:
                         averaged_results[k] += v
@@ -375,8 +334,8 @@ class Trainer(Configurable):
             report_results = {k: v for k, v in report_results.items() if v is not None}
 
             # print inputs and results
-            table["Inputs"] = report_feed_map
-            table["Evaluation"] = report_results
+            table["Feeds"] = report_feed_map
+            table["Results"] = report_results
 
             # print tabular results
             print_tabular(table, grouped=True)
@@ -394,74 +353,86 @@ class Trainer(Configurable):
 
         print()
 
-    def start(self, render=False, profile=False):
-        self.max_episode_reward = None
-        self.running = True
-        self.paused = False
-        self.start_time = time.time()
+    def execute(self, render=False, profile=False):
+        try:
+            self.max_episode_reward = None
+            self.running = True
+            self.paused = False
+            self.start_time = time.time()
 
-        # check for invalid values in the current graph
-        if self.debug_numerics:
-            self.policy.set_fetch("check", tf.add_check_numerics_ops(), "policy_optimize")
+            # build models
+            self.build_models()
 
-        # prepare viewer
-        self.viewer.prepare(self)
+            # start session
+            self.config.start_session()
+            self.policy.start_session()
 
-        # print experiment info
-        self.print_info()
+            # check for invalid values in the current graph
+            if self.debug_numerics:
+                self.set_fetch("check", tf.add_check_numerics_ops(), "policy_optimize")
 
-        # yield after each experiment iteration
-        def experiment_yield(flush_summary=False):
-            # write summary results
-            if flush_summary:
-                self.policy.summary.flush(global_step=self.current_global_step)
+            # prepare viewer
+            self.viewer.prepare(self)
 
-            while True:
-                # check if experiment stopped
-                if not self.running:
-                    return True
+            # print experiment info
+            self.print_info()
 
-                # render frame
-                if render:
-                    self.render()
+            # yield after each experiment iteration
+            def experiment_yield(flush_summary=False):
+                # write summary results
+                if flush_summary:
+                    self.policy.summary.flush(global_step=self.current_global_step)
 
-                # loop while paused
-                if self.paused:
-                    time.sleep(0)
+                while True:
+                    # check if experiment stopped
+                    if not self.running:
+                        return True
+
+                    # render frame
+                    if render:
+                        self.render()
+
+                    # loop while paused
+                    if self.paused:
+                        time.sleep(0)
+                    else:
+                        break
+                return False
+
+            # main experiment loop
+            def experiment_loop():
+                # get current global step, and prepare evaluation counters
+                global_step = tf.train.global_step(self.sess, self.global_step)
+                self.current_global_step = global_step
+                self.last_eval_time = None
+                self.last_eval_step = self.current_global_step
+
+                # do supervised or reinforcement loop
+                if self.supervised:
+                    self.experiment_supervised_loop(experiment_yield)
                 else:
-                    break
-            return False
+                    self.experiment_reinforcement_loop(experiment_yield)
 
-        # main experiment loop
-        def experiment_loop():
-            # get current global step, and prepare evaluation counters
-            global_step = tf.train.global_step(self.sess, self.global_step)
-            self.current_global_step = global_step
-            self.last_eval_time = None
-            self.last_eval_step = self.current_global_step
+            if profile:
+                # profile experiment loop
+                profile_path = run_profile(experiment_loop, self.config)
 
-            # do supervised or reinforcement loop
-            if self.supervised:
-                self.experiment_supervised_loop(experiment_yield)
+                # show profiling results
+                open_profile(profile_path)
             else:
-                self.experiment_reinforcement_loop(experiment_yield)
-
-        if profile:
-            # profile experiment loop
-            profile_path = run_profile(experiment_loop, self.config)
-
-            # show profiling results
-            open_profile(profile_path)
-        else:
-            # run training loop without profiling
-            experiment_loop()
+                # run training loop without profiling
+                experiment_loop()
+        finally:
+            # cleanup session after evaluation
+            self.policy.stop_session()
+            self.config.close_session()
 
     def experiment_supervised_loop(self, experiment_yield):
         # supervised learning
         if self.training:
             # train desired epochs
-            epoch = 0
-            while self.epochs is None or epoch < self.epochs:
+            epoch = 1
+            while self.epochs is None or epoch <= self.epochs:
                 # start current epoch
                 epoch_size = self.dataset.reset(mode="train")
                 self.epoch = epoch
@@ -476,7 +447,8 @@ class Trainer(Configurable):
                     self.epoch_step = step + 1
 
                     # optimize batch
-                    self.optimize()
+                    self.batch, feed_map = self.get_batch()
+                    self.optimize_and_report(self.batch, feed_map)
 
                     # evaluate if time to do so
                     if self.should_evaluate():
@@ -493,10 +465,10 @@ class Trainer(Configurable):
 
     def experiment_reinforcement_loop(self, experiment_yield):
         # reinforcement learning
-        episode = 0
+        episode = 1
         reset_evaluate = True
 
-        while self.episodes is None or episode < self.episodes:
+        while self.episodes is None or episode <= self.episodes:
             # start current episode
             self.iteration_start_time = time.time()
             self.episode = episode
@@ -556,7 +528,8 @@ class Trainer(Configurable):
                     processed_transitions = False
                     if self.should_optimize():
                         processed_transitions = True
-                        self.optimize()
+                        self.batch, feed_map = self.get_batch()
+                        self.optimize_and_report(self.batch, feed_map)
 
                     # evaluate if time to do so
                     if self.should_evaluate():
@@ -583,9 +556,10 @@ class Trainer(Configurable):
                         if not self.training:
                             self.current_global_step += 1
 
-                    # clear transitions after processing
                     if processed_transitions:
-                        self.transitions = []
+                        if self.on_policy():
+                            # clear transitions after processing
+                            self.transitions = []
 
                     break
 
@@ -593,14 +567,6 @@ class Trainer(Configurable):
                 return
 
             episode += 1
-
-    @property
-    def viewer(self):
-        return self.config.viewer
-
-    @property
-    def rendering(self):
-        return self.viewer.rendering
 
     def init_viewer(self):
         # register for events from viewer
@@ -615,7 +581,7 @@ class Trainer(Configurable):
         # feature visualization keys
         if key == pyglet.window.key.ESCAPE:
             self.warning("Experiment cancelled by user")
-            self.viewer.close()
+            # self.viewer.close()
             self.running = False
         elif key == pyglet.window.key.SPACE:
             self.warning(f"Experiment {'unpaused' if self.paused else 'paused'} by user")

@@ -12,7 +12,8 @@ class Policy(NetworkContext):
 
         if self.rendering:
             self.init_viewer()
-        self.build_model()
+
+        # self.build_policy()
 
     def __str__(self):
         properties = [
@@ -42,7 +43,7 @@ class Policy(NetworkContext):
             self.coord.join(self.threads)
             self.threads = None
 
-    def build_model(self):
+    def build_policy(self):
         # create input/output nodes
         self.build_inputs()
 
@@ -66,11 +67,6 @@ class Policy(NetworkContext):
             self.set_feed("X", inputs)
             self.set_feed("Y", outputs)
 
-            # set fetches
-            if self.debugging:
-                self.set_fetch("X", inputs, "evaluate")
-                self.set_fetch("Y", outputs, "evaluate")
-
         self.inputs = inputs
         self.outputs = outputs
 
@@ -86,6 +82,10 @@ class Policy(NetworkContext):
     def build_loss(self):
         # override
         pass
+
+    def optimize_loss(self, loss=None):
+        # override
+        return None
 
     def reset(self):
         # override
