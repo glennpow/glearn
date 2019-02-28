@@ -83,9 +83,12 @@ class Network(Configurable):
         # get total trainable parameters
         return num_variable_parameters(self.trainable_variables())
 
+    def get_scope_name(self):
+        return f"{self.name}_network"
+
     def build_predict(self, inputs):
         # all layers within network scope
-        with tf.variable_scope(self.name):
+        with tf.variable_scope(self.get_scope_name()):
             self.scope = tf.get_variable_scope().name
 
             # create and link network layers

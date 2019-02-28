@@ -81,6 +81,7 @@ class SoftActorCriticTrainer(Trainer):
                     optimize = Q_i_network.optimize_loss(Q_loss)
                     Q_optimizes.append(optimize)
 
+                # Q summaries
                 self.summary.add_scalar(f"Q_{i + 1}", tf.reduce_mean(Q_i))
 
             self.set_fetch("Q_update", tf.group(Q_optimizes, name="Q_update"))
@@ -109,6 +110,7 @@ class SoftActorCriticTrainer(Trainer):
                 # optimize the V-loss
                 V_optimize = self.V_network.optimize_loss(V_loss)
 
+            # V summaries
             self.summary.add_scalar("V", tf.reduce_mean(self.V_network.outputs))
             self.summary.add_scalar("target_V", tf.reduce_mean(self.target_V_network.outputs))
 
