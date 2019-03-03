@@ -79,14 +79,12 @@ class SummaryWriter(object):
             self.summary_results[query] = self.Results(query)
         return self.summary_results[query]
 
-    def add_simple_value(self, name, value, query=None, debug=False):
+    def add_simple_value(self, name, value, query=None):
         query = query or DEFAULT_QUERY
         summary_results = self.get_summary_results(query)
         summary_results.values[name] = value  # TODO - average
 
-    def add_scalar(self, name, tensor, query=None, debug=False):
-        summary = tf.summary.scalar(name, tensor)
-
+    def add_summary_value(self, name, summary, query=None):
         query = query or DEFAULT_QUERY
         if query in self.summaries:
             query_summaries = self.summaries[query]
@@ -95,18 +93,12 @@ class SummaryWriter(object):
             self.summaries[query] = query_summaries
         query_summaries.append(summary)
         return summary
+
+    def add_scalar(self, name, tensor, query=None):
+        return self.add_summary_value(name, tf.summary.scalar(name, tensor), query=query)
 
     def add_histogram(self, name, values, query=None):
-        summary = tf.summary.histogram(name, values)
-
-        query = query or DEFAULT_QUERY
-        if query in self.summaries:
-            query_summaries = self.summaries[query]
-        else:
-            query_summaries = []
-            self.summaries[query] = query_summaries
-        query_summaries.append(summary)
-        return summary
+        return self.add_summary_value(name, tf.summary.histogram(name, values), query=query)
 
     def add_activation(self, tensor, query=None):
         if tensor is None:
@@ -121,6 +113,9 @@ class SummaryWriter(object):
                 continue
             name = tvar.op.name
             self.add_histogram(f"{name}/gradient", grad, query=query)
+
+    def add_image(self, name, image, query=None):
+        return self.add_summary_value(name, tf.summary.image(name, image), query=query)
 
     def add_run_metadata(self, run_metadata, query=None):
         self.run_metadatas[query] = run_metadata

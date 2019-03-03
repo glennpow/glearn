@@ -1,0 +1,56 @@
+--- # MNIST
+  import: _base
+
+  dataset: mnist
+  batch_size: 128
+  
+  policy:
+    name: glearn.policies:NetworkPolicy
+    args:
+      network:  # encoder network
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [500]
+              activation: tensorflow.nn:elu
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [500]
+              activation: tensorflow.nn:tanh
+          - name: glearn.networks:NormalDistributionLayer
+            args:
+              size: 20
+        optimizer: adam
+        learning_rate: 1.0e-3
+
+  trainer:
+    name: glearn.trainers:VariationalAutoencoderTrainer
+    args:
+      decoder:  # decoder network
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [500]
+              activation: tensorflow.nn:tanh
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [500]
+              activation: tensorflow.nn:elu
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [784]
+              activation: tensorflow.nn:sigmoid
+        optimizer: adam
+        learning_rate: 1.0e-3
+      epochs: 20
+      keep_prob: 0.9
+      evaluate_interval: 20
+
+  viewer:
+    name: glearn.viewers.advanced_viewer:AdvancedViewer
+    args:
+      zoom: 2
+      modes:
+        - name: glearn.viewers.modes:CNNViewerMode
+          args:
+            visualize_grid: [10, 10]

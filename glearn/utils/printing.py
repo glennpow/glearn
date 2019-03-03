@@ -79,8 +79,8 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
             header_widths[header] = header_width
             table_width = max(header_width, table_width)
 
-    # Write out the data
-    top = "┌" + ('░' * table_width) + "┐"
+    # Write out the data ▓▒░
+    top = "┌" + ('▒' * table_width) + "┐"
     bottom = "└" + ('─' * table_width) + "┘"
     header_top = "├" + ('░' * table_width) + "┤"
     header_bottom = "├" + ('╶' * table_width) + "┤"

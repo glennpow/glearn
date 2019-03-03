@@ -5,6 +5,7 @@ from .policy_gradient import PolicyGradientTrainer  # noqa
 from .advantage_actor_critic import AdvantageActorCriticTrainer  # noqa
 from .soft_actor_critic import SoftActorCriticTrainer  # noqa
 from .ppo import PPOTrainer  # noqa
+from .vae import VariationalAutoencoderTrainer  # noqa
 
 
 def load_trainer(config, policy):

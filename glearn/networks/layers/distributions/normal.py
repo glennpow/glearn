@@ -52,13 +52,13 @@ class NormalDistributionLayer(DistributionLayer):
             self.add_loss(l2_loss)
             self.summary.add_scalar("l2_loss", l2_loss)
 
-        # create dense layer for sigma with scaling (no dropout to avoid div by zero)
-        self.sigma = self.dense(x, self.size, None, self.sigma_activation,
+        # create dense layer for sigma with scaling
+        self.sigma = self.dense(x, self.size, dropout, self.sigma_activation,
                                 weights_initializer=weights_initializer,
                                 biases_initializer=biases_initializer)
         if self.sigma_scale != 1:
             self.sigma *= self.sigma_scale
-        self.sigma += 1e-5
+        self.sigma += 1e-6
         self.references["sigma"] = self.sigma
         self.summary.add_histogram("sigma", self.sigma)
 
