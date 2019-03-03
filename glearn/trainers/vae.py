@@ -53,17 +53,14 @@ class VariationalAutoencoderTrainer(Trainer):
 
             # generated image summaries
             images = tf.reshape(y, x_shape)
-            # labels = self.get_feed("Y")
-            # label_count = len(self.dataset.label_names)
-            # indexes = [tf.where(tf.equal(labels, l))[:, -1] for l in range(label_count)]
-            # for i in range(label_count):
-            #     label_name = self.dataset.label_names[i]
-            #     index = tf.squeeze(indexes[i])[0]
-            #     decoded_image = images[index:index + 1]
-            #     self.summary.add_image(f"decoded_{label_name}", decoded_image)
-            for i in range(10):
-                decoded_image = images[i:i + 1]
-                self.summary.add_image(f"decoded_{i}", decoded_image)
+            labels = self.get_feed("Y")
+            label_count = len(self.dataset.label_names)
+            indexes = [tf.where(tf.equal(labels, l))[:, 0] for l in range(label_count)]
+            for i in range(label_count):
+                label_name = self.dataset.label_names[i]
+                index = tf.squeeze(indexes[i])[0]
+                decoded_image = images[index:index + 1]
+                self.summary.add_image(f"decoded_{label_name}", decoded_image)
 
             # minimize loss
             learning_rate = self.decoder_definition.get("learning_rate", 1e-3)
