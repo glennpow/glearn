@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.python.ops import math_ops
 from glearn.trainers.trainer import Trainer
 from glearn.networks import load_network
 
@@ -38,18 +37,18 @@ class SoftActorCriticTrainer(Trainer):
             Q_network.build_predict(Q_inputs)
             self.Q_networks.append(Q_network)
 
-            self.set_fetch(Q_index, Q_network.outputs)
+            self.add_fetch(Q_index, Q_network.outputs)
 
     def build_V(self):
         # build V-network
         state = self.get_feed("X")
         self.V_network = load_network(f"V", self.policy, self.V_definition)
         V = self.V_network.build_predict(state)
-        self.set_fetch("V", V)
+        self.add_fetch("V", V)
 
         # build target V-network
         self.target_V_network = self.V_network.clone("target_V")
-        self.set_fetch("target_V", self.target_V_network.outputs)
+        self.add_fetch("target_V", self.target_V_network.outputs)
 
     def build_critic(self):
         with tf.variable_scope("critic"):
@@ -70,7 +69,7 @@ class SoftActorCriticTrainer(Trainer):
             for i in range(self.Q_count):
                 query = f"Q_{i + 1}_optimize"
                 with tf.name_scope(query):
-                    # Q-loss
+                    # build Q-loss
                     with tf.name_scope("loss"):
                         Q_i_network = self.Q_networks[i]
                         Q_i = Q_i_network.outputs
@@ -84,7 +83,7 @@ class SoftActorCriticTrainer(Trainer):
                 # Q summaries
                 self.summary.add_scalar(f"Q_{i + 1}", tf.reduce_mean(Q_i))
 
-            self.set_fetch("Q_update", tf.group(Q_optimizes, name="Q_update"))
+            self.add_fetch("Q_update", tf.group(Q_optimizes, name="Q_update"))
 
             # build V-loss and optimize
             query = "V_optimize"
@@ -92,6 +91,16 @@ class SoftActorCriticTrainer(Trainer):
                 with tf.name_scope("loss"):
                     action = self.get_feed("Y")
                     policy_distribution = self.policy.network.get_distribution_layer()
+
+                    # TODO...
+                    # with tf.variable_scope('training_alpha'):
+                    #     if self.auto_adjusted_alpha:
+                    #         loss_alpha = - tf.reduce_mean(self.log_alpha * tf.stop_gradient(
+                    #             self.mu_logp + self._entropy_threshold))
+                    #         train_alpha_op, grads_alpha = self._build_optimization_op(loss_alpha, [self.log_alpha], 0.001)
+
+                    #         self.losses += [loss_alpha]
+                    #         self.train_ops += [train_alpha_op]
 
                     # build entropy
                     entropy = tf.reduce_mean(policy_distribution.neg_log_prob(action))
@@ -104,7 +113,7 @@ class SoftActorCriticTrainer(Trainer):
                     # build V-loss
                     V_target = tf.stop_gradient(Q_min + self.entropy_factor)
                     V = self.V_network.outputs
-                    V_loss = tf.reduce_mean(math_ops.squared_difference(V, V_target))
+                    V_loss = tf.reduce_mean(tf.squared_difference(V, V_target))
                 self.summary.add_scalar("V_loss", V_loss)
 
                 # optimize the V-loss
@@ -118,7 +127,7 @@ class SoftActorCriticTrainer(Trainer):
                 # build target network update
                 target_V_update = self.target_V_network.update(self.V_network, self.tau)
 
-            self.set_fetch("V_update", tf.group([V_optimize, target_V_update], name="V_update"))
+            self.add_fetch("V_update", tf.group([V_optimize, target_V_update], name="V_update"))
 
     def build_actor(self):
         with tf.name_scope("actor"):
@@ -129,13 +138,13 @@ class SoftActorCriticTrainer(Trainer):
                     # # policy loss
                     Q_1 = tf.stop_gradient(self.Q_networks[0].outputs)
                     policy_loss = -tf.reduce_mean(Q_1 + self.entropy_factor)
-                    self.set_fetch("policy_loss", policy_loss, "evaluate")
+                    self.add_fetch("policy_loss", policy_loss, "evaluate")
                 self.summary.add_scalar("policy_loss", policy_loss)
 
                 # optimize the policy loss
                 policy_optimize = self.policy.network.optimize_loss(policy_loss)
 
-            self.set_fetch("policy_update", policy_optimize)
+            self.add_fetch("policy_update", policy_optimize)
 
     def fetch_Q(self, index=None, states=None, actions=None, squeeze=False):
         query = "Q" if index is None else f"Q_{index}"

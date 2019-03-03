@@ -24,7 +24,7 @@ class PPOTrainer(AdvantageActorCriticTrainer):
             target_policy_vars = self.target_policy_network.global_variables()
             policy_updates = [tp.assign(p) for p, tp in zip(policy_vars, target_policy_vars)]
             policy_update = tf.group(*policy_updates, name="policy_update")
-            self.set_fetch("policy_update", policy_update)
+            self.add_fetch("policy_update", policy_update)
 
         # build policy optimization
         query = "policy_optimize"
@@ -50,10 +50,10 @@ class PPOTrainer(AdvantageActorCriticTrainer):
                 # total policy loss
                 policy_loss = self.policy_network.get_total_loss()
                 policy_loss = tf.reduce_mean(policy_loss)
-                self.set_fetch("policy_loss", policy_loss, "evaluate")
+                self.add_fetch("policy_loss", policy_loss, "evaluate")
             self.summary.add_scalar("policy_loss", policy_loss)
 
             # optimize the policy loss
             optimize = self.optimize_loss(policy_loss, query, update_global_step=False)
 
-            self.set_fetch(query, optimize)
+            self.add_fetch(query, optimize)

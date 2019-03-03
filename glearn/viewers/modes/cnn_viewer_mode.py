@@ -24,7 +24,7 @@ class CNNViewerMode(ViewerMode):
             for layer in conv3d_layers:
                 features = layer.references["features"]
                 for f in features:
-                    network.context.set_fetch(f"conv2d_{n}", f, "predict")
+                    network.context.add_fetch(f"conv2d_{n}", f, "predict")
                     n += 1
 
     def view_results(self, queries, feed_map, results):

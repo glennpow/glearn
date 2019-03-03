@@ -60,4 +60,5 @@
   sweeps:
     # learning_rate: [1.0e-2, 1.0e-3, 1.0e-4]
     "policy.args.network.learning_rate": [3.0e-4]  # [2.0e-4, 3.0e-4, 4.0e-4]
-    "Q.learning_rate": [1.0e-2, 1.0e-3, 1.0e-4]
+    "Q.learning_rate": [0.5e-2, 1.0e-2, 2.0e-2]
+    # "V.learning_rate": [0.5e-2, 1.0e-2, 2.0e-2]

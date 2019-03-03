@@ -117,7 +117,7 @@ class NetworkContext(Configurable):
                 feed_dict[key] = value
         return feed_dict
 
-    def set_fetch(self, name, value, queries=None):
+    def add_fetch(self, name, value, queries=None):
         # set fetch for queries (defaults to name)
         if queries is None:
             queries = [name]
@@ -213,8 +213,8 @@ class NetworkContextProxy(Configurable):
     def build_feed_dict(self, mapping, queries=None):
         return self.context.build_feed_dict(mapping=mapping, queries=queries)
 
-    def set_fetch(self, name, value, queries=None):
-        return self.context.set_fetch(name, value, queries=queries)
+    def add_fetch(self, name, value, queries=None):
+        return self.context.add_fetch(name, value, queries=queries)
 
     def is_fetch(self, name, queries=None):
         return self.context.is_fetch(name, queries=queries)

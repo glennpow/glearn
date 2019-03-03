@@ -26,14 +26,14 @@ class NetworkPolicy(Policy):
                 predict = tf.clip_by_value(predict, output_space.low, output_space.high)
                 self.network.outputs = predict
 
-        self.set_fetch("predict", predict, ["predict", "evaluate"])
+        self.add_fetch("predict", predict, ["predict", "evaluate"])
 
     def build_loss(self):
         # build loss
         loss, accuracy = self.network.build_loss(self.outputs)
 
-        self.set_fetch("loss", loss, ["evaluate"])
-        self.set_fetch("accuracy", accuracy, ["evaluate"])
+        self.add_fetch("loss", loss, ["evaluate"])
+        self.add_fetch("accuracy", accuracy, ["evaluate"])
 
     def optimize_loss(self, loss=None):
         return self.network.optimize_loss(loss)

@@ -103,7 +103,7 @@ class NetworkLayer(object):
                 # weight decay loss
                 if weight_decay is not None:
                     W_loss = tf.multiply(tf.nn.l2_loss(W), weight_decay, name='W_loss')
-                    self.context.set_fetch(f"{scope}_W_loss", W_loss, ["evaluate"])
+                    self.context.add_fetch(f"{scope}_W_loss", W_loss, ["evaluate"])
                     self.add_loss(W_loss)
 
                 # biases

@@ -369,7 +369,7 @@ class Trainer(NetworkContextProxy):
 
             # check for invalid values in the current graph
             if self.debug_numerics:
-                self.set_fetch("check", tf.add_check_numerics_ops(), "policy_optimize")
+                self.add_fetch("check", tf.add_check_numerics_ops(), "policy_optimize")
 
             # prepare viewer
             self.viewer.prepare(self)

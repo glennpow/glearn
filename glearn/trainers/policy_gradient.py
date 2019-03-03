@@ -11,4 +11,4 @@ class PolicyGradientTrainer(Trainer):
 
             # minimize policy loss
             optimize = self.policy.optimize_loss()
-            self.set_fetch(query, optimize)
+            self.add_fetch(query, optimize)

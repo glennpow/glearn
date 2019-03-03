@@ -24,7 +24,7 @@ class AdvantageActorCriticTrainer(TemporalDifferenceTrainer):
         self.critic_network = load_network("value", self.context, self.critic_definition)
         critic_inputs = self.get_feed("X")
         critic_value = self.critic_network.build_predict(critic_inputs)
-        self.set_fetch("value", critic_value)
+        self.add_fetch("value", critic_value)
         with tf.name_scope("value/"):
             avg_critic_value = tf.reduce_mean(critic_value)
 
@@ -35,7 +35,7 @@ class AdvantageActorCriticTrainer(TemporalDifferenceTrainer):
 
             optimize = self.optimize_loss(value_loss, query, self.critic_definition)
 
-            self.set_fetch(query, optimize)
+            self.add_fetch(query, optimize)
 
             self.summary.add_scalar("value", avg_critic_value)
 
@@ -49,11 +49,11 @@ class AdvantageActorCriticTrainer(TemporalDifferenceTrainer):
             if self.normalize_advantage:
                 advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
 
-            self.set_fetch("advantage", advantage)
+            self.add_fetch("advantage", advantage)
 
             # value loss minimizes squared advantage
             value_loss = tf.reduce_mean(tf.square(advantage))
-            self.set_fetch("value_loss", value_loss, "evaluate")
+            self.add_fetch("value_loss", value_loss, "evaluate")
 
             # averages
             discounted_reward = tf.reduce_mean(discounted_reward)
@@ -86,13 +86,13 @@ class AdvantageActorCriticTrainer(TemporalDifferenceTrainer):
                 # total policy loss
                 policy_loss = self.policy_network.get_total_loss()
                 policy_loss = tf.reduce_mean(policy_loss)
-                self.set_fetch("policy_loss", policy_loss, "evaluate")
+                self.add_fetch("policy_loss", policy_loss, "evaluate")
             self.summary.add_scalar("policy_loss", policy_loss)
 
             # optimize the policy loss
             optimize = self.optimize_loss(policy_loss, query, update_global_step=False)
 
-            self.set_fetch(query, optimize)
+            self.add_fetch(query, optimize)
 
     def run(self, queries, feed_map={}, **kwargs):
         if not isinstance(queries, list):

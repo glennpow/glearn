@@ -115,6 +115,11 @@ class Network(Configurable):
     def add_loss(self, loss):
         tf.add_to_collection(f"{self.name}_losses", loss)
 
+    def add_regularization_loss(self, factor):
+        # TODO - work on this a bit...
+        loss = tf.reduce_mean([tf.nn.l2_loss(x) for x in self.trainable_variables()]) * factor
+        self.add_loss(loss)
+
     def build_total_loss(self):
         # add all losses to get total
         losses = tf.get_collection(f"{self.name}_losses")
@@ -168,6 +173,7 @@ class Network(Configurable):
 
         # get gradients and trainable variables
         grads_tvars = optimizer.compute_gradients(loss)
+        grads_tvars = [(g, v) for (g, v) in grads_tvars if g is not None]
 
         # validate affected network variables during optimization
         if self.debug:
@@ -178,7 +184,7 @@ class Network(Configurable):
                         self.warning(f" * {v.name}  |  {v.shape}")
 
             expected_vars = self.trainable_variables()
-            computed_vars = [v for (g, v) in grads_tvars if g is not None]
+            computed_vars = [v for (g, v) in grads_tvars]
             missing = [v for v in computed_vars if v not in computed_vars]
             unexpected = [v for v in computed_vars if v not in expected_vars]
             report_warnings("Missing", missing)
@@ -210,7 +216,7 @@ class Network(Configurable):
         # add learning rate and gradient summaries
         self.summary.add_scalar("learning_rate", learning_rate)
         if self.debug_gradients:
-            self.summary.add_gradients(zip(grads, tvars))
+            self.summary.add_gradients(grads_tvars)
 
         return optimize
 
@@ -243,5 +249,5 @@ class Network(Configurable):
                 updates = [tp.assign(tp * (1.0 - tau) + p * tau)
                            for p, tp in zip(source_vars, target_vars)]
             network_update = tf.group(*updates, name="update_parameters")
-            self.context.set_fetch(name, network_update)
+            self.context.add_fetch(name, network_update)
             return network_update
