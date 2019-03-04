@@ -70,6 +70,6 @@ class VariationalAutoencoderTrainer(Trainer):
 
     def optimize(self, batch, feed_map):
         # optimize encoder/decoder-networks
-        results = self.run(["vae_update", "decoder"], feed_map)
+        results = self.run("vae_update", feed_map)
 
         return results

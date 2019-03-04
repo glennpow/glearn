@@ -19,7 +19,7 @@
               activation: tensorflow.nn:tanh
           - name: glearn.networks:NormalDistributionLayer
             args:
-              size: 20
+              size: 20  # encoding size
         optimizer: adam
         learning_rate: 1.0e-3
 
