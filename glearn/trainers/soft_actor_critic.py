@@ -17,7 +17,7 @@ class SoftActorCriticTrainer(Trainer):
         super().__init__(config, policy, **kwargs)
 
         # actor critic only works for RL
-        assert(self.reinforcement)
+        assert(self.has_env)
 
         # self.policy_scope = "actor"
 

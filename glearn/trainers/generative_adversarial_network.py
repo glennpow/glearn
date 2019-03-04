@@ -4,7 +4,7 @@ from glearn.networks import load_network
 from glearn.datasets.dataset import LabeledDataset
 
 
-class VariationalAutoencoderTrainer(Trainer):
+class GenerativeAdversarialNetworkTrainer(Trainer):
     def __init__(self, config, policy, decoder, **kwargs):
         # get basic params
         self.decoder_definition = decoder

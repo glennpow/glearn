@@ -29,7 +29,7 @@ class CNNViewerMode(ViewerMode):
 
     def view_results(self, queries, feed_map, results):
         # visualize prediction results
-        if self.supervised and "evaluate" in queries:
+        if self.has_dataset and "evaluate" in queries:
             self.view_predict(feed_map["X"], feed_map["Y"], results["predict"])
 
         # visualize CNN features

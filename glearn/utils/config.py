@@ -211,10 +211,10 @@ class Config(object):
         self.viewer = load_view_controller(self, render=self.rendering)
 
         # prepare input/output interfaces, and env
-        if self.supervised:
+        if self.has_dataset:
             self.input = self.dataset.input
             self.output = self.dataset.output
-        elif self.reinforcement:
+        elif self.has_env:
             self.env.seed(self.seed)
 
             self.input = Interface(self.env.observation_space)
@@ -259,15 +259,15 @@ class Config(object):
         return self.debugging and self.get(key, False)
 
     @property
-    def reinforcement(self):
+    def has_env(self):
         return self.env is not None
 
     @property
-    def supervised(self):
+    def has_dataset(self):
         return self.dataset is not None
 
     def get_interval_size(self, mode="train"):
-        if self.supervised:
+        if self.has_dataset:
             # interval size is epoch worth of steps
             return self.dataset.get_epoch_size(mode=mode)
         else:
@@ -383,12 +383,12 @@ class Configurable(Loggable):
         return self.config.env
 
     @property
-    def supervised(self):
-        return self.config.supervised
+    def has_dataset(self):
+        return self.config.has_dataset
 
     @property
-    def reinforcement(self):
-        return self.config.reinforcement
+    def has_env(self):
+        return self.config.has_env
 
     @property
     def input(self):

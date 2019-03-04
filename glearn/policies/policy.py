@@ -52,7 +52,7 @@ class Policy(NetworkContext):
 
     def build_inputs(self):
         with tf.name_scope('feeds'):
-            if self.supervised:
+            if self.has_dataset:
                 inputs = self.dataset.get_inputs()
                 outputs = self.dataset.get_outputs()
             else:

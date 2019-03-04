@@ -11,7 +11,7 @@ class ActorCriticTrainer(TemporalDifferenceTrainer):
         super().__init__(config, policy, **kwargs)
 
         # actor critic only works for RL
-        assert(self.reinforcement)
+        assert(self.has_env)
 
     def build_trainer(self):
         self.init_critic()

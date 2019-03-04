@@ -1,4 +1,4 @@
---- # MNIST
+--- # MNIST VAE
   import: _base
 
   dataset: mnist
@@ -46,11 +46,11 @@
       keep_prob: 0.9
       evaluate_interval: 20
 
-  viewer:
-    name: glearn.viewers.advanced_viewer:AdvancedViewer
-    args:
-      zoom: 2
-      modes:
-        - name: glearn.viewers.modes:CNNViewerMode
-          args:
-            visualize_grid: [10, 10]
+  # viewer:
+  #   name: glearn.viewers.advanced_viewer:AdvancedViewer
+  #   args:
+  #     zoom: 2
+  #     modes:
+  #       - name: glearn.viewers.modes:CNNViewerMode
+  #         args:
+  #           visualize_grid: [10, 10]

@@ -44,9 +44,11 @@ class Trainer(NetworkContextProxy):
 
     def __str__(self):
         properties = [
-            "supervised" if self.supervised else "reinforcement",
             "training" if self.training else "evaluating",
+            self.learning_type(),
         ]
+        if self.has_env:
+            properties.append("on-policy" if self.on_policy() else "off-policy")
         return f"{type(self).__name__}({', '.join(properties)})"
 
     def get_info(self):
@@ -57,7 +59,7 @@ class Trainer(NetworkContextProxy):
             "Total Saveable Objects": len(saveable_objects()),
             "Evaluate Interval": self.evaluate_interval,
         }
-        if self.supervised:
+        if self.has_dataset:
             info.update({
                 "Epochs": self.epochs,
             })
@@ -72,7 +74,7 @@ class Trainer(NetworkContextProxy):
     def print_info(self):
         # gather info
         info = {}
-        if self.supervised:
+        if self.has_dataset:
             info["Dataset"] = self.dataset.get_info()
         else:
             info["Environment"] = {
@@ -87,6 +89,9 @@ class Trainer(NetworkContextProxy):
         print()
         print_tabular(info, grouped=True, show_type=False, color="white", bold=True)
         print()
+
+    def learning_type(self):
+        return "supervised" if self.has_dataset else "reinforcement"
 
     def on_policy(self):
         # override
@@ -207,11 +212,11 @@ class Trainer(NetworkContextProxy):
         pass
 
     def get_batch(self, mode="train"):
-        if self.supervised:
-            # supervised batch of samples
+        if self.has_dataset:
+            # dataset batch of samples
             return self.dataset.get_batch(mode=mode)
         else:
-            # reinforcement experience replay batch of samples (TODO - ReplayBuffer)
+            # env experience replay batch of samples (TODO - ReplayBuffer)
             batch = TransitionBatch(self.transitions[:self.batch_size], mode=mode)
             feed_map = {
                 "X": batch.inputs,
@@ -228,7 +233,7 @@ class Trainer(NetworkContextProxy):
     def should_optimize(self):
         if not self.training:
             return False
-        if self.supervised:
+        if self.has_dataset:
             return True
         else:
             return len(self.transitions) >= self.batch_size
@@ -246,13 +251,13 @@ class Trainer(NetworkContextProxy):
         self.current_global_step = global_step
 
         # print log
-        iteration_name = "Epoch" if self.supervised else "Episode"
-        iteration = self.epoch if self.supervised else self.episode
+        iteration_name = "Epoch" if self.has_dataset else "Episode"
+        iteration = self.epoch if self.has_dataset else self.episode
         print_update(f"Optimizing | {iteration_name}: {iteration} | Global Step: {global_step}")
         return results
 
     def should_evaluate(self):
-        if self.reinforcement and len(self.transitions) < self.batch_size:
+        if self.has_env and len(self.transitions) < self.batch_size:
             return False
         return not self.training or self.current_global_step % self.evaluate_interval == 0
 
@@ -261,7 +266,7 @@ class Trainer(NetworkContextProxy):
         queries = ["evaluate"]
 
         # prepare dataset partition
-        if self.supervised:
+        if self.has_dataset:
             epoch_size = self.dataset.reset(mode="test")
         else:
             epoch_size = 1
@@ -311,7 +316,7 @@ class Trainer(NetworkContextProxy):
                 "training time": train_elapsed_time,
                 "steps/second": steps_per_second,
             }
-            if self.supervised:
+            if self.has_dataset:
                 stats.update({
                     "epoch step": self.epoch_step,
                     "epoch time": iteration_elapsed_time,
@@ -407,11 +412,11 @@ class Trainer(NetworkContextProxy):
                 self.last_eval_time = None
                 self.last_eval_step = self.current_global_step
 
-                # do supervised or reinforcement loop
-                if self.supervised:
-                    self.experiment_supervised_loop(experiment_yield)
+                # do specific experiment loop
+                if self.has_dataset:
+                    self.experiment_dataset_loop(experiment_yield)
                 else:
-                    self.experiment_reinforcement_loop(experiment_yield)
+                    self.experiment_env_loop(experiment_yield)
 
             if profile:
                 # profile experiment loop
@@ -427,8 +432,8 @@ class Trainer(NetworkContextProxy):
             self.policy.stop_session()
             self.config.close_session()
 
-    def experiment_supervised_loop(self, experiment_yield):
-        # supervised learning
+    def experiment_dataset_loop(self, experiment_yield):
+        # dataset learning
         if self.training:
             # train desired epochs
             epoch = 1
@@ -463,7 +468,7 @@ class Trainer(NetworkContextProxy):
             self.iteration_start_time = time.time()
             self.evaluate(experiment_yield)
 
-    def experiment_reinforcement_loop(self, experiment_yield):
+    def experiment_env_loop(self, experiment_yield):
         # reinforcement learning
         episode = 1
         reset_evaluate = True

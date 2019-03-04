@@ -1,0 +1,49 @@
+--- # MNIST GAN
+  import: _base
+
+  dataset: mnist
+  batch_size: 100  # 128
+  
+  policy:
+    name: glearn.policies:NetworkPolicy
+    args:
+      network:  # generator network
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1024, 512, 256]
+              activation: tensorflow.nn:leaky_relu
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1]
+              activation: tensorflow.nn:sigmoid
+        optimizer: adam
+        learning_rate: 2.0e-4
+
+  trainer:
+    name: glearn.trainers:GenerativeAdversarialNetworkTrainer
+    args:
+      decoder:  # discriminator network
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [256, 512, 1024]
+              activation: tensorflow.nn:leaky_relu
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [784]
+              activation: tensorflow.nn:tanh
+        optimizer: adam
+        learning_rate: 2.0e-4
+      epochs: 200
+      keep_prob: 0.7
+      evaluate_interval: 20
+
+  # viewer:
+  #   name: glearn.viewers.advanced_viewer:AdvancedViewer
+  #   args:
+  #     zoom: 2
+  #     modes:
+  #       - name: glearn.viewers.modes:CNNViewerMode
+  #         args:
+  #           visualize_grid: [10, 10]
