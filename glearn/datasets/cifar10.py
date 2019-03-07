@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 import os
 import gym
-from glearn.datasets.dataset import LabeledDataset
+from glearn.datasets.labeled import LabeledDataset
 from glearn.utils.download import ensure_download
 from glearn.utils.path import script_relpath
 

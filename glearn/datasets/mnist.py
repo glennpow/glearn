@@ -6,7 +6,7 @@ import numpy as np
 from six.moves import urllib
 import tensorflow as tf
 import gym
-from glearn.datasets.dataset import LabeledDataset
+from glearn.datasets.labeled import LabeledDataset
 from glearn.utils.path import script_relpath
 
 

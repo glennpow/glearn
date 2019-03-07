@@ -15,7 +15,7 @@ from glearn.utils.path import script_relpath
 from glearn.utils.session import DebuggableSession
 from glearn.utils.summary import SummaryWriter, NullSummaryWriter
 from glearn.utils.subprocess_utils import shell_call
-from glearn.policies.interface import Interface
+from glearn.data.interface import Interface
 from glearn.viewers import load_view_controller
 
 

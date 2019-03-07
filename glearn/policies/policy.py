@@ -1,19 +1,16 @@
-import numpy as np
 import tensorflow as tf
-from glearn.networks.context import NetworkContext
+from glearn.networks.context import NetworkContextProxy
 
 
-class Policy(NetworkContext):
-    def __init__(self, config):
-        super().__init__(config)
+class Policy(NetworkContextProxy):
+    def __init__(self, config, context):
+        super().__init__(config, context=context)
 
         self.multithreaded = config.get("multithreaded", False)  # TODO get this from dataset
         self.threads = None
 
         if self.rendering:
             self.init_viewer()
-
-        # self.build_policy()
 
     def __str__(self):
         properties = [
@@ -70,11 +67,6 @@ class Policy(NetworkContext):
         self.inputs = inputs
         self.outputs = outputs
 
-        # default output for debugging
-        if self.debugging:
-            batch_size = self.config.get("batch_size", 1)
-            self.default_output = np.zeros((batch_size,) + self.output.shape, self.output.dtype)
-
     def build_predict(self):
         # override
         pass
@@ -92,10 +84,7 @@ class Policy(NetworkContext):
         pass
 
     def prepare_default_feeds(self, queries, feed_map):
-        # make sure we have outputs defined
-        # if self.debugging and "Y" not in feed_map:
-        #     feed_map["Y"] = self.default_output
-
+        # override
         return feed_map
 
     def get_fetches(self, queries=None):

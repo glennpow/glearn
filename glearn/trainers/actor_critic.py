@@ -23,7 +23,7 @@ class ActorCriticTrainer(TemporalDifferenceTrainer):
 
         # build critic network
         self.critic_network = load_network("value", policy, self.critic_definition)
-        critic_inputs = self.get_feed("X")
+        critic_inputs = self.policy.inputs
         critic_value = self.critic_network.build_predict(critic_inputs)
         self.add_fetch("value", critic_value)
         with tf.name_scope("value/"):
@@ -48,7 +48,7 @@ class ActorCriticTrainer(TemporalDifferenceTrainer):
         query = "policy_optimize"
         with tf.name_scope(query):
             with tf.name_scope("loss"):
-                action = self.get_feed("Y")
+                action = self.policy.outputs
                 advantage = self.get_fetch("advantage")
 
                 # actor loss

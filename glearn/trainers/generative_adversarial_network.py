@@ -1,40 +1,48 @@
+import numpy as np
 import tensorflow as tf
 from glearn.trainers.trainer import Trainer
 from glearn.networks import load_network
-from glearn.datasets.dataset import LabeledDataset
+# from glearn.datasets.labeled import LabeledDataset
 
 
 class GenerativeAdversarialNetworkTrainer(Trainer):
-    def __init__(self, config, policy, decoder, **kwargs):
+    def __init__(self, config, policy, discriminator, generator, discriminator_steps=1,
+                 noise_size=100, test_size=16, **kwargs):
         # get basic params
-        self.decoder_definition = decoder
+        self.discriminator_definition = discriminator
+        self.discriminator_steps = discriminator_steps
+        self.noise_size = noise_size
+        self.test_size = test_size
 
         super().__init__(config, policy, **kwargs)
 
-        # only works for labeled datasets
+        # only works for datasets
         assert(self.has_dataset)
-        assert(isinstance(self.dataset, LabeledDataset))
+        # assert(isinstance(self.dataset, LabeledDataset))
+
+        # self.policy_scope = "generator"
 
     def learning_type(self):
         return "unsupervised"
 
     def build_trainer(self):
-        self.build_decoder()
+        # gather test noise
+        self.test_noise = self.sample_noise(self.test_size, self.noise_size)
 
-    def build_decoder(self):
-        with tf.variable_scope("vae"):
+        with tf.variable_scope("gan"):
             # get original images
-            x = self.get_feed("X")
+            x = self.policy.inputs  # FIXME
             x_shape = tf.shape(x)
             x_size = tf.reduce_prod(x_shape[1:])
             x = tf.reshape(x, [-1, x_size])
 
             # build decoder-network
-            decoder_input = self.get_fetch("predict")
-            self.decoder_network = load_network(f"decoder", self.policy, self.decoder_definition)
-            y = self.decoder_network.build_predict(decoder_input)
-            y = tf.clip_by_value(y, 1e-8, 1 - 1e-8)
-            self.add_fetch("decoder", y)
+            discriminator_input = x
+            self.discriminator_network = load_network(f"discriminator", self.policy,
+                                                      self.discriminator_definition)
+            y = self.discriminator_network.build_predict(discriminator_input)
+            # y = tf.clip_by_value(y, 1e-8, 1 - 1e-8)
+            self.add_fetch("discriminator", y)
 
             # losses
             policy_distribution = self.policy.network.get_distribution_layer()
@@ -71,8 +79,16 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
             update_op = optimizer.minimize(loss)
             self.add_fetch("vae_update", update_op)
 
+    def sample_noise(rows, cols):
+        return np.random.normal(size=(rows, cols))
+
     def optimize(self, batch, feed_map):
-        # optimize encoder/decoder-networks
-        results = self.run("vae_update", feed_map)
+        # optimize discriminator-network
+        for i in range(self.discriminator_steps):
+
+            self.run("discriminator_update", feed_map)
+
+        # optimize generator-network
+        results = self.run("generator_update", feed_map)
 
         return results

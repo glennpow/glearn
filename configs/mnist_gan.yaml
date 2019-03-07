@@ -3,11 +3,26 @@
 
   dataset: mnist
   batch_size: 100  # 128
-  
-  policy:
-    name: glearn.policies:NetworkPolicy
+
+  trainer:
+    name: glearn.trainers:GenerativeAdversarialNetworkTrainer
     args:
-      network:  # generator network
+
+      discriminator:  # discriminator network
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [256, 512, 1024]
+              activation: tensorflow.nn:leaky_relu
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [784]
+              activation: tensorflow.nn:tanh
+        optimizer: adam
+        learning_rate: 2.0e-4
+      discriminator_steps: 1
+
+      generator:  # generator network
         layers:
           - name: glearn.networks:DenseLayer
             args:
@@ -20,21 +35,6 @@
         optimizer: adam
         learning_rate: 2.0e-4
 
-  trainer:
-    name: glearn.trainers:GenerativeAdversarialNetworkTrainer
-    args:
-      decoder:  # discriminator network
-        layers:
-          - name: glearn.networks:DenseLayer
-            args:
-              hidden_sizes: [256, 512, 1024]
-              activation: tensorflow.nn:leaky_relu
-          - name: glearn.networks:DenseLayer
-            args:
-              hidden_sizes: [784]
-              activation: tensorflow.nn:tanh
-        optimizer: adam
-        learning_rate: 2.0e-4
       epochs: 200
       keep_prob: 0.7
       evaluate_interval: 20

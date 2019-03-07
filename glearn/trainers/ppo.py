@@ -30,7 +30,7 @@ class PPOTrainer(AdvantageActorCriticTrainer):
         query = "policy_optimize"
         with tf.name_scope(query):
             with tf.name_scope("loss"):
-                action = self.get_feed("Y")
+                action = self.policy.outputs
                 advantage = self.get_fetch("advantage")
 
                 # surrogate loss

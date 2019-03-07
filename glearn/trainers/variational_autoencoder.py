@@ -1,7 +1,7 @@
 import tensorflow as tf
 from glearn.trainers.trainer import Trainer
 from glearn.networks import load_network
-from glearn.datasets.dataset import LabeledDataset
+from glearn.datasets.labeled import LabeledDataset
 
 
 class VariationalAutoencoderTrainer(Trainer):
@@ -15,16 +15,15 @@ class VariationalAutoencoderTrainer(Trainer):
         assert(self.has_dataset)
         assert(isinstance(self.dataset, LabeledDataset))
 
+        # self.policy_scope = "encoder"
+
     def learning_type(self):
         return "unsupervised"
 
     def build_trainer(self):
-        self.build_decoder()
-
-    def build_decoder(self):
         with tf.variable_scope("vae"):
             # get original images
-            x = self.get_feed("X")
+            x = self.policy.inputs
             x_shape = tf.shape(x)
             x_size = tf.reduce_prod(x_shape[1:])
             x = tf.reshape(x, [-1, x_size])
@@ -56,7 +55,7 @@ class VariationalAutoencoderTrainer(Trainer):
 
             # generated image summaries
             images = tf.reshape(y, x_shape)
-            labels = self.get_feed("Y")
+            labels = self.policy.outputs
             label_count = len(self.dataset.label_names)
             indexes = [tf.where(tf.equal(labels, l))[:, 0] for l in range(label_count)]
             for i in range(label_count):

@@ -5,20 +5,22 @@ import tensorflow as tf
 import pyglet
 from glearn.data.transition import Transition, TransitionBatch
 from glearn.networks.context import num_global_parameters, num_trainable_parameters, \
-    saveable_objects, NetworkContextProxy
+    saveable_objects, NetworkContext
+from glearn.policies import load_policy
+from glearn.policies.random import RandomPolicy
 from glearn.utils.collections import intersects
 from glearn.utils.printing import print_update, print_tabular
 from glearn.utils.profile import run_profile, open_profile
 from glearn.utils.memory import print_virtual_memory, print_gpu_memory
 
 
-class Trainer(NetworkContextProxy):
-    def __init__(self, config, policy, epochs=None, episodes=None,
+class Trainer(NetworkContext):
+    def __init__(self, config, epochs=None, episodes=None,
                  max_episode_time=None, min_episode_reward=None, evaluate_interval=10, epsilon=0,
                  keep_prob=1, **kwargs):
-        super().__init__(config, context=policy)
+        super().__init__(config)
 
-        self.policy = policy
+        self.policy = None
         self.policy_scope = None
         self.kwargs = kwargs
 
@@ -83,7 +85,8 @@ class Trainer(NetworkContextProxy):
                 "Output": self.output,
             }
         info["Trainer"] = self.get_info()
-        info["Policy"] = self.policy.get_info()
+        if self.policy:
+            info["Policy"] = self.policy.get_info()
 
         # print a table with all this info
         print()
@@ -106,7 +109,7 @@ class Trainer(NetworkContextProxy):
             self.state = self.env.reset()
             self.episode_reward = 0
 
-    def build_models(self):
+    def build_models(self, random=False):
         # initialize render viewer
         if self.rendering:
             self.init_viewer()
@@ -114,22 +117,30 @@ class Trainer(NetworkContextProxy):
         # build policy model
         if self.policy_scope is not None:
             with tf.variable_scope(f"{self.policy_scope}/"):
-                self.build_policy()
+                self.build_policy(random=random)
         else:
             self.build_policy()
 
         # build trainer model
         self.build_trainer()
 
-    def build_policy(self):
-        self.policy.build_policy()
+    def build_policy(self, random=False):
+        # create policy, if defined
+        if self.config.has("policy"):
+            if random:
+                self.policy = RandomPolicy(self.config, self)
+            else:
+                self.policy = load_policy(self.config, self)
+
+            self.policy.build_policy()
 
     def build_trainer(self):
         # overwrite
         pass
 
     def prepare_feeds(self, queries, feed_map):
-        self.policy.prepare_default_feeds(queries, feed_map)
+        if self.policy:
+            self.policy.prepare_default_feeds(queries, feed_map)
 
         # dropout
         if intersects(["policy_optimize", "value_optimize"], queries):
@@ -358,7 +369,7 @@ class Trainer(NetworkContextProxy):
 
         print()
 
-    def execute(self, render=False, profile=False):
+    def execute(self, render=False, profile=False, random=False):
         try:
             self.max_episode_reward = None
             self.running = True
@@ -366,11 +377,12 @@ class Trainer(NetworkContextProxy):
             self.start_time = time.time()
 
             # build models
-            self.build_models()
+            self.build_models(random=random)
 
             # start session
             self.config.start_session()
-            self.policy.start_session()
+            if self.policy:
+                self.policy.start_session()
 
             # check for invalid values in the current graph
             if self.debug_numerics:
@@ -386,7 +398,7 @@ class Trainer(NetworkContextProxy):
             def experiment_yield(flush_summary=False):
                 # write summary results
                 if flush_summary:
-                    self.policy.summary.flush(global_step=self.current_global_step)
+                    self.summary.flush(global_step=self.current_global_step)
 
                 while True:
                     # check if experiment stopped
@@ -429,7 +441,8 @@ class Trainer(NetworkContextProxy):
                 experiment_loop()
         finally:
             # cleanup session after evaluation
-            self.policy.stop_session()
+            if self.policy:
+                self.policy.stop_session()
             self.config.close_session()
 
     def experiment_dataset_loop(self, experiment_yield):

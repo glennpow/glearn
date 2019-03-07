@@ -9,15 +9,13 @@
 
 
 ## ALMOST DONE
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# use tf.Dataset for all experiments.
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# use tf.Dataset for all experiments. (in datasets branch)
 
 
 ## SOON
 
 # ability to set sweeps such as: "policy..learning_rate": [1, 2]  which would match all learning_rates under policy
-# show Q_loss in tb
+? show Q_loss in tb
 
 
 ### SAC
@@ -28,7 +26,7 @@
 
 
 
-### Gaussian
+### GAUSSIAN (WOJ)
 
 mu is only trained from state
 sigma doesn't come from state, init to high value (0.1)

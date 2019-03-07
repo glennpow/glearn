@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 import gym
-from glearn.policies.interface import Interface
 from glearn.data.batch import Batch
+from glearn.data.interface import Interface
 
 
 class Dataset(object):
@@ -131,18 +131,3 @@ class Dataset(object):
             result = np.argmax(value)
 
         return result
-
-
-class LabeledDataset(Dataset):
-    def __init__(self, *args, label_names=None, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.label_names = label_names
-
-    def encipher(self, value):
-        label = self.label_names.index(value)
-        return super().encipher(label)
-
-    def decipher(self, value):
-        label = super().decipher(value)
-        return self.label_names[label]

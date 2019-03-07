@@ -1,7 +1,5 @@
 import traceback
 import bdb
-from glearn.policies import load_policy
-from glearn.policies.random import RandomPolicy
 from glearn.trainers import load_trainer
 from glearn.utils.config import load_config
 from glearn.utils.log import log, log_error, log_warning
@@ -18,17 +16,11 @@ def execute(config_path, training, version=None, render=False, debug=False, prof
     error = False
     for evaluation_config in config:
         try:
-            # create policy
-            if random:
-                policy = RandomPolicy(evaluation_config)
-            else:
-                policy = load_policy(evaluation_config)
-
             # create trainer
-            trainer = load_trainer(evaluation_config, policy)
+            trainer = load_trainer(evaluation_config)
 
             # perform evaluation
-            trainer.execute(render=render, profile=profile)
+            trainer.execute(render=render, profile=profile, random=random)
         except (KeyboardInterrupt, SystemExit, bdb.BdbQuit):
             log_warning("Evaluation halted by request.")
             break

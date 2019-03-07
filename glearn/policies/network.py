@@ -4,10 +4,10 @@ from glearn.networks import load_network
 
 
 class NetworkPolicy(Policy):
-    def __init__(self, config, network, **kwargs):
+    def __init__(self, config, context, network, **kwargs):
         self.network_definition = network
 
-        super().__init__(config, **kwargs)
+        super().__init__(config, context, **kwargs)
 
     def get_info(self):
         info = super().get_info()

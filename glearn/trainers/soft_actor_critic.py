@@ -27,8 +27,8 @@ class SoftActorCriticTrainer(Trainer):
 
     def build_Q(self):
         # build Q-networks
-        state = self.get_feed("X")
-        action = self.get_feed("Y")
+        state = self.policy.inputs
+        action = self.policy.outputs
         Q_inputs = tf.concat([state, action], 1)
         self.Q_networks = []
         for i in range(self.Q_count):
@@ -41,7 +41,7 @@ class SoftActorCriticTrainer(Trainer):
 
     def build_V(self):
         # build V-network
-        state = self.get_feed("X")
+        state = self.policy.inputs
         self.V_network = load_network(f"V", self.policy, self.V_definition)
         V = self.V_network.build_predict(state)
         self.add_fetch("V", V)
@@ -89,7 +89,7 @@ class SoftActorCriticTrainer(Trainer):
             query = "V_optimize"
             with tf.name_scope(query):
                 with tf.name_scope("loss"):
-                    action = self.get_feed("Y")
+                    action = self.policy.outputs
                     policy_distribution = self.policy.network.get_distribution_layer()
 
                     # TODO...
@@ -151,11 +151,11 @@ class SoftActorCriticTrainer(Trainer):
 
         # default state
         if states is None:
-            states = self.get_feed("X")
+            states = self.policy.inputs
 
         # default action
         if actions is None:
-            actions = self.get_feed("Y")
+            actions = self.policy.outputs
 
         # fetch
         feed_map = {"X": states, "Y": actions}
@@ -172,7 +172,7 @@ class SoftActorCriticTrainer(Trainer):
 
         # default state
         if states is None:
-            states = self.get_feed("X")
+            states = self.policy.inputs
 
         # fetch
         feed_map = {"X": states}

@@ -4,12 +4,12 @@ from .network import NetworkPolicy  # noqa
 from .random import RandomPolicy  # noqa
 
 
-def load_policy(config, definition=None):
+def load_policy(config, context, definition=None):
     if definition is None:
         definition = config.get("policy", None)
 
     PolicyClass = get_class(definition)
 
-    policy = PolicyClass(config)
+    policy = PolicyClass(config, context)
     policy.definition = definition
     return policy

@@ -9,14 +9,14 @@ from .variational_autoencoder import VariationalAutoencoderTrainer  # noqa
 from .generative_adversarial_network import GenerativeAdversarialNetworkTrainer  # noqa
 
 
-def load_trainer(config, policy):
+def load_trainer(config,):
     definition = config.get("trainer", None)
     if definition is None:
         print("No trainer configured, using default.")
-        return Trainer(config, policy)
+        return Trainer(config)
 
     TrainerClass = get_class(definition)
 
-    trainer = TrainerClass(config, policy)
+    trainer = TrainerClass(config)
     trainer.definition = definition
     return trainer
