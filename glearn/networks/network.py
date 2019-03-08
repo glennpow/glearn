@@ -203,7 +203,7 @@ class Network(Configurable):
         # add learning rate and gradient summaries
         self.summary.add_scalar("learning_rate", learning_rate)
         if self.debug_gradients:
-            self.summary.add_gradients(grads_tvars)
+            self.summary.add_gradients(zip(grads, tvars))
 
         return optimize
 

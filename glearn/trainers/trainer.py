@@ -288,7 +288,6 @@ class Trainer(NetworkContext):
         results = self.optimize(batch, feed_map)
 
         # get current global step
-        # global_step = tf.train.global_step(self.sess, self.global_step)
         global_step = self.config.update_global_step()
         self.current_global_step = global_step
 

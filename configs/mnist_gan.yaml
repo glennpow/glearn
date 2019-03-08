@@ -44,6 +44,6 @@
   #   args:
   #     zoom: 2
   #     modes:
-  #       - name: glearn.viewers.modes:CNNViewerMode
+  #       - name: glearn.viewers.modes:GenerativeViewerMode
   #         args:
   #           visualize_grid: [10, 10]

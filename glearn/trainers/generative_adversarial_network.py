@@ -23,9 +23,6 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
         return "unsupervised"
 
     def build_trainer(self):
-        # gather test noise
-        self.test_noise = self.sample_noise(self.test_size, self.noise_size)
-
         with tf.variable_scope("gan"):
             # build generator-network
             latent = self.create_feed("latent", shape=(self.batch_size, self.noise_size))
@@ -38,14 +35,15 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
                 x_shape = tf.shape(x)
                 x_size = np.prod(x.shape[1:])
                 x = tf.reshape(x, (-1, x_size))
+                x = x * 2 - 1  # normalize (-1, 1)
             D_real_network = self.build_network("discriminator", self.discriminator_definition, x)
-            D_real = D_real_network.outputs
+            D_real = D_real_network.get_output_layer().references["Z"]
             D_fake_network = self.build_network("discriminator", self.discriminator_definition, G,
                                                 reuse=True)
-            D_fake = D_fake_network.outputs
+            D_fake = D_fake_network.get_output_layer().references["Z"]
 
             # optimize discriminator loss
-            with tf.variable_scope("losses"):
+            with tf.variable_scope("discriminator_loss"):
                 D_loss_real = tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real,
                                                                       labels=tf.ones_like(D_real))
                 D_loss_real = tf.reduce_mean(D_loss_real)
@@ -56,7 +54,8 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
                 self.add_fetch("discriminator_optimize", D_real_network.optimize_loss(D_loss))
                 self.add_fetch("D_loss", D_loss, "evaluate")
 
-                # optimize generator loss
+            # optimize generator loss
+            with tf.variable_scope("generator_loss"):
                 G_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake,
                                                                  labels=tf.ones_like(D_fake))
                 G_loss = tf.reduce_mean(G_loss)
@@ -67,11 +66,23 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
             self.summary.add_scalar("D_loss", D_loss)
             self.summary.add_scalar("G_loss", G_loss)
 
-            # # generated image summaries
-            generated_images = tf.reshape(G, x_shape)
-            for i in range(self.generator_samples):
-                generated_image = generated_images[i:i + 1]
-                self.summary.add_image(f"generated_{i}", generated_image)
+            with tf.variable_scope("summary_images"):
+                # original image summaries
+                original_images = self.get_feed("X")
+                for i in range(self.generator_samples):
+                    original_image = original_images[i:i + 1]
+                    self.summary.add_image(f"real_{i}", original_image)
+
+                # generated image summaries
+                generated_images = tf.reshape(G, x_shape)
+                for i in range(self.generator_samples):
+                    generated_image = generated_images[i:i + 1]
+                    self.summary.add_image(f"generated_{i}", generated_image)
+
+                    sampled_latent = latent[i:i + 1]
+                    # TODO - factorize(self.noise_size) to get reshape size below...
+                    sampled_latent = tf.reshape(sampled_latent, (-1, 10, 10, 1))
+                    self.summary.add_image(f"latent_{i}", sampled_latent)
 
     def sample_noise(self, rows, cols):
         return np.random.normal(size=(rows, cols))
