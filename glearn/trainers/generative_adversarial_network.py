@@ -52,7 +52,7 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
                 D_loss_fake = tf.reduce_mean(D_loss_fake)
                 D_loss = D_loss_real + D_loss_fake
                 self.add_fetch("discriminator_optimize", D_real_network.optimize_loss(D_loss))
-                self.add_fetch("D_loss", D_loss, "evaluate")
+                self.add_fetch("discriminator_loss", D_loss, "evaluate")
 
             # optimize generator loss
             with tf.variable_scope("generator_loss"):
@@ -60,29 +60,20 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
                                                                  labels=tf.ones_like(D_fake))
                 G_loss = tf.reduce_mean(G_loss)
                 self.add_fetch("generator_optimize", G_network.optimize_loss(G_loss))
-                self.add_fetch("G_loss", G_loss, "evaluate")
+                self.add_fetch("generator_loss", G_loss, "evaluate")
 
             # summaries
-            self.summary.add_scalar("D_loss", D_loss)
-            self.summary.add_scalar("G_loss", G_loss)
+            self.summary.add_scalar("discriminator_loss", D_loss)
+            self.summary.add_scalar("generator_loss", G_loss)
 
             with tf.variable_scope("summary_images"):
                 # original image summaries
                 original_images = self.get_feed("X")
-                for i in range(self.generator_samples):
-                    original_image = original_images[i:i + 1]
-                    self.summary.add_image(f"real_{i}", original_image)
+                self.summary.add_images(f"real", original_images, self.generator_samples)
 
                 # generated image summaries
                 generated_images = tf.reshape(G, x_shape)
-                for i in range(self.generator_samples):
-                    generated_image = generated_images[i:i + 1]
-                    self.summary.add_image(f"generated_{i}", generated_image)
-
-                    sampled_latent = latent[i:i + 1]
-                    # TODO - factorize(self.noise_size) to get reshape size below...
-                    sampled_latent = tf.reshape(sampled_latent, (-1, 10, 10, 1))
-                    self.summary.add_image(f"latent_{i}", sampled_latent)
+                self.summary.add_images(f"generated", generated_images, self.generator_samples)
 
     def sample_noise(self, rows, cols):
         return np.random.normal(size=(rows, cols))

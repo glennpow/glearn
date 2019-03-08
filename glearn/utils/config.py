@@ -6,6 +6,7 @@ import collections
 import copy
 import itertools
 import socket
+import numpy as np
 import tensorflow as tf
 from glearn.datasets import load_dataset
 from glearn.envs import load_env
@@ -187,9 +188,12 @@ class Config(object):
         # init session
         self._init_session()
 
-        # load env or dataset
+        # prepare random seed
         self.seed = self.get("seed", 1)
         tf.set_random_seed(self.seed)
+        np.random.seed(self.seed)
+
+        # load env or dataset
         self.env = None
         self.dataset = None
         if self.has("env"):

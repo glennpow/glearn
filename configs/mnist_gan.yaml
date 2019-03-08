@@ -2,7 +2,7 @@
   import: _base
 
   dataset: mnist
-  batch_size: 100  # 128
+  batch_size: 128
 
   trainer:
     name: glearn.trainers:GenerativeAdversarialNetworkTrainer

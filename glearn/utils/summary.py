@@ -114,8 +114,9 @@ class SummaryWriter(object):
             name = tvar.op.name
             self.add_histogram(f"{name}/gradient", grad, query=query)
 
-    def add_image(self, name, image, query=None):
-        return self.add_summary_value(name, tf.summary.image(name, image), query=query)
+    def add_images(self, name, images, max_outputs=3, query=None):
+        summary = tf.summary.image(name, images, max_outputs=max_outputs)
+        return self.add_summary_value(name, summary, query=query)
 
     def add_run_metadata(self, run_metadata, query=None):
         self.run_metadatas[query] = run_metadata
