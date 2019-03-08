@@ -30,7 +30,6 @@ class Conv2dLayer(NetworkLayer):
         input_channels = self.input_channels
         if input_channels is None:
             input_channels = inputs.shape[-1]
-        # x = tf.reshape(inputs, shape=[-1, 28, 28, 1])  # TODO - pass/infer dimensions arg?
         x = tf.cast(inputs, tf.float32)
         features = []
         for i, filter in enumerate(self.filters):
@@ -46,6 +45,14 @@ class Conv2dLayer(NetworkLayer):
                                           initializer=biases_initializer,
                                           trainable=self.trainable, cpu=True)
 
+                    # batch normalization variables
+                    batch_norm = self.network.definition.get("batch_norm", False)
+                    if batch_norm:
+                        offset = self.get_variable("offset", [output_channels],
+                                                   initializer=tf.zeros_initializer())
+                        scale = self.get_variable("scale", [output_channels],
+                                                  initializer=tf.ones_initializer())
+
                 # conv2d and biases
                 Z = tf.nn.conv2d(x, W, strides=[1, self.strides, self.strides, 1],
                                  padding=self.padding)
@@ -58,6 +65,13 @@ class Conv2dLayer(NetworkLayer):
                 else:
                     A = Z
                 self.references["activation"] = A
+
+                # apply batch normalization
+                if batch_norm:
+                    with tf.name_scope("batch_norm"):
+                        mean, var = tf.nn.moments(Z, [0, 1, 2])
+                        epsilon = 1e-3
+                        Z = tf.nn.batch_normalization(Z, mean, var, offset, scale, epsilon)
 
                 # local response normalization (before max pooling)
                 lrn_order = None
