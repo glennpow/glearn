@@ -12,12 +12,12 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [256, 512, 1024]
+              hidden_sizes: [1024, 512, 256]
               activation: tensorflow.nn:leaky_relu
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [784]
-              activation: tensorflow.nn:tanh
+              hidden_sizes: [1]
+              activation: tensorflow.nn:sigmoid
         optimizer: adam
         learning_rate: 2.0e-4
       discriminator_steps: 1
@@ -26,12 +26,12 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [1024, 512, 256]
+              hidden_sizes: [256, 512, 1024]
               activation: tensorflow.nn:leaky_relu
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [1]
-              activation: tensorflow.nn:sigmoid
+              hidden_sizes: [784]
+              activation: tensorflow.nn:tanh
         optimizer: adam
         learning_rate: 2.0e-4
 

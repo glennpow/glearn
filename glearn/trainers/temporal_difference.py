@@ -4,13 +4,13 @@ from glearn.utils.collections import intersects
 
 
 class TemporalDifferenceTrainer(Trainer):
-    def __init__(self, config, policy, gamma=0.95, **kwargs):
+    def __init__(self, config, gamma=0.95, **kwargs):
         self.gamma = gamma
 
         self.create_feed("td_target",
                          ["policy_optimize", "V_optimize", "evaluate"], (None, 1))
 
-        super().__init__(config, policy, **kwargs)
+        super().__init__(config, **kwargs)
 
     def current_value_name(self):
         return "V"

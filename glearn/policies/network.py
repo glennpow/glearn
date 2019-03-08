@@ -14,10 +14,10 @@ class NetworkPolicy(Policy):
         info.update(self.network.get_info())
         return info
 
-    def build_predict(self):
+    def build_predict(self, inputs):
         # build predict network
         self.network = load_network("policy", self, self.network_definition)
-        predict = self.network.build_predict(self.inputs)
+        predict = self.network.build_predict(inputs)
 
         # clip output
         if self.config.output.continuous:
@@ -26,12 +26,14 @@ class NetworkPolicy(Policy):
                 predict = tf.clip_by_value(predict, output_space.low, output_space.high)
                 self.network.outputs = predict
 
+        self.inputs = inputs
         self.add_fetch("predict", predict, ["predict", "evaluate"])
 
-    def build_loss(self):
+    def build_loss(self, outputs):
         # build loss
-        loss, accuracy = self.network.build_loss(self.outputs)
+        loss, accuracy = self.network.build_loss(outputs)
 
+        self.outputs = outputs
         self.add_fetch("loss", loss, ["evaluate"])
         self.add_fetch("accuracy", accuracy, ["evaluate"])
 

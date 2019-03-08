@@ -8,6 +8,7 @@ from glearn.networks.context import num_global_parameters, num_trainable_paramet
     saveable_objects, NetworkContext
 from glearn.policies import load_policy
 from glearn.policies.random import RandomPolicy
+from glearn.networks import load_network
 from glearn.utils.collections import intersects
 from glearn.utils.printing import print_update, print_tabular
 from glearn.utils.profile import run_profile, open_profile
@@ -114,6 +115,9 @@ class Trainer(NetworkContext):
         if self.rendering:
             self.init_viewer()
 
+        # build input feeds
+        self.build_inputs()
+
         # build policy model
         if self.policy_scope is not None:
             with tf.variable_scope(f"{self.policy_scope}/"):
@@ -124,19 +128,42 @@ class Trainer(NetworkContext):
         # build trainer model
         self.build_trainer()
 
+    def build_inputs(self):
+        with tf.name_scope('feeds'):
+            if self.has_dataset:
+                inputs = self.dataset.get_inputs()
+                outputs = self.dataset.get_outputs()
+            else:
+                inputs = tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
+                outputs = tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
+
+            # add reference to interfaces
+            inputs.interface = self.input
+            outputs.interface = self.output
+
+            # set feeds
+            self.set_feed("X", inputs)
+            self.set_feed("Y", outputs)
+
     def build_policy(self, random=False):
-        # create policy, if defined
+        # build policy, if defined
         if self.config.has("policy"):
             if random:
                 self.policy = RandomPolicy(self.config, self)
             else:
                 self.policy = load_policy(self.config, self)
 
-            self.policy.build_policy()
+            self.policy.build_predict(self.get_feed("X"))
 
     def build_trainer(self):
         # overwrite
         pass
+
+    def build_network(self, name, definition, inputs, reuse=False):
+        network = load_network(name, self, definition)
+        y = network.build_predict(inputs, reuse=reuse)
+        self.add_fetch(name, y)
+        return network
 
     def prepare_feeds(self, queries, feed_map):
         if self.policy:
@@ -157,6 +184,10 @@ class Trainer(NetworkContext):
         # run policy for queries with feeds
         feed_map = self.prepare_feeds(queries, feed_map)
         results = super().run(queries, feed_map)
+
+        # process summaries
+        if len(results) > 0:
+            self.summary.process_results(results)
 
         # view results
         if render:

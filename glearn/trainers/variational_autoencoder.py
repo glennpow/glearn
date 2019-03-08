@@ -5,17 +5,15 @@ from glearn.datasets.labeled import LabeledDataset
 
 
 class VariationalAutoencoderTrainer(Trainer):
-    def __init__(self, config, policy, decoder, **kwargs):
+    def __init__(self, config, decoder, **kwargs):
         # get basic params
         self.decoder_definition = decoder
 
-        super().__init__(config, policy, **kwargs)
+        super().__init__(config, **kwargs)
 
         # only works for labeled datasets
         assert(self.has_dataset)
         assert(isinstance(self.dataset, LabeledDataset))
-
-        # self.policy_scope = "encoder"
 
     def learning_type(self):
         return "unsupervised"
@@ -23,14 +21,14 @@ class VariationalAutoencoderTrainer(Trainer):
     def build_trainer(self):
         with tf.variable_scope("vae"):
             # get original images
-            x = self.policy.inputs
+            x = self.get_feed("X")
             x_shape = tf.shape(x)
             x_size = tf.reduce_prod(x_shape[1:])
             x = tf.reshape(x, [-1, x_size])
 
             # build decoder-network
             decoder_input = self.get_fetch("predict")
-            self.decoder_network = load_network(f"decoder", self.policy, self.decoder_definition)
+            self.decoder_network = load_network(f"decoder", self, self.decoder_definition)
             y = self.decoder_network.build_predict(decoder_input)
             y = tf.clip_by_value(y, 1e-8, 1 - 1e-8)
             self.add_fetch("decoder", y)
@@ -55,7 +53,7 @@ class VariationalAutoencoderTrainer(Trainer):
 
             # generated image summaries
             images = tf.reshape(y, x_shape)
-            labels = self.policy.outputs
+            labels = self.get_feed("Y")
             label_count = len(self.dataset.label_names)
             indexes = [tf.where(tf.equal(labels, l))[:, 0] for l in range(label_count)]
             for i in range(label_count):

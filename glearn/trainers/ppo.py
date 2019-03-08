@@ -3,10 +3,10 @@ from glearn.trainers.advantage_actor_critic import AdvantageActorCriticTrainer
 
 
 class PPOTrainer(AdvantageActorCriticTrainer):
-    def __init__(self, config, policy, critic, clip_epsilon=0.2, **kwargs):
+    def __init__(self, config, critic, clip_epsilon=0.2, **kwargs):
         self.clip_epsilon = clip_epsilon
 
-        super().__init__(config, policy, critic, **kwargs)
+        super().__init__(config, critic, **kwargs)
 
     def on_policy(self):
         return True  # FIXME - DDPG vs. SAC vs. PPO etc.
@@ -30,7 +30,7 @@ class PPOTrainer(AdvantageActorCriticTrainer):
         query = "policy_optimize"
         with tf.name_scope(query):
             with tf.name_scope("loss"):
-                action = self.policy.outputs
+                action = self.get_feed("Y")
                 advantage = self.get_fetch("advantage")
 
                 # surrogate loss

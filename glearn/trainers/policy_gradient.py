@@ -7,7 +7,7 @@ class PolicyGradientTrainer(Trainer):
         query = "policy_optimize"
         with tf.name_scope(query):
             # build policy loss
-            self.policy.build_loss()
+            self.policy.build_loss(self.get_feed("Y"))
 
             # minimize policy loss
             optimize = self.policy.optimize_loss()

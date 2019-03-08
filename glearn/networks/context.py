@@ -153,6 +153,10 @@ class NetworkContext(Configurable):
         fetches = {}
         for query in queries:
             fetches.update(self.fetches.get(query, {}))
+
+        # also fetch summaries
+        self.summary.prepare_fetches(fetches, queries)
+
         return fetches
 
     def run(self, queries, feed_map):
@@ -185,7 +189,7 @@ class NetworkContext(Configurable):
 
             return results
 
-        self.warning(f"No fetches found for queries: {queries}")
+        self.warning(f"No fetches found for queries: {queries}", once=True)
         return {}
 
 

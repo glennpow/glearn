@@ -4,11 +4,11 @@ from glearn.networks import load_network
 
 
 class ActorCriticTrainer(TemporalDifferenceTrainer):
-    def __init__(self, config, policy, critic, **kwargs):
+    def __init__(self, config, critic, **kwargs):
         # get basic params
         self.critic_definition = critic
 
-        super().__init__(config, policy, **kwargs)
+        super().__init__(config, **kwargs)
 
         # actor critic only works for RL
         assert(self.has_env)
@@ -23,7 +23,7 @@ class ActorCriticTrainer(TemporalDifferenceTrainer):
 
         # build critic network
         self.critic_network = load_network("value", policy, self.critic_definition)
-        critic_inputs = self.policy.inputs
+        critic_inputs = self.get_feed("X")
         critic_value = self.critic_network.build_predict(critic_inputs)
         self.add_fetch("value", critic_value)
         with tf.name_scope("value/"):
@@ -48,7 +48,7 @@ class ActorCriticTrainer(TemporalDifferenceTrainer):
         query = "policy_optimize"
         with tf.name_scope(query):
             with tf.name_scope("loss"):
-                action = self.policy.outputs
+                action = self.get_feed("Y")
                 advantage = self.get_fetch("advantage")
 
                 # actor loss

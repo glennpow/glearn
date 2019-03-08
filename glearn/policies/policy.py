@@ -40,33 +40,6 @@ class Policy(NetworkContextProxy):
             self.coord.join(self.threads)
             self.threads = None
 
-    def build_policy(self):
-        # create input/output nodes
-        self.build_inputs()
-
-        # build prediction model
-        self.build_predict()
-
-    def build_inputs(self):
-        with tf.name_scope('feeds'):
-            if self.has_dataset:
-                inputs = self.dataset.get_inputs()
-                outputs = self.dataset.get_outputs()
-            else:
-                inputs = tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
-                outputs = tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
-
-            # add reference to interfaces
-            inputs.interface = self.input
-            outputs.interface = self.output
-
-            # set feeds
-            self.set_feed("X", inputs)
-            self.set_feed("Y", outputs)
-
-        self.inputs = inputs
-        self.outputs = outputs
-
     def build_predict(self):
         # override
         pass
@@ -87,27 +60,10 @@ class Policy(NetworkContextProxy):
         # override
         return feed_map
 
-    def get_fetches(self, queries=None):
-        fetches = super().get_fetches(queries)
-
-        # also fetch summaries
-        self.summary.prepare_fetches(fetches, queries)
-
-        return fetches
-
     def get_info(self):
         return {
             "Description": str(self),
         }
-
-    def run(self, queries, feed_map):
-        results = super().run(queries, feed_map)
-
-        # process summaries
-        if len(results) > 0:
-            self.summary.process_results(results)
-
-        return results
 
     @property
     def viewer(self):

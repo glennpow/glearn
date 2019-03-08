@@ -86,9 +86,9 @@ class Network(Configurable):
     def get_scope_name(self):
         return f"{self.name}_network"
 
-    def build_predict(self, inputs):
+    def build_predict(self, inputs, reuse=False):
         # all layers within network scope
-        with tf.variable_scope(self.get_scope_name()):
+        with tf.variable_scope(self.get_scope_name(), reuse=reuse):
             self.scope = tf.get_variable_scope().name
 
             # create and link network layers
@@ -142,7 +142,7 @@ class Network(Configurable):
 
         return self.loss, self.accuracy
 
-    def optimize_loss(self, loss=None):
+    def optimize_loss(self, loss=None, var_list=None):
         # prepare loss
         if loss is None:
             loss = self.loss
@@ -172,23 +172,10 @@ class Network(Configurable):
             raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
 
         # get gradients and trainable variables
-        grads_tvars = optimizer.compute_gradients(loss)
+        if var_list is None:
+            var_list = self.trainable_variables()
+        grads_tvars = optimizer.compute_gradients(loss, var_list=var_list)
         grads_tvars = [(g, v) for (g, v) in grads_tvars if g is not None]
-
-        # validate affected network variables during optimization
-        if self.debug:
-            def report_warnings(title, variables):
-                if len(variables) > 0:
-                    self.warning(f"\n{title} variables during network optimization: {self.name}")
-                    for v in variables:
-                        self.warning(f" * {v.name}  |  {v.shape}")
-
-            expected_vars = self.trainable_variables()
-            computed_vars = [v for (g, v) in grads_tvars]
-            missing = [v for v in computed_vars if v not in computed_vars]
-            unexpected = [v for v in computed_vars if v not in expected_vars]
-            report_warnings("Missing", missing)
-            report_warnings("Unexpected", unexpected)
 
         # check if we require unzipping grad/vars
         max_grad_norm = self.definition.get("max_grad_norm", None)

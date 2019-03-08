@@ -4,7 +4,7 @@ from glearn.networks import load_network
 
 
 class SoftActorCriticTrainer(Trainer):
-    def __init__(self, config, policy, Q, V, Q_count=2, tau=1e-2, ent_coef=1e-6, gamma=0.95,
+    def __init__(self, config, Q, V, Q_count=2, tau=1e-2, ent_coef=1e-6, gamma=0.95,
                  **kwargs):
         # get basic params
         self.Q_definition = Q
@@ -14,7 +14,7 @@ class SoftActorCriticTrainer(Trainer):
         self.ent_coef = ent_coef
         self.gamma = gamma
 
-        super().__init__(config, policy, **kwargs)
+        super().__init__(config, **kwargs)
 
         # actor critic only works for RL
         assert(self.has_env)
@@ -27,13 +27,13 @@ class SoftActorCriticTrainer(Trainer):
 
     def build_Q(self):
         # build Q-networks
-        state = self.policy.inputs
-        action = self.policy.outputs
+        state = self.get_feed("X")
+        action = self.get_feed("Y")
         Q_inputs = tf.concat([state, action], 1)
         self.Q_networks = []
         for i in range(self.Q_count):
             Q_index = f"Q_{i + 1}"
-            Q_network = load_network(Q_index, self.policy, self.Q_definition)
+            Q_network = load_network(Q_index, self, self.Q_definition)
             Q_network.build_predict(Q_inputs)
             self.Q_networks.append(Q_network)
 
@@ -41,8 +41,8 @@ class SoftActorCriticTrainer(Trainer):
 
     def build_V(self):
         # build V-network
-        state = self.policy.inputs
-        self.V_network = load_network(f"V", self.policy, self.V_definition)
+        state = self.get_feed("X")
+        self.V_network = load_network(f"V", self, self.V_definition)
         V = self.V_network.build_predict(state)
         self.add_fetch("V", V)
 
@@ -89,7 +89,7 @@ class SoftActorCriticTrainer(Trainer):
             query = "V_optimize"
             with tf.name_scope(query):
                 with tf.name_scope("loss"):
-                    action = self.policy.outputs
+                    action = self.get_feed("Y")
                     policy_distribution = self.policy.network.get_distribution_layer()
 
                     # TODO...
@@ -151,11 +151,11 @@ class SoftActorCriticTrainer(Trainer):
 
         # default state
         if states is None:
-            states = self.policy.inputs
+            states = self.get_feed("X")
 
         # default action
         if actions is None:
-            actions = self.policy.outputs
+            actions = self.get_feed("Y")
 
         # fetch
         feed_map = {"X": states, "Y": actions}
@@ -172,7 +172,7 @@ class SoftActorCriticTrainer(Trainer):
 
         # default state
         if states is None:
-            states = self.policy.inputs
+            states = self.get_feed("X")
 
         # fetch
         feed_map = {"X": states}
