@@ -18,6 +18,7 @@
           - name: glearn.networks:CategoricalDistributionLayer
         optimizer: adam
         learning_rate: 2.0e-4
+        batch_norm: true
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer

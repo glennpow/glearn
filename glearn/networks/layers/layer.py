@@ -85,7 +85,7 @@ class NetworkLayer(object):
         # override
         return feed_map
 
-    def dense(self, x, hidden_size, dropout=None, activation=None,
+    def dense(self, x, hidden_size, dropout=None, activation=None, batch_norm=None,
               weights_initializer=None, biases_initializer=None, weight_decay=None):
         # create common single dense layer
         dense_index = self.dense_count
@@ -108,13 +108,29 @@ class NetworkLayer(object):
 
                 # biases
                 biases_initializer = self.load_initializer(biases_initializer,
-                                                           tf.constant_initializer(0.0))
+                                                           tf.zeros_initializer())
                 b = self.get_variable("b", (hidden_size, ), cpu=True,
                                       initializer=biases_initializer, trainable=self.trainable)
+
+                # batch normalization variables
+                if batch_norm is None:
+                    batch_norm = self.network.definition.get("batch_norm", False)
+                if batch_norm:
+                    offset = self.get_variable("offset", [hidden_size],
+                                               initializer=tf.zeros_initializer())
+                    scale = self.get_variable("scale", [hidden_size],
+                                              initializer=tf.ones_initializer())
 
             # weights and biases
             Z = tf.matmul(x, W)
             Z = tf.add(Z, b)
+
+            # apply batch normalization
+            if batch_norm:
+                with tf.name_scope("batch_norm"):
+                    mean, var = tf.nn.moments(Z, [0])
+                    epsilon = 1e-3
+                    Z = tf.nn.batch_normalization(Z, mean, var, offset, scale, epsilon)
 
             # activation
             self.references["Z"] = Z
