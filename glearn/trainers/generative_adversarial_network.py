@@ -32,9 +32,6 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
             # build discriminator-networks
             with tf.variable_scope("real_images"):
                 x = self.get_feed("X")
-                x_shape = tf.shape(x)
-                x_size = np.prod(x.shape[1:])
-                x = tf.reshape(x, (-1, x_size))
                 x = x * 2 - 1  # normalize (-1, 1)
             D_real_network = self.build_network("discriminator", self.discriminator_definition, x)
             D_real = D_real_network.get_output_layer().references["Z"]
@@ -43,7 +40,7 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
             D_fake = D_fake_network.get_output_layer().references["Z"]
 
             # optimize discriminator loss
-            with tf.variable_scope("discriminator_loss"):
+            with tf.variable_scope("discriminator_optimize"):
                 D_loss_real = tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real,
                                                                       labels=tf.ones_like(D_real))
                 D_loss_real = tf.reduce_mean(D_loss_real)
@@ -53,18 +50,16 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
                 D_loss = D_loss_real + D_loss_fake
                 self.add_fetch("discriminator_optimize", D_real_network.optimize_loss(D_loss))
                 self.add_fetch("discriminator_loss", D_loss, "evaluate")
+                self.summary.add_scalar("loss", D_loss)
 
             # optimize generator loss
-            with tf.variable_scope("generator_loss"):
+            with tf.variable_scope("generator_optimize"):
                 G_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake,
                                                                  labels=tf.ones_like(D_fake))
                 G_loss = tf.reduce_mean(G_loss)
                 self.add_fetch("generator_optimize", G_network.optimize_loss(G_loss))
                 self.add_fetch("generator_loss", G_loss, "evaluate")
-
-            # summaries
-            self.summary.add_scalar("discriminator_loss", D_loss)
-            self.summary.add_scalar("generator_loss", G_loss)
+                self.summary.add_scalar("loss", G_loss)
 
             with tf.variable_scope("summary_images"):
                 # original image summaries
@@ -72,7 +67,7 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
                 self.summary.add_images(f"real", original_images, self.generator_samples)
 
                 # generated image summaries
-                generated_images = tf.reshape(G, x_shape)
+                generated_images = tf.reshape(G, tf.shape(x))
                 self.summary.add_images(f"generated", generated_images, self.generator_samples)
 
     def sample_noise(self, rows, cols):

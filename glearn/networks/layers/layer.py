@@ -10,9 +10,11 @@ def load_layer(network, index, definition):
 
 
 class NetworkLayer(object):
-    def __init__(self, network, index):
+    def __init__(self, network, index, batch_norm=None):  # TODO - weight decay in here too
         self.network = network
         self.index = index
+        self.batch_norm = batch_norm
+
         self.dense_count = 0
         self.references = {}
 
@@ -66,6 +68,32 @@ class NetworkLayer(object):
         else:
             return tf.get_variable(name, shape=shape, **kwargs)
 
+    def uses_batch_norm(self, override=None):
+        if override is None:
+            override = self.batch_norm
+        if override is None:
+            override = self.network.definition.get("batch_norm", False)
+        return override
+
+    def prepare_batch_norm(self, size, override=None):
+        # batch normalization variables
+        if self.uses_batch_norm(override):
+            offset = self.get_variable("offset", [size], initializer=tf.zeros_initializer())
+            self.references["batch_norm_offset"] = offset
+            scale = self.get_variable("scale", [size], initializer=tf.ones_initializer())
+            self.references["batch_norm_scale"] = scale
+
+    def apply_batch_norm(self, Z, axes=[0], override=None):
+        # apply batch normalization
+        if self.uses_batch_norm(override):
+            with tf.name_scope("batch_norm"):
+                mean, var = tf.nn.moments(Z, axes)
+                offset = self.references["batch_norm_offset"]
+                scale = self.references["batch_norm_scale"]
+                epsilon = 1e-3
+                return tf.nn.batch_normalization(Z, mean, var, offset, scale, epsilon)
+        return Z
+
     def add_loss(self, loss):
         self.network.add_loss(loss)
 
@@ -108,32 +136,22 @@ class NetworkLayer(object):
 
                 # biases
                 biases_initializer = self.load_initializer(biases_initializer,
-                                                           tf.zeros_initializer())
+                                                           tf.constant_initializer(0.0))
                 b = self.get_variable("b", (hidden_size, ), cpu=True,
                                       initializer=biases_initializer, trainable=self.trainable)
 
                 # batch normalization variables
-                if batch_norm is None:
-                    batch_norm = self.network.definition.get("batch_norm", False)
-                if batch_norm:
-                    offset = self.get_variable("offset", [hidden_size],
-                                               initializer=tf.zeros_initializer())
-                    scale = self.get_variable("scale", [hidden_size],
-                                              initializer=tf.ones_initializer())
+                self.prepare_batch_norm(hidden_size, batch_norm)
 
             # weights and biases
             Z = tf.matmul(x, W)
             Z = tf.add(Z, b)
+            self.references["Z"] = Z
 
             # apply batch normalization
-            if batch_norm:
-                with tf.name_scope("batch_norm"):
-                    mean, var = tf.nn.moments(Z, [0])
-                    epsilon = 1e-3
-                    Z = tf.nn.batch_normalization(Z, mean, var, offset, scale, epsilon)
+            Z = self.apply_batch_norm(Z, [0], batch_norm)
 
             # activation
-            self.references["Z"] = Z
             if activation is not None:
                 activation_func = self.load_callable(activation)
                 A = activation_func(Z)

@@ -3,9 +3,10 @@ from .layer import NetworkLayer
 
 
 class LSTMLayer(NetworkLayer):
-    def __init__(self, network, index, hidden_sizes=[128], cell_args={"forget_bias": 1},
-                 embedding_lookup=False, activation=tf.nn.relu, embedding_initializer=None):
-        super().__init__(network, index)
+    def __init__(self, network, index, batch_norm=None, hidden_sizes=[128],
+                 cell_args={"forget_bias": 1}, embedding_lookup=False, activation=tf.nn.relu,
+                 embedding_initializer=None):
+        super().__init__(network, index, batch_norm=batch_norm)
 
         self.hidden_sizes = hidden_sizes
         self.cell_args = cell_args

@@ -4,10 +4,10 @@ from .layer import NetworkLayer
 
 
 class DenseLayer(NetworkLayer):
-    def __init__(self, network, index, hidden_sizes=[128], activation=tf.nn.relu,
+    def __init__(self, network, index, batch_norm=None, hidden_sizes=[128], activation=tf.nn.relu,
                  weights_initializer=None, biases_initializer=None, weight_decay=None,
                  multiplier=None):
-        super().__init__(network, index)
+        super().__init__(network, index, batch_norm=batch_norm)
 
         self.hidden_sizes = hidden_sizes
         self.activation = activation
@@ -26,9 +26,11 @@ class DenseLayer(NetworkLayer):
         biases_initializer = self.load_initializer(self.biases_initializer)
         self.references["weights_initializer"] = biases_initializer
 
-        # create fully connected layers
+        # prepare input
         input_size = np.prod(inputs.shape[1:])
         y = tf.reshape(tf.cast(inputs, tf.float32), (-1, input_size))
+
+        # create fully connected layers
         layers = []
         for hidden_size in self.hidden_sizes:
             # zero means output size

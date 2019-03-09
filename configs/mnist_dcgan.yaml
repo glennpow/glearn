@@ -1,4 +1,4 @@
---- # MNIST GAN
+--- # MNIST DC-GAN
   import: _base
 
   dataset: mnist
@@ -10,6 +10,14 @@
 
       discriminator:  # discriminator network
         layers:
+          - name: glearn.networks:Conv2dLayer
+            args:
+              filters: [[5, 5, 128]]
+          - name: glearn.networks:Conv2dLayer
+            args:
+              filters: [[5, 5, 256], [5, 5, 512], [5, 5, 1024]]
+              activation: tensorflow.nn:leaky_relu
+              batch_norm: true
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [1024, 512, 256]
@@ -20,22 +28,22 @@
               activation: tensorflow.nn:sigmoid
         optimizer: adam
         learning_rate: 2.0e-4
-        # batch_norm: true
       discriminator_steps: 1
 
       generator:  # generator network
         layers:
-          - name: glearn.networks:DenseLayer
+          - name: glearn.networks:Conv2dTransposeLayer
             args:
-              hidden_sizes: [256, 512, 1024]
-              activation: tensorflow.nn:leaky_relu
-          - name: glearn.networks:DenseLayer
+              input_shape: [28, 28, 1024]
+              filters: [[5, 5, 512], [5, 5, 256], [5, 5, 128]]
+              activation: tensorflow.nn:relu
+              batch_norm: true
+          - name: glearn.networks:Conv2dTransposeLayer
             args:
-              hidden_sizes: [784]
+              filters: [[5, 5, 1]]
               activation: tensorflow.nn:tanh
         optimizer: adam
         learning_rate: 2.0e-4
-        # batch_norm: true
 
       epochs: 200
       keep_prob: 0.7

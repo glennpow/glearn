@@ -1,11 +1,12 @@
+import numpy as np
 import tensorflow as tf
 from .layer import NetworkLayer
 
 
-class Conv2dLayer(NetworkLayer):
+class Conv2dTransposeLayer(NetworkLayer):
     def __init__(self, network, index, filters, input_shape=None, strides=1,
-                 padding="SAME", activation=tf.nn.relu, max_pool_k=2, max_pool_strides=2, lrn=None,
-                 batch_norm=None, weights_initializer=None, biases_initializer=None):
+                 padding="SAME", activation=tf.nn.relu, batch_norm=None, weights_initializer=None,
+                 biases_initializer=None):
         super().__init__(network, index, batch_norm=batch_norm)
 
         self.filters = filters
@@ -13,11 +14,14 @@ class Conv2dLayer(NetworkLayer):
         self.strides = strides
         self.padding = padding
         self.activation = activation
-        self.max_pool_k = max_pool_k
-        self.max_pool_strides = max_pool_strides
-        self.lrn = lrn
         self.weights_initializer = weights_initializer
         self.biases_initializer = biases_initializer
+
+    def calculate_output_shape(self, inputs, output_channels):
+        # FIXME - make work for all cases
+        input_shape = inputs.shape
+        return [tf.shape(inputs)[0], self.strides * input_shape[1], self.strides * input_shape[2],
+                output_channels]
 
     def build(self, inputs):
         # initializers
@@ -26,9 +30,13 @@ class Conv2dLayer(NetworkLayer):
         biases_initializer = self.load_initializer(self.biases_initializer,
                                                    tf.constant_initializer(0.0))
 
-        # prepare input
+        # prepare inputs
         if self.input_shape is not None:
-            x = tf.reshape(inputs, [-1] + self.input_shape)
+            # TODO - could verify input shape doesn't already match
+            hidden_size = np.prod(self.input_shape)
+            x = self.dense(inputs, hidden_size, weights_initializer=weights_initializer,
+                           biases_initializer=biases_initializer)
+            x = tf.reshape(x, [-1] + self.input_shape)
         else:
             x = inputs
         x = tf.cast(inputs, tf.float32)
@@ -37,12 +45,12 @@ class Conv2dLayer(NetworkLayer):
         # create convolution layers
         features = []
         for i, filter in enumerate(self.filters):
-            scope = f"conv2d_{self.index}_{i}"
+            scope = f"deconv2d_{self.index}_{i}"
             with tf.name_scope(scope):
                 with tf.variable_scope(scope):
                     # create variables
                     height, width, output_channels = filter
-                    W = self.get_variable("W", (height, width, input_channels, output_channels),
+                    W = self.get_variable("W", (height, width, output_channels, input_channels),
                                           initializer=weights_initializer,
                                           trainable=self.trainable, cpu=True)
                     b = self.get_variable("b", (output_channels),
@@ -53,7 +61,9 @@ class Conv2dLayer(NetworkLayer):
                     self.prepare_batch_norm(output_channels)
 
                 # conv2d and biases
-                Z = tf.nn.conv2d(x, W, [1, self.strides, self.strides, 1], self.padding)
+                output_shape = self.calculate_output_shape(x, output_channels)
+                Z = tf.nn.conv2d_transpose(x, W, output_shape, [1, self.strides, self.strides, 1],
+                                           padding=self.padding)
                 Z = tf.nn.bias_add(Z, b)
                 self.references["Z"] = Z
 
@@ -67,24 +77,6 @@ class Conv2dLayer(NetworkLayer):
                 else:
                     A = Z
                 self.references["activation"] = A
-
-                # local response normalization (before max pooling)
-                lrn_order = None
-                if self.lrn is not None:
-                    lrn_order, lrn_bias, lrn_alpha, lrn_beta = self.lrn
-                    if lrn_order:
-                        A = tf.nn.lrn(A, bias=lrn_bias, alpha=lrn_alpha, beta=lrn_beta)
-
-                # max pooling
-                if self.max_pool_k is not None:
-                    self.references["unpooled"] = A
-                    ksize = [1, self.max_pool_k, self.max_pool_k, 1]
-                    strides = [1, self.max_pool_strides, self.max_pool_strides, 1]
-                    A = tf.nn.max_pool(Z, ksize=ksize, strides=strides, padding=self.padding)
-
-                # local response normalization (after max pooling)
-                if lrn_order is False:
-                    A = tf.nn.lrn(A, bias=lrn_bias, alpha=lrn_alpha, beta=lrn_beta)
 
                 features.append(A)
                 x = A
