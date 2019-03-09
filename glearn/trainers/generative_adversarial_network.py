@@ -30,7 +30,7 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
             G = G_network.outputs
 
             # build discriminator-networks
-            with tf.variable_scope("real_images"):
+            with tf.name_scope("normalize_images"):
                 x = self.get_feed("X")
                 x = x * 2 - 1  # normalize (-1, 1)
             D_real_network = self.build_network("discriminator", self.discriminator_definition, x)

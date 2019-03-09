@@ -31,7 +31,7 @@ class Conv2dLayer(NetworkLayer):
             x = tf.reshape(inputs, [-1] + self.input_shape)
         else:
             x = inputs
-        x = tf.cast(inputs, tf.float32)
+        x = tf.cast(x, tf.float32)
         input_channels = x.shape[-1]
 
         # create convolution layers
