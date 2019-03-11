@@ -5,14 +5,14 @@ from glearn.trainers.trainer import Trainer
 
 class GenerativeAdversarialNetworkTrainer(Trainer):
     def __init__(self, config, discriminator, generator, discriminator_steps=1,
-                 generator_samples=4, noise_size=100, test_size=16, **kwargs):
+                 noise_size=100, summary_images=4, fixed_evaluate_noise=False, **kwargs):
         # get basic params
         self.discriminator_definition = discriminator
         self.discriminator_steps = discriminator_steps
         self.generator_definition = generator
-        self.generator_samples = generator_samples
         self.noise_size = noise_size
-        self.test_size = test_size
+        self.summary_images = summary_images
+        self.fixed_evaluate_noise = fixed_evaluate_noise
 
         super().__init__(config, **kwargs)
 
@@ -23,6 +23,12 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
         return "unsupervised"
 
     def build_trainer(self):
+        # evaluate can use fixed noise
+        if self.fixed_evaluate_noise:
+            epoch_size = self.dataset.get_epoch_size("test")
+            self.evaluate_latents = [self.sample_noise(self.batch_size, self.noise_size)
+                                     for i in range(epoch_size)]
+
         with tf.variable_scope("gan"):
             # build generator-network
             latent = self.create_feed("latent", shape=(self.batch_size, self.noise_size))
@@ -64,17 +70,32 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
             with tf.variable_scope("summary_images"):
                 # original image summaries
                 original_images = self.get_feed("X")
-                self.summary.add_images(f"real", original_images, self.generator_samples)
+                self.summary.add_images(f"real", original_images, self.summary_images)
 
                 # generated image summaries
                 generated_images = tf.reshape(G, tf.shape(x))
-                self.summary.add_images(f"generated", generated_images, self.generator_samples)
+                self.summary.add_images(f"generated", generated_images, self.summary_images)
 
     def sample_noise(self, rows, cols):
+        # generate a random latent noise sample
         return np.random.normal(size=(rows, cols))
 
+    def evaluate(self, experiment_yield):
+        # reset fixed evaluate noise
+        if self.fixed_evaluate_noise:
+            self.evaluate_index = 0
+
+        super().evaluate(experiment_yield)
+
     def prepare_feeds(self, queries, feed_map):
-        feed_map["latent"] = self.sample_noise(self.batch_size, self.noise_size)
+        if self.fixed_evaluate_noise and "evaluate" in queries:
+            # evaluate uses fixed latent noise
+            latent = self.evaluate_latents[self.evaluate_index]
+            self.evaluate_index += 1
+        else:
+            # every run uses random latent noise
+            latent = self.sample_noise(self.batch_size, self.noise_size)
+        feed_map["latent"] = latent
 
         return super().prepare_feeds(queries, feed_map)
 
