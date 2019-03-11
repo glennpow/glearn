@@ -21,8 +21,6 @@
           - name: glearn.networks:NormalDistributionLayer
             args:
               size: 20  # encoding size
-        optimizer: adam
-        learning_rate: 1.0e-3
 
       decoder:  # decoder network
         layers:
