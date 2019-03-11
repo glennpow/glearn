@@ -3,11 +3,12 @@
 
   dataset: mnist
   batch_size: 128
-  
-  policy:
-    name: glearn.policies:NetworkPolicy
+
+  trainer:
+    name: glearn.trainers:VariationalAutoencoderTrainer
     args:
-      network:  # encoder network
+
+      encoder:  # encoder network
         layers:
           - name: glearn.networks:DenseLayer
             args:
@@ -23,9 +24,6 @@
         optimizer: adam
         learning_rate: 1.0e-3
 
-  trainer:
-    name: glearn.trainers:VariationalAutoencoderTrainer
-    args:
       decoder:  # decoder network
         layers:
           - name: glearn.networks:DenseLayer
@@ -42,6 +40,7 @@
               activation: tensorflow.nn:sigmoid
         optimizer: adam
         learning_rate: 1.0e-3
+
       epochs: 20
       keep_prob: 0.9
       evaluate_interval: 20

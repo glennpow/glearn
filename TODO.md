@@ -1,11 +1,10 @@
+# dropout  FIXME - implement this like batch_norm, and check all appropriate queries...
 # fix tensorboard staying alive on Ctrl-C?
-# trainer should probably be the network context, no?
-# from "trainer.py", extract "evaluator.py", "optimizer.py", etc.  (and could subclass supervised/reinforcement)
-? refactor loss (probably needs to be in trainer, use policy.get_logits() or something)
-# empirical rewards (curiosity?)
+# from "trainer.py", extract "evaluator.py", "optimizer.py", etc.  (and could subclass dataset/env versions)
 ? prepare_feeds should just look at fetches, not queries (requires callback from policy.run to trainer)
 # rename Batch to Data, and subclass Dataset from it.  Also load datasets using definitions paradigm?
-# config to stop all sweeps after first exception
+# config option to stop all sweeps after first exception
+# empirical rewards for reinforcement (curiosity?)
 
 
 ## ALMOST DONE
@@ -25,8 +24,16 @@
 # when time to optimize RL, could/should run multiple batches (5+).
 
 
-
 ### GAUSSIAN (WOJ)
 
 mu is only trained from state
 sigma doesn't come from state, init to high value (0.1)
+
+
+### GAN
+
+# run with sweeps of seed to test fixed evaluate noise.
+# train discriminator to classify.
+# train VAE or CAE in parallel.
+  * 3-way classify for discriminator?
+  * the Generator could use combined (weighted?) loss.

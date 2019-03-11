@@ -169,7 +169,7 @@ class Trainer(NetworkContext):
         if self.policy:
             self.policy.prepare_default_feeds(queries, feed_map)
 
-        # dropout
+        # dropout  FIXME - implement this like batch_norm, and check all appropriate queries...
         if intersects(["policy_optimize", "value_optimize"], queries):
             feed_map["dropout"] = self.keep_prob
         else:

@@ -5,8 +5,9 @@ from glearn.datasets.labeled import LabeledDataset
 
 
 class VariationalAutoencoderTrainer(Trainer):
-    def __init__(self, config, decoder, **kwargs):
+    def __init__(self, config, encoder, decoder, **kwargs):
         # get basic params
+        self.encoder_definition = encoder
         self.decoder_definition = decoder
 
         super().__init__(config, **kwargs)
@@ -24,19 +25,23 @@ class VariationalAutoencoderTrainer(Trainer):
             x = self.get_feed("X")
             x_shape = tf.shape(x)
             x_size = tf.reduce_prod(x_shape[1:])
-            x = tf.reshape(x, [-1, x_size])
+
+            # build encoder-network
+            self.encoder_network = load_network(f"encoder", self, self.encoder_definition)
+            latent = self.encoder_network.build_predict(x)
+            self.add_fetch("encoder", latent)
 
             # build decoder-network
-            decoder_input = self.get_fetch("predict")
             self.decoder_network = load_network(f"decoder", self, self.decoder_definition)
-            y = self.decoder_network.build_predict(decoder_input)
+            y = self.decoder_network.build_predict(latent)
             y = tf.clip_by_value(y, 1e-8, 1 - 1e-8)
             self.add_fetch("decoder", y)
 
             # losses
-            policy_distribution = self.policy.network.get_distribution_layer()
-            mu = policy_distribution.references["mu"]
-            sigma = policy_distribution.references["sigma"]
+            encoder_distribution = self.encoder_network.get_distribution_layer()
+            mu = encoder_distribution.references["mu"]
+            sigma = encoder_distribution.references["sigma"]
+            x = tf.reshape(x, [-1, x_size])
             marginal_likelihood = tf.reduce_sum(x * tf.log(y) + (1 - x) * tf.log(1 - y), 1)
             marginal_likelihood = tf.reduce_mean(marginal_likelihood)
             KL_divergence = 0.5 * tf.reduce_sum(tf.square(mu) + tf.square(sigma) -
@@ -60,9 +65,9 @@ class VariationalAutoencoderTrainer(Trainer):
                 label_name = self.dataset.label_names[i]
                 index = tf.squeeze(indexes[i])[0]
                 decoded_image = images[index:index + 1]
-                self.summary.add_image(f"decoded_{label_name}", decoded_image)
+                self.summary.add_images(f"decoded_{label_name}", decoded_image)
 
-            # minimize loss
+            # minimize loss  TODO - use generic optimize_loss
             learning_rate = self.decoder_definition.get("learning_rate", 1e-3)
             optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
             update_op = optimizer.minimize(loss)
