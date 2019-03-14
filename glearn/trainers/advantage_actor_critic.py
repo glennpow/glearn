@@ -3,6 +3,9 @@ from glearn.trainers.temporal_difference import TemporalDifferenceTrainer
 from glearn.networks import load_network
 
 
+# FIXME - old broken code
+
+
 class AdvantageActorCriticTrainer(TemporalDifferenceTrainer):
     def __init__(self, config, critic, normalize_advantage=False, **kwargs):
         # get basic params

@@ -159,6 +159,11 @@ class NetworkContext(Configurable):
 
         return fetches
 
+    def add_evaluate_metric(self, name, value):
+        # add an evaluation metric to log to console and summary
+        self.add_fetch(name, value, "evaluate")
+        self.summary.add_scalar(name, value)
+
     def run(self, queries, feed_map):
         # get configured fetches
         fetches = self.get_fetches(queries)
@@ -191,6 +196,76 @@ class NetworkContext(Configurable):
 
         self.warning(f"No fetches found for queries: {queries}", once=True)
         return {}
+
+    def optimize_loss(self, loss, networks=None, var_list=None, definition=None, name=None):
+        optimize_name = ",".join([network.name for network in networks]) if networks else loss.name
+
+        # get optimization definition
+        if definition is None:
+            if networks is None:
+                self.warning(f"No definition found for loss optimization: {optimize_name}")
+                definition = {}
+            else:
+                definition = networks[0].definition
+        learning_rate = definition.get("learning_rate", 1e-4)
+        debug_gradients = self.config.is_debugging("debug_gradients")
+
+        # learning rate decay
+        lr_decay = definition.get("lr_decay", None)
+        if lr_decay is not None:
+            lr_decay_intervals = definition.get("lr_decay_intervals", 1)
+            decay_steps = int(lr_decay_intervals * self.config.get_interval_size())
+            learning_rate = tf.train.exponential_decay(learning_rate, self.global_step,
+                                                       decay_steps, lr_decay, staircase=True)
+
+        # create optimizer
+        optimizer_name = definition.get("optimizer", "sgd")
+        if optimizer_name == "sgd":
+            optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+        elif optimizer_name == "adam":
+            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        else:
+            raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
+
+        # get gradients and trainable variables
+        if var_list is None:
+            var_list = [v for network in networks for v in network.trainable_variables()]
+        grads_tvars = optimizer.compute_gradients(loss, var_list=var_list)
+        grads_tvars = [(g, v) for (g, v) in grads_tvars if g is not None]
+
+        # check if we require unzipping grad/vars
+        max_grad_norm = definition.get("max_grad_norm", None)
+        require_unzip = debug_gradients or max_grad_norm is not None
+        if require_unzip:
+            grads, tvars = zip(*grads_tvars)
+
+        # apply gradient clipping
+        if max_grad_norm is not None:
+            with tf.name_scope("clipped_gradients"):
+                grads, global_norm = tf.clip_by_global_norm(grads, max_grad_norm)
+
+                # metrics to observe clipped gradient ratio and global norm
+                if debug_gradients:
+                    clipped_ratio = tf.maximum(global_norm - max_grad_norm, 0) / global_norm
+                    self.summary.add_scalar("global_norm", global_norm)
+                    self.summary.add_scalar("clipped_ratio", clipped_ratio)
+
+        if require_unzip:
+            grads_tvars = zip(grads, tvars)
+
+        # apply gradients
+        optimize = optimizer.apply_gradients(grads_tvars)
+
+        # add learning rate and gradient summaries
+        self.summary.add_scalar("learning_rate", learning_rate)
+        if debug_gradients:
+            self.summary.add_gradients(zip(grads, tvars))
+
+        # fetch
+        if name is not None:
+            self.add_fetch(name, optimize)
+
+        return optimize
 
 
 class NetworkContextProxy(Configurable):

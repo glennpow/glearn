@@ -31,14 +31,16 @@ class NetworkPolicy(Policy):
 
     def build_loss(self, outputs):
         # build loss
+        self.outputs = outputs
         loss, accuracy = self.network.build_loss(outputs)
 
-        self.outputs = outputs
-        self.add_fetch("loss", loss, ["evaluate"])
-        self.add_fetch("accuracy", accuracy, ["evaluate"])
+        self.add_evaluate_metric("loss", loss)
+        self.add_evaluate_metric("accuracy", accuracy)
 
-    def optimize_loss(self, loss=None):
-        return self.network.optimize_loss(loss)
+        return loss, accuracy
+
+    def optimize_loss(self, loss, name=None):
+        return self.network.optimize_loss(loss, name=None)
 
     def prepare_default_feeds(self, queries, feed_map):
         feed_map = super().prepare_default_feeds(queries, feed_map)

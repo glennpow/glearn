@@ -17,13 +17,10 @@ class Network(Configurable):
         self.layers = []
         self.inputs = None
         self.outputs = None
-        self.loss = None
-        self.accuracy = None
 
         super().__init__(self.context.config)
 
         self.debug_activations = self.config.is_debugging("debug_activations")
-        self.debug_gradients = self.config.is_debugging("debug_gradients")
 
     def get_info(self):
         return {
@@ -131,81 +128,16 @@ class Network(Configurable):
     def build_loss(self, outputs):
         # build prediction loss
         with tf.name_scope("loss"):
-            predict_loss, self.accuracy = self.get_output_layer().build_loss(outputs)
+            predict_loss, accuracy = self.get_output_layer().build_loss(outputs)
             self.add_loss(predict_loss)
 
             # build combined total loss
-            self.loss = self.build_total_loss()
+            loss = self.build_total_loss()
 
-        self.summary.add_scalar("total_loss", self.loss)
-        self.summary.add_scalar("accuracy", self.accuracy)
+        return loss, accuracy
 
-        return self.loss, self.accuracy
-
-    def optimize_loss(self, loss=None, var_list=None):
-        # prepare loss
-        if loss is None:
-            loss = self.loss
-        else:
-            self.loss = loss
-        if loss is None:
-            self.error(f"Network '{self.name}' doesn't define a loss to optimize")
-            return None
-
-        learning_rate = self.definition.get("learning_rate", 1e-4)
-
-        # learning rate decay
-        lr_decay = self.definition.get("lr_decay", None)
-        if lr_decay is not None:
-            lr_decay_intervals = self.definition.get("lr_decay_intervals", 1)
-            decay_steps = int(lr_decay_intervals * self.config.get_interval_size())
-            learning_rate = tf.train.exponential_decay(learning_rate, self.global_step,
-                                                       decay_steps, lr_decay, staircase=True)
-
-        # create optimizer
-        optimizer_name = self.definition.get("optimizer", "sgd")
-        if optimizer_name == "sgd":
-            optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-        elif optimizer_name == "adam":
-            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-        else:
-            raise Exception(f"Unknown optimizer type specified in config: {optimizer_name}")
-
-        # get gradients and trainable variables
-        if var_list is None:
-            var_list = self.trainable_variables()
-        grads_tvars = optimizer.compute_gradients(loss, var_list=var_list)
-        grads_tvars = [(g, v) for (g, v) in grads_tvars if g is not None]
-
-        # check if we require unzipping grad/vars
-        max_grad_norm = self.definition.get("max_grad_norm", None)
-        require_unzip = self.debug_gradients or max_grad_norm is not None
-        if require_unzip:
-            grads, tvars = zip(*grads_tvars)
-
-        # apply gradient clipping
-        if max_grad_norm is not None:
-            with tf.name_scope("clipped_gradients"):
-                grads, global_norm = tf.clip_by_global_norm(grads, max_grad_norm)
-
-                # metrics to observe clipped gradient ratio and global norm
-                if self.debug_gradients:
-                    clipped_ratio = tf.maximum(global_norm - self.clip_norm, 0) / global_norm
-                    self.summary.add_scalar("global_norm", global_norm)
-                    self.summary.add_scalar("clipped_ratio", clipped_ratio)
-
-        if require_unzip:
-            grads_tvars = zip(grads, tvars)
-
-        # apply gradients
-        optimize = optimizer.apply_gradients(grads_tvars)
-
-        # add learning rate and gradient summaries
-        self.summary.add_scalar("learning_rate", learning_rate)
-        if self.debug_gradients:
-            self.summary.add_gradients(zip(grads, tvars))
-
-        return optimize
+    def optimize_loss(self, loss, name=None):
+        return self.context.optimize_loss(loss, networks=[self], name=name)
 
     def prepare_default_feeds(self, queries, feed_map):
         # add default feed values

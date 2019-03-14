@@ -46,9 +46,9 @@ class Policy(NetworkContextProxy):
 
     def build_loss(self):
         # override
-        pass
+        return None
 
-    def optimize_loss(self, loss=None):
+    def optimize_loss(self, loss):
         # override
         return None
 

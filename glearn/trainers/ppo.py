@@ -2,6 +2,9 @@ import tensorflow as tf
 from glearn.trainers.advantage_actor_critic import AdvantageActorCriticTrainer
 
 
+# FIXME - old broken code
+
+
 class PPOTrainer(AdvantageActorCriticTrainer):
     def __init__(self, config, critic, clip_epsilon=0.2, **kwargs):
         self.clip_epsilon = clip_epsilon
