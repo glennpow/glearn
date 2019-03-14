@@ -7,6 +7,7 @@ from .soft_actor_critic import SoftActorCriticTrainer  # noqa
 from .ppo import PPOTrainer  # noqa
 from .variational_autoencoder import VariationalAutoencoderTrainer  # noqa
 from .generative_adversarial_network import GenerativeAdversarialNetworkTrainer  # noqa
+from .vae_gan import VAEGANTrainer  # noqa
 
 
 def load_trainer(config,):

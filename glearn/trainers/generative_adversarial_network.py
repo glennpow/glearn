@@ -1,16 +1,14 @@
-import numpy as np
 import tensorflow as tf
-from glearn.trainers.trainer import Trainer
+from .generative import GenerativeTrainer
 
 
-class GenerativeAdversarialNetworkTrainer(Trainer):
-    def __init__(self, config, discriminator, generator, discriminator_steps=1,
-                 noise_size=100, summary_images=4, fixed_evaluate_noise=False, **kwargs):
+class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
+    def __init__(self, config, discriminator=None, generator=None, discriminator_steps=1,
+                 summary_images=4, fixed_evaluate_noise=False, **kwargs):
         # get basic params
         self.discriminator_definition = discriminator
         self.discriminator_steps = discriminator_steps
         self.generator_definition = generator
-        self.noise_size = noise_size
         self.summary_images = summary_images
         self.fixed_evaluate_noise = fixed_evaluate_noise
 
@@ -19,12 +17,10 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
         # only works for datasets
         assert(self.has_dataset)
 
-    def learning_type(self):
-        return "unsupervised"
 
     def build_generator(self):
-        latent = self.create_feed("latent", shape=(self.batch_size, self.noise_size))
-        self.generator_network = self.build_network("generator", self.generator_definition, latent)
+        definition = self.generator_definition
+        self.generator_network = self.build_generator_network("generator", definition)
         return self.generator_network.outputs
 
     def build_discriminator(self, generated):
@@ -76,7 +72,7 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
         with tf.variable_scope("summary_images"):
             # original image summaries
             original_images = self.get_feed("X")
-            self.summary.add_images(f"real", original_images, self.summary_images)
+            # self.summary.add_images(f"real", original_images, self.summary_images)
 
             # generated image summaries
             generated_images = tf.reshape(generated, tf.shape(original_images))
@@ -86,8 +82,7 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
         # evaluate can use fixed noise
         if self.fixed_evaluate_noise:
             epoch_size = self.dataset.get_epoch_size("test")
-            self.evaluate_latents = [self.sample_noise(self.batch_size, self.noise_size)
-                                     for i in range(epoch_size)]
+            self.evaluate_latents = [self.sample_noise(self.batch_size) for i in range(epoch_size)]
 
         with tf.variable_scope("gan"):
             # build generator-network
@@ -105,10 +100,6 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
             # summary images
             self.build_gan_summary_images(generated)
 
-    def sample_noise(self, rows, cols):
-        # generate a random latent noise sample
-        return np.random.normal(size=(rows, cols))
-
     def evaluate(self, experiment_yield):
         # reset fixed evaluate noise
         if self.fixed_evaluate_noise:
@@ -123,20 +114,17 @@ class GenerativeAdversarialNetworkTrainer(Trainer):
             self.evaluate_index += 1
         else:
             # every run uses random latent noise
-            latent = self.sample_noise(self.batch_size, self.noise_size)
-        feed_map["latent"] = latent
+            latent = self.sample_noise(self.batch_size)
+        feed_map["Z"] = latent
 
         return super().prepare_feeds(queries, feed_map)
 
     def optimize(self, batch, feed_map):
         # optimize discriminator-network
         for i in range(self.discriminator_steps):
-            D_feed_map = {
-                "X": feed_map["X"],
-            }
-            self.run("discriminator_optimize", D_feed_map)
+            self.run("discriminator_optimize", feed_map)
 
         # optimize generator-network
-        results = self.run("generator_optimize", {})
+        results = self.run("generator_optimize", feed_map)
 
         return results

@@ -3,9 +3,9 @@
 
   dataset: mnist
   batch_size: 128
-
+  
   trainer:
-    name: glearn.trainers:VariationalAutoencoderTrainer
+    name: glearn.trainers:VAEGANTrainer
     args:
 
       encoder:  # encoder network
@@ -13,16 +13,17 @@
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [500]
-              activation: tensorflow.nn:elu
+              activation: tensorflow.nn:leaky_relu
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [500]
               activation: tensorflow.nn:tanh
           - name: glearn.networks:NormalDistributionLayer
             args:
-              size: 20  # encoding size
+              size: 100  # encoding size
         optimizer: adam
-        learning_rate: 1.0e-3
+        learning_rate: 2.0e-4
+        # batch_norm: true
 
       decoder:  # decoder network
         layers:
@@ -33,13 +34,31 @@
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [500]
-              activation: tensorflow.nn:elu
+              activation: tensorflow.nn:leaky_relu
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [784]
               activation: tensorflow.nn:sigmoid
+        optimizer: adam
+        learning_rate: 2.0e-4
+        # batch_norm: true
 
-      epochs: 20
+      discriminator:  # discriminator network
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1024, 512, 256]
+              activation: tensorflow.nn:leaky_relu
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1]
+              activation: tensorflow.nn:sigmoid
+        optimizer: adam
+        learning_rate: 2.0e-4
+        # batch_norm: true
+      discriminator_steps: 1
+
+      epochs: 200
       keep_prob: 0.9
       evaluate_interval: 20
 
