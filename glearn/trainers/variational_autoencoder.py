@@ -1,12 +1,11 @@
 import numpy as np
 import tensorflow as tf
-from glearn.trainers.trainer import Trainer
-from glearn.networks import load_network
+from .generative import GenerativeTrainer
 from glearn.datasets.labeled import LabeledDataset
 
 
-class VariationalAutoencoderTrainer(Trainer):
-    def __init__(self, config, encoder, decoder, **kwargs):
+class VariationalAutoencoderTrainer(GenerativeTrainer):
+    def __init__(self, config, encoder=None, decoder=None, **kwargs):
         # get basic params
         self.encoder_definition = encoder
         self.decoder_definition = decoder
@@ -17,23 +16,17 @@ class VariationalAutoencoderTrainer(Trainer):
         assert(self.has_dataset)
         assert(isinstance(self.dataset, LabeledDataset))
 
-    def learning_type(self):
-        return "unsupervised"
-
     def build_encoder(self, x):
-        self.encoder_network = load_network(f"encoder", self, self.encoder_definition)
-        encoded = self.encoder_network.build_predict(x)
-        self.add_fetch("encoded", encoded)
-        return encoded
+        self.encoder_network = self.build_network("encoder", self.encoder_definition, x)
+        return self.encoder_network.outputs
 
-    def build_decoder(self, encoded):
-        self.decoder_network = load_network(f"decoder", self, self.decoder_definition)
-        decoded = self.decoder_network.build_predict(encoded)
-        decoded = tf.clip_by_value(decoded, 1e-8, 1 - 1e-8)
-        self.add_fetch("decoded", decoded)
-        return decoded
+    def build_decoder(self, z, reuse=False):
+        self.decoder_network = self.build_generator_network("decoder", self.decoder_definition,
+                                                            z=z, reuse=reuse)
+        # decoded = tf.clip_by_value(decoded, 1e-8, 1 - 1e-8)  # was this needed?
+        return self.decoder_network.outputs
 
-    def build_vae_loss(self, x, decoded, optimize=True, loss_name="loss"):
+    def build_vae_loss(self, x, decoded, optimize=True, loss_name="vae_loss"):
         with tf.variable_scope("vae_optimize"):
             # losses
             encoder_distribution = self.encoder_network.get_distribution_layer()
@@ -46,21 +39,20 @@ class VariationalAutoencoderTrainer(Trainer):
             KL_divergence = 0.5 * tf.reduce_sum(tf.square(mu) + tf.square(sigma) -
                                                 tf.log(1e-8 + tf.square(sigma)) - 1, 1)
             KL_divergence = tf.reduce_mean(KL_divergence)
+            # KL_divergence = encoder_distribution.kl_divergence(sample_noise) ?
             ELBO = marginal_likelihood - KL_divergence
             loss = -ELBO
 
             # summaries
-            self.summary.add_scalar("marginal_likelihood", marginal_likelihood)
-            self.summary.add_scalar("KL_divergence", KL_divergence)
-            self.summary.add_scalar("ELBO", ELBO)
-            self.summary.add_scalar(loss_name, loss)
+            self.add_evaluate_metric("marginal_likelihood", marginal_likelihood)
+            self.add_evaluate_metric("kl_divergence", KL_divergence)
+            if loss_name:
+                self.add_evaluate_metric(loss_name, loss)
 
-            # minimize loss  TODO - use generic optimize_loss
+            # minimize loss
             if optimize:
-                learning_rate = self.decoder_definition.get("learning_rate", 1e-3)
-                optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-                update_op = optimizer.minimize(loss)
-                self.add_fetch("vae_optimize", update_op)
+                optimize_networks = [self.encoder_network, self.decoder_network]
+                self.optimize_loss(loss, networks=optimize_networks, name="vae_optimize")
 
         return loss
 
