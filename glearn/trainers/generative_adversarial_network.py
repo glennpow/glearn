@@ -12,61 +12,74 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
         self.summary_images = summary_images
         self.fixed_evaluate_noise = fixed_evaluate_noise
 
+        self.discriminator_networks = []
+
         super().__init__(config, **kwargs)
 
         # only works for datasets
         assert(self.has_dataset)
 
+    def build_discriminator(self, x, real):
+        # build network
+        definition = self.discriminator_definition
+        reuse = len(self.discriminator_networks) > 0
+        network = self.build_network("discriminator", definition, x, reuse=reuse)
+
+        # set labels and logits
+        network.logits = network.get_output_layer().references["Z"]
+        network.real = real
+
+        # append network
+        self.discriminator_networks.append(network)
+        return network.outputs
 
     def build_generator(self):
         definition = self.generator_definition
         self.generator_network = self.build_generator_network("generator", definition)
         return self.generator_network.outputs
 
-    def build_discriminator(self, generated):
-        with tf.name_scope("normalize_images"):
-            x = self.get_feed("X")
-            x = x * 2 - 1  # normalize (-1, 1)
-        self.real_discriminator_network = self.build_network("discriminator",
-                                                             self.discriminator_definition, x)
-        self.fake_discriminator_network = self.build_network("discriminator",
-                                                             self.discriminator_definition,
-                                                             generated, reuse=True)
-        return self.real_discriminator_network.outputs, self.fake_discriminator_network.outputs
-
-    def build_discriminator_loss(self, optimize=True):
+    def build_discriminator_loss(self, loss_name="discriminator_loss"):
         with tf.variable_scope("discriminator_optimize"):
-            real_logits = self.real_discriminator_network.get_output_layer().references["Z"]
-            fake_logits = self.fake_discriminator_network.get_output_layer().references["Z"]
-            real_labels = tf.ones_like(real_logits)
-            D_loss_real = tf.nn.sigmoid_cross_entropy_with_logits(logits=real_logits,
-                                                                  labels=real_labels)
-            D_loss_real = tf.reduce_mean(D_loss_real)
-            fake_labels = tf.zeros_like(fake_logits)
-            D_loss_fake = tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_logits,
-                                                                  labels=fake_labels)
-            D_loss_fake = tf.reduce_mean(D_loss_fake)
-            D_loss = D_loss_real + D_loss_fake
+            # sum losses from all discriminator networks
+            loss = 0
+            for network in self.discriminator_networks:
+                if network.real:
+                    labels = tf.ones_like(network.logits)
+                else:
+                    labels = tf.zeros_like(network.logits)
+                network_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=network.logits,
+                                                                       labels=labels)
+                loss += tf.reduce_mean(network_loss)
 
-            self.add_fetch("discriminator_loss", D_loss, "evaluate")
-            self.summary.add_scalar("loss", D_loss)
+            # loss summary
+            if loss_name:
+                self.add_evaluate_metric(loss_name, loss)
 
-            if optimize:
-                self.add_fetch("discriminator_optimize",
-                               self.real_discriminator_network.optimize_loss(D_loss))
+            # optimize loss for networks
+            self.discriminator_networks[0].optimize_loss(loss, name="discriminator_optimize")
+        return loss
 
-    def build_generator_loss(self, optimize=True):
+    def build_generator_loss(self, optimize=True, loss_name="generator_loss"):
         with tf.variable_scope("generator_optimize"):
-            fake_logits = self.fake_discriminator_network.get_output_layer().references["Z"]
-            G_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_logits,
-                                                             labels=tf.ones_like(fake_logits))
-            G_loss = tf.reduce_mean(G_loss)
+            # sum losses from all fake discriminator networks
+            loss = 0
+            for network in self.discriminator_networks:
+                if network.real:
+                    continue
 
-            self.add_fetch("generator_loss", G_loss, "evaluate")
-            self.summary.add_scalar("loss", G_loss)
+                labels = tf.ones_like(network.logits)
+                network_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=network.logits,
+                                                                       labels=labels)
+                loss += tf.reduce_mean(network_loss)
 
+            # loss summary
+            if loss_name:
+                self.add_evaluate_metric(loss_name, loss)
+
+            # optimize loss for network
             if optimize:
-                self.add_fetch("generator_optimize", self.generator_network.optimize_loss(G_loss))
+                self.generator_network.optimize_loss(loss, name="generator_optimize")
+        return loss
 
     def build_gan_summary_images(self, generated):
         with tf.variable_scope("summary_images"):
@@ -88,8 +101,14 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             # build generator-network
             generated = self.build_generator()
 
+            # normalize real input
+            with tf.name_scope("normalize_images"):
+                x = self.get_feed("X")
+                x = x * 2 - 1  # normalize (-1, 1)
+
             # build discriminator-networks
-            self.build_discriminator(generated)
+            self.build_discriminator(x, True)
+            self.build_discriminator(generated, False)
 
             # optimize discriminator loss
             self.build_discriminator_loss()
