@@ -127,7 +127,6 @@ class SummaryWriter(object):
     def write_text(self, name, tensor):
         query = "experiment"
         summary = tf.summary.text(name, tensor)
-        print(f"write_text({name}, {tensor})\n  '{self.get_query_key(query)}': {summary}")
         self.config.sess.run({self.get_query_key(query): summary})
 
     def add_run_metadata(self, run_metadata, query=None):
