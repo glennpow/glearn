@@ -185,10 +185,6 @@ class Trainer(NetworkContext):
         feed_map = self.prepare_feeds(queries, feed_map)
         results = super().run(queries, feed_map)
 
-        # process summaries
-        if len(results) > 0:
-            self.summary.process_results(results)
-
         # view results
         if render:
             self.viewer.view_results(queries, feed_map, results)

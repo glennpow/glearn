@@ -3,6 +3,7 @@
 
   dataset: mnist
   batch_size: 128
+  seeds: 5
 
   trainer:
     name: glearn.trainers:GenerativeAdversarialNetworkTrainer

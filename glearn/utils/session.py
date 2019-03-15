@@ -25,6 +25,11 @@ class DebuggableSession(tf.InteractiveSession):
         results = super().run(fetches, feed_dict=feed_dict, options=self.run_options,
                               run_metadata=self.run_metadata)
 
+        # process summaries
+        if isinstance(results, dict) and len(results) > 0:
+            self.config.summary.process_results(results)
+
+        # add metadata for each fetch
         if self.run_metadata is not None:
             def add_fetch_metadata(fetch, name):
                 self.config.summary.add_run_metadata(self.run_metadata, name)

@@ -95,10 +95,12 @@ class SummaryWriter(object):
         return summary
 
     def add_scalar(self, name, tensor, query=None):
-        return self.add_summary_value(name, tf.summary.scalar(name, tensor), query=query)
+        summary = tf.summary.scalar(name, tensor)
+        return self.add_summary_value(name, summary, query=query)
 
     def add_histogram(self, name, values, query=None):
-        return self.add_summary_value(name, tf.summary.histogram(name, values), query=query)
+        summary = tf.summary.histogram(name, values)
+        return self.add_summary_value(name, summary, query=query)
 
     def add_activation(self, tensor, query=None):
         if tensor is None:
@@ -117,6 +119,16 @@ class SummaryWriter(object):
     def add_images(self, name, images, max_outputs=3, query=None):
         summary = tf.summary.image(name, images, max_outputs=max_outputs)
         return self.add_summary_value(name, summary, query=query)
+
+    def add_text(self, name, tensor, query=None):
+        summary = tf.summary.text(name, tensor)
+        return self.add_summary_value(name, summary, query=query)
+
+    def write_text(self, name, tensor):
+        query = "experiment"
+        summary = tf.summary.text(name, tensor)
+        print(f"write_text({name}, {tensor})\n  '{self.get_query_key(query)}': {summary}")
+        self.config.sess.run({self.get_query_key(query): summary})
 
     def add_run_metadata(self, run_metadata, query=None):
         self.run_metadatas[query] = run_metadata
