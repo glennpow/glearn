@@ -142,6 +142,22 @@ class Config(object):
                 self.evaluations = [c for d in sweeps for c in _build_combinations(d)]
             elif isinstance(sweeps, dict):
                 self.evaluations = _build_combinations(sweeps)
+
+        # allow multiple evaluations with different seeds
+        seeds = self.properties.pop("seeds", None)
+        if seeds:
+            try:
+                seeds = int(seeds)
+
+                if self.evaluations is None:
+                    smax = 0xffffffff
+                    self.evaluations = [[["seed", np.random.randint(smax)]] for i in range(seeds)]
+                    self.properties["seed"] = 1
+                else:
+                    log_warning("Currently 'seeds' is ignored when 'sweeps' config is set")
+            except ValueError:
+                log_warning(f"The config parameter 'seeds' must be an int. (Found: {seeds})")
+
         self.num_evaluations = len(self.evaluations) if self.evaluations else 1
 
     def _start_evaluation(self):
