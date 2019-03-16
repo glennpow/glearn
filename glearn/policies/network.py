@@ -16,7 +16,7 @@ class NetworkPolicy(Policy):
 
     def build_predict(self, inputs):
         # build predict network
-        self.network = load_network("policy", self, self.network_definition)
+        self.network = load_network("policy", self.context, self.network_definition)
         predict = self.network.build_predict(inputs)
 
         # clip output
@@ -40,7 +40,7 @@ class NetworkPolicy(Policy):
         return loss, accuracy
 
     def optimize_loss(self, loss, name=None):
-        return self.network.optimize_loss(loss, name=None)
+        return self.network.optimize_loss(loss, name=name)
 
     def prepare_default_feeds(self, queries, feed_map):
         feed_map = super().prepare_default_feeds(queries, feed_map)

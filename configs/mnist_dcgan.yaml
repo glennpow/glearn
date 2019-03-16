@@ -13,9 +13,11 @@
           - name: glearn.networks:Conv2dLayer
             args:
               filters: [[5, 5, 128]]
+              pooling: avg
           - name: glearn.networks:Conv2dLayer
             args:
               filters: [[5, 5, 256], [5, 5, 512], [5, 5, 1024]]
+              pooling: avg
               activation: tensorflow.nn:leaky_relu
               batch_norm: true
           - name: glearn.networks:DenseLayer

@@ -304,5 +304,8 @@ class NetworkContextProxy(Configurable):
     def get_fetches(self, queries):
         return self.context.get_fetches(queries)
 
+    def add_evaluate_metric(self, name, value):
+        self.context.add_evaluate_metric(name, value)
+
     def run(self, queries, feed_map):
         return self.context.run(queries, feed_map=feed_map)

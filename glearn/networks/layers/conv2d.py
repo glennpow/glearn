@@ -4,7 +4,8 @@ from .layer import NetworkLayer
 
 class Conv2dLayer(NetworkLayer):
     def __init__(self, network, index, filters, input_shape=None, strides=1,
-                 padding="SAME", activation=tf.nn.relu, max_pool_k=2, max_pool_strides=2, lrn=None,
+                 padding="SAME", activation=tf.nn.relu, lrn=None,
+                 pooling="max", pool_k=2, pool_strides=2,
                  batch_norm=None, weights_initializer=None, biases_initializer=None):
         super().__init__(network, index, batch_norm=batch_norm)
 
@@ -13,9 +14,10 @@ class Conv2dLayer(NetworkLayer):
         self.strides = strides
         self.padding = padding
         self.activation = activation
-        self.max_pool_k = max_pool_k
-        self.max_pool_strides = max_pool_strides
         self.lrn = lrn
+        self.pooling = pooling
+        self.pool_k = pool_k
+        self.pool_strides = pool_strides
         self.weights_initializer = weights_initializer
         self.biases_initializer = biases_initializer
 
@@ -75,12 +77,13 @@ class Conv2dLayer(NetworkLayer):
                     if lrn_order:
                         A = tf.nn.lrn(A, bias=lrn_bias, alpha=lrn_alpha, beta=lrn_beta)
 
-                # max pooling
-                if self.max_pool_k is not None:
+                # pooling
+                if self.pooling is not None:
                     self.references["unpooled"] = A
-                    ksize = [1, self.max_pool_k, self.max_pool_k, 1]
-                    strides = [1, self.max_pool_strides, self.max_pool_strides, 1]
-                    A = tf.nn.max_pool(Z, ksize=ksize, strides=strides, padding=self.padding)
+                    ksize = [1, self.pool_k, self.pool_k, 1]
+                    strides = [1, self.pool_strides, self.pool_strides, 1]
+                    pooling_op = tf.nn.max_pool if self.pooling == "max" else tf.nn.avg_pool
+                    A = pooling_op(Z, ksize=ksize, strides=strides, padding=self.padding)
 
                 # local response normalization (after max pooling)
                 if lrn_order is False:
