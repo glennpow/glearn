@@ -76,6 +76,8 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
                 self.summary.add_images(f"decoded_{label_name}", decoded_image)
 
     def build_trainer(self):
+        super().build_trainer()
+
         with tf.variable_scope("vae"):
             # real input
             x = self.get_feed("X")
@@ -90,7 +92,7 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
             self.build_vae_loss(x, decoded)
 
             # generated image summaries
-            self.build_vae_summary_images(x, decoded)
+            self.build_vae_summary_images(decoded)
 
     def optimize(self, batch, feed_map):
         # optimize encoder/decoder-networks

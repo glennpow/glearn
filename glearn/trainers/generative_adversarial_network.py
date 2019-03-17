@@ -15,7 +15,6 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
         self.generator_scale_factor = generator_scale_factor
         self.alternative_generator_loss = alternative_generator_loss
         self.summary_images = summary_images
-        self.fixed_evaluate_noise = fixed_evaluate_noise
 
         self.discriminator_networks = []
 
@@ -107,10 +106,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             self.summary.add_images(f"generated", images, self.summary_images)
 
     def build_trainer(self):
-        # evaluate can use fixed noise
-        if self.fixed_evaluate_noise:
-            epoch_size = self.dataset.get_epoch_size("test")
-            self.evaluate_latents = [self.sample_noise(self.batch_size) for i in range(epoch_size)]
+        super().build_trainer()
 
         with tf.variable_scope("gan"):
             # build generator-network
@@ -133,25 +129,6 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
 
             # summary images
             self.build_gan_summary_images(generated)
-
-    def evaluate(self, experiment_yield):
-        # reset fixed evaluate noise
-        if self.fixed_evaluate_noise:
-            self.evaluate_index = 0
-
-        super().evaluate(experiment_yield)
-
-    def prepare_feeds(self, queries, feed_map):
-        if self.fixed_evaluate_noise and "evaluate" in queries:
-            # evaluate uses fixed latent noise
-            latent = self.evaluate_latents[self.evaluate_index]
-            self.evaluate_index += 1
-        else:
-            # every run uses random latent noise
-            latent = self.sample_noise(self.batch_size)
-        feed_map["Z"] = latent
-
-        return super().prepare_feeds(queries, feed_map)
 
     def optimize(self, batch, feed_map):
         # optimize discriminator-network

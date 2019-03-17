@@ -79,14 +79,18 @@ class NetworkContext(Configurable):
 
     def get_or_create_feed(self, name, queries=None, shape=(), dtype=tf.float32):
         # get feed or create if none found
-        ph = self.get_feed(name)
+        ph = self.get_feed(name, queries=queries)
         if ph is None:
             return self.create_feed(name, queries, shape, dtype)
         return ph
 
-    def get_feed(self, name, query=None):
+    def has_feed(self, name, queries=None):
+        # does this feed already exist for queries
+        return self.get_feed(name, queries=queries) is not None
+
+    def get_feed(self, name, queries=None):
         # find feed node for query name
-        query_feeds = self.get_feeds(query)
+        query_feeds = self.get_feeds(queries=queries)
         if name in query_feeds:
             return query_feeds[name]
         return None
