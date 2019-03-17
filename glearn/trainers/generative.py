@@ -5,10 +5,10 @@ from glearn.datasets.labeled import LabeledDataset
 
 
 class GenerativeTrainer(Trainer):
-    def __init__(self, config, latent_size=100, conditional_latent=False,
-                 fixed_evaluate_latent=False, **kwargs):
+    def __init__(self, config, latent_size=100, conditional=False, fixed_evaluate_latent=False,
+                 **kwargs):
         self.latent_size = latent_size
-        self.conditional_latent = conditional_latent
+        self.conditional = conditional
         self.fixed_evaluate_latent = fixed_evaluate_latent
 
         super().__init__(config, **kwargs)
@@ -16,20 +16,24 @@ class GenerativeTrainer(Trainer):
         assert(self.has_dataset)
 
         self.has_labeled_dataset = isinstance(self.dataset, LabeledDataset)
+        self.conditional = self.conditional and self.has_labeled_dataset
 
     def learning_type(self):
         return "unsupervised"
 
-    def get_latent_size(self):
-        if self.conditional_latent and self.has_labeled_dataset:
-            return self.latent_size  # TODO
-        else:
-            return self.latent_size
+    def get_conditioned_inputs(self, inputs, labels):
+        # TODO - investigate: condition_tensor_from_onehot() (https://arxiv.org/abs/1609.03499)
+        return tf.concat([inputs, tf.cast(labels, tf.float32)], -1)
 
     def build_generator_network(self, name, definition, z=None, reuse=False):
         if z is None:
             # default to latent feed
-            z = self.get_or_create_feed("Z", shape=(self.batch_size, self.get_latent_size()))
+            z = self.get_or_create_feed("Z", shape=(self.batch_size, self.latent_size))
+
+        # conditional inputs
+        if self.conditional:
+            # TODO - investigate: condition_tensor_from_onehot() (https://arxiv.org/abs/1609.03499)
+            z = self.get_conditioned_inputs(z, self.get_feed("Y"))
 
         return self.build_network(name, definition, z, reuse=reuse)
 

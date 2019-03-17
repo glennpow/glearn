@@ -8,6 +8,7 @@
   trainer:
     name: glearn.trainers:GenerativeAdversarialNetworkTrainer
     args:
+      # conditional: true
 
       discriminator:  # discriminator network
         layers:

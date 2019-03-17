@@ -7,6 +7,10 @@ class LabeledDataset(Dataset):
 
         self.label_names = label_names
 
+    @property
+    def label_count(self):
+        return len(self.label_names)
+
     def encipher(self, value):
         label = self.label_names.index(value)
         return super().encipher(label)

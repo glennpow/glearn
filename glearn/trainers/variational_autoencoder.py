@@ -11,7 +11,11 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
 
         super().__init__(config, **kwargs)
 
-    def build_encoder(self, x):
+    def build_encoder(self, x, y):
+        # condition input (TODO - inject properly into first dense)
+        if self.conditional:
+            x = self.get_conditioned_inputs(x, y)
+
         self.encoder_network = self.build_network("encoder", self.encoder_definition, x)
         return self.encoder_network.outputs
 
@@ -66,7 +70,7 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
             y = self.get_feed("Y")
 
             # build encoder-network
-            encoded = self.build_encoder(x)
+            encoded = self.build_encoder(x, y)
 
             # build decoder-network
             decoded = self.build_decoder(encoded)
