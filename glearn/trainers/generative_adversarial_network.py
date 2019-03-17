@@ -5,7 +5,7 @@ from .generative import GenerativeTrainer
 class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
     def __init__(self, config, discriminator=None, generator=None, discriminator_steps=1,
                  discriminator_scale_factor=None, generator_scale_factor=None,
-                 alternative_generator_loss=True, summary_images=4, fixed_evaluate_noise=False,
+                 alternative_generator_loss=False, summary_images=4, fixed_evaluate_noise=False,
                  **kwargs):
         # get basic params
         self.discriminator_definition = discriminator
@@ -24,7 +24,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
         # only works for datasets
         assert(self.has_dataset)
 
-    def build_discriminator(self, x, real, scale_factor=None):
+    def build_discriminator(self, x, real):
         # build network
         definition = self.discriminator_definition
         reuse = len(self.discriminator_networks) > 0
@@ -33,7 +33,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
         # set labels and logits
         network.logits = network.get_output_layer().references["Z"]
         network.real = real
-        network.scale_factor = scale_factor
+        network.scale_factor = self.discriminator_scale_factor if real else None
 
         # append network
         self.discriminator_networks.append(network)
@@ -70,7 +70,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             self.discriminator_networks[0].optimize_loss(loss, name="discriminator_optimize")
         return loss
 
-    def build_generator_loss(self, loss_name="generator_loss", scale_factor=None):
+    def build_generator_loss(self, loss_name="generator_loss"):
         with tf.variable_scope("generator_optimize"):
             # sum losses from all fake discriminator networks
             loss = 0
@@ -84,8 +84,8 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
                 else:
                     # prepare negative labels
                     labels = tf.ones_like(network.logits)
-                    if scale_factor is not None:
-                        labels -= scale_factor
+                    if self.generator_scale_factor is not None:
+                        labels -= self.generator_scale_factor
 
                     # cross entropy loss of negative labels
                     network_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=network.logits,
@@ -122,14 +122,14 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
                 x = x * 2 - 1  # normalize (-1, 1)
 
             # build discriminator-networks
-            self.build_discriminator(x, True, scale_factor=self.discriminator_scale_factor)
+            self.build_discriminator(x, True)
             self.build_discriminator(generated, False)
 
             # optimize discriminator loss
             self.build_discriminator_loss()
 
             # optimize generator loss
-            self.build_generator_loss(scale_factor=self.generator_scale_factor)
+            self.build_generator_loss()
 
             # summary images
             self.build_gan_summary_images(generated)

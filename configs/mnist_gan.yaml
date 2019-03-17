@@ -21,7 +21,7 @@
               activation: tensorflow.nn:sigmoid
         optimizer: adam
         learning_rate: 2.0e-4
-        batch_norm: true
+        # batch_norm: true
       discriminator_steps: 1
 
       generator:  # generator network
@@ -36,9 +36,9 @@
               activation: tensorflow.nn:tanh
         optimizer: adam
         learning_rate: 2.0e-4
-        batch_norm: true
+        # batch_norm: true
 
-      epochs: 10  # 200
+      epochs: 200
       keep_prob: 0.7
       evaluate_interval: 20
 

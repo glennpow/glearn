@@ -31,7 +31,7 @@ class VAEGANTrainer(VariationalAutoencoderTrainer, GenerativeAdversarialNetworkT
             # x_p = x_p * 2 - 1  # normalize (-1, 1)  # HACK - not needed with tanh act?
 
             # build discriminator-networks
-            self.build_discriminator(x, True, scale_factor=self.discriminator_scale_factor)
+            self.build_discriminator(x, True)
             self.build_discriminator(x_tilde, False)
             self.build_discriminator(x_p, False)
 
