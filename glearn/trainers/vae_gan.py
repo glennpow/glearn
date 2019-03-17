@@ -12,13 +12,14 @@ class VAEGANTrainer(VariationalAutoencoderTrainer, GenerativeAdversarialNetworkT
 
     def build_trainer(self):
         with tf.variable_scope("vae_gan"):
-            # normalize real input
+            # get normalized real images and labels
             with tf.name_scope("normalize_images"):
                 x = self.get_feed("X")
                 x = x * 2 - 1  # normalize (-1, 1)
+                y = self.get_feed("Y")
 
             # build encoder-network
-            z = self.build_encoder(x)
+            z = self.build_encoder(x, y)
 
             # build decoder-network
             decoder_network = self.build_generator_network("decoder", self.decoder_definition, z=z)

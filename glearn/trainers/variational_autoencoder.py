@@ -12,7 +12,7 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
         super().__init__(config, **kwargs)
 
     def build_encoder(self, x, y):
-        # condition input (TODO - inject properly into first dense)
+        # condition input (TODO - inject properly into first dense layer)
         if self.conditional:
             x = self.get_conditioned_inputs(x, y)
 

@@ -1,0 +1,61 @@
+--- # CIFAR-10 DC-GAN
+  import: _base
+
+  dataset: cifar10
+  batch_size: 128
+
+  trainer:
+    name: glearn.trainers:GenerativeAdversarialNetworkTrainer
+    args:
+
+      discriminator:  # discriminator network
+        layers:
+          - name: glearn.networks:Conv2dLayer
+            args:
+              filters: [[5, 5, 128]]
+              pooling: avg
+          - name: glearn.networks:Conv2dLayer
+            args:
+              filters: [[5, 5, 256], [5, 5, 512], [5, 5, 1024]]
+              pooling: avg
+              activation: tensorflow.nn:leaky_relu
+              batch_norm: true
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1024, 512, 256]
+              activation: tensorflow.nn:leaky_relu
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1]
+              activation: tensorflow.nn:sigmoid
+        optimizer: adam
+        learning_rate: 2.0e-4
+      discriminator_steps: 1
+
+      generator:  # generator network
+        layers:
+          - name: glearn.networks:Conv2dTransposeLayer
+            args:
+              input_shape: [32, 32, 1024]
+              filters: [[5, 5, 512], [5, 5, 256], [5, 5, 128]]
+              activation: tensorflow.nn:relu
+              batch_norm: true
+          - name: glearn.networks:Conv2dTransposeLayer
+            args:
+              filters: [[5, 5, 3]]
+              activation: tensorflow.nn:tanh
+        optimizer: adam
+        learning_rate: 2.0e-4
+
+      epochs: 200
+      keep_prob: 0.7
+      evaluate_interval: 20
+
+  # viewer:
+  #   name: glearn.viewers.advanced_viewer:AdvancedViewer
+  #   args:
+  #     zoom: 2
+  #     modes:
+  #       - name: glearn.viewers.modes:GenerativeViewerMode
+  #         args:
+  #           visualize_grid: [10, 10]

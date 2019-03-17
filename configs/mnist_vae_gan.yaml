@@ -3,6 +3,7 @@
 
   dataset: mnist
   batch_size: 128
+  # batch_norm: true
   
   trainer:
     name: glearn.trainers:VAEGANTrainer
@@ -25,17 +26,12 @@
               size: 100  # encoding size
         optimizer: adam
         learning_rate: 2.0e-4
-        batch_norm: true
 
       decoder:  # decoder network
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [500]
-              activation: tensorflow.nn:tanh
-          - name: glearn.networks:DenseLayer
-            args:
-              hidden_sizes: [500]
+              hidden_sizes: [256, 512, 1024]
               activation: tensorflow.nn:leaky_relu
           - name: glearn.networks:DenseLayer
             args:
@@ -43,7 +39,6 @@
               activation: tensorflow.nn:tanh
         optimizer: adam
         learning_rate: 2.0e-4
-        batch_norm: true
 
       discriminator:  # discriminator network
         layers:
@@ -57,7 +52,6 @@
               activation: tensorflow.nn:sigmoid
         optimizer: adam
         learning_rate: 2.0e-4
-        batch_norm: true
       discriminator_steps: 1
 
       epochs: 200
