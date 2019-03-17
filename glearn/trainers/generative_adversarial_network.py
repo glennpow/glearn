@@ -4,11 +4,16 @@ from .generative import GenerativeTrainer
 
 class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
     def __init__(self, config, discriminator=None, generator=None, discriminator_steps=1,
-                 summary_images=4, fixed_evaluate_noise=False, **kwargs):
+                 discriminator_scale_factor=None, generator_scale_factor=None,
+                 alternative_generator_loss=True, summary_images=4, fixed_evaluate_noise=False,
+                 **kwargs):
         # get basic params
         self.discriminator_definition = discriminator
         self.discriminator_steps = discriminator_steps
+        self.discriminator_scale_factor = discriminator_scale_factor
         self.generator_definition = generator
+        self.generator_scale_factor = generator_scale_factor
+        self.alternative_generator_loss = alternative_generator_loss
         self.summary_images = summary_images
         self.fixed_evaluate_noise = fixed_evaluate_noise
 
@@ -19,7 +24,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
         # only works for datasets
         assert(self.has_dataset)
 
-    def build_discriminator(self, x, real):
+    def build_discriminator(self, x, real, scale_factor=None):
         # build network
         definition = self.discriminator_definition
         reuse = len(self.discriminator_networks) > 0
@@ -28,6 +33,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
         # set labels and logits
         network.logits = network.get_output_layer().references["Z"]
         network.real = real
+        network.scale_factor = scale_factor
 
         # append network
         self.discriminator_networks.append(network)
@@ -43,13 +49,18 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             # sum losses from all discriminator networks
             loss = 0
             for network in self.discriminator_networks:
+                # prepare labels
                 if network.real:
                     labels = tf.ones_like(network.logits)
                 else:
                     labels = tf.zeros_like(network.logits)
-                network_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=network.logits,
+                if network.scale_factor is not None:
+                    labels -= network.scale_factor
+
+                # cross entropy loss
+                network.loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=network.logits,
                                                                        labels=labels)
-                loss += tf.reduce_mean(network_loss)
+                loss += tf.reduce_mean(network.loss)
 
             # loss summary
             if loss_name:
@@ -59,7 +70,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             self.discriminator_networks[0].optimize_loss(loss, name="discriminator_optimize")
         return loss
 
-    def build_generator_loss(self, optimize=True, loss_name="generator_loss"):
+    def build_generator_loss(self, loss_name="generator_loss", scale_factor=None):
         with tf.variable_scope("generator_optimize"):
             # sum losses from all fake discriminator networks
             loss = 0
@@ -67,9 +78,18 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
                 if network.real:
                     continue
 
-                labels = tf.ones_like(network.logits)
-                network_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=network.logits,
-                                                                       labels=labels)
+                if self.alternative_generator_loss:
+                    # alternative of using negative discriminator loss
+                    network_loss = -network.loss
+                else:
+                    # prepare negative labels
+                    labels = tf.ones_like(network.logits)
+                    if scale_factor is not None:
+                        labels -= scale_factor
+
+                    # cross entropy loss of negative labels
+                    network_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=network.logits,
+                                                                           labels=labels)
                 loss += tf.reduce_mean(network_loss)
 
             # loss summary
@@ -77,19 +97,14 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
                 self.add_evaluate_metric(loss_name, loss)
 
             # optimize loss for network
-            if optimize:
-                self.generator_network.optimize_loss(loss, name="generator_optimize")
+            self.generator_network.optimize_loss(loss, name="generator_optimize")
         return loss
 
     def build_gan_summary_images(self, generated):
+        # generated image summaries
         with tf.variable_scope("summary_images"):
-            # original image summaries
-            original_images = self.get_feed("X")
-            # self.summary.add_images(f"real", original_images, self.summary_images)
-
-            # generated image summaries
-            generated_images = tf.reshape(generated, tf.shape(original_images))
-            self.summary.add_images(f"generated", generated_images, self.summary_images)
+            images = tf.reshape(generated, tf.shape(self.get_feed("X")))
+            self.summary.add_images(f"generated", images, self.summary_images)
 
     def build_trainer(self):
         # evaluate can use fixed noise
@@ -107,14 +122,14 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
                 x = x * 2 - 1  # normalize (-1, 1)
 
             # build discriminator-networks
-            self.build_discriminator(x, True)
+            self.build_discriminator(x, True, scale_factor=self.discriminator_scale_factor)
             self.build_discriminator(generated, False)
 
             # optimize discriminator loss
             self.build_discriminator_loss()
 
             # optimize generator loss
-            self.build_generator_loss()
+            self.build_generator_loss(scale_factor=self.generator_scale_factor)
 
             # summary images
             self.build_gan_summary_images(generated)

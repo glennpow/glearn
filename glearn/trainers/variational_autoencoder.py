@@ -26,39 +26,46 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
         # decoded = tf.clip_by_value(decoded, 1e-8, 1 - 1e-8)  # was this needed?
         return self.decoder_network.outputs
 
-    def build_vae_loss(self, x, decoded, optimize=True, loss_name="vae_loss"):
+    def build_kl_divergence(self):
+        encoder_distribution = self.encoder_network.get_distribution_layer()
+        mu = encoder_distribution.references["mu"]
+        sigma = encoder_distribution.references["sigma"]
+        kl_divergence = 0.5 * tf.reduce_sum(tf.square(mu) + tf.square(sigma) -
+                                            tf.log(1e-8 + tf.square(sigma)) - 1, 1)
+        kl_divergence = tf.reduce_mean(kl_divergence)
+
+        # summary
+        self.add_evaluate_metric("kl_divergence", kl_divergence)
+
+        return kl_divergence
+        # return encoder_distribution.kl_divergence(sample_noise) ?
+
+    def build_vae_loss(self, x, decoded, loss_name="vae_loss"):
         with tf.variable_scope("vae_optimize"):
             # losses
-            encoder_distribution = self.encoder_network.get_distribution_layer()
-            mu = encoder_distribution.references["mu"]
-            sigma = encoder_distribution.references["sigma"]
             y = decoded
             x = tf.reshape(x, [-1, np.prod(x.shape[1:])])
             marginal_likelihood = tf.reduce_sum(x * tf.log(y) + (1 - x) * tf.log(1 - y), 1)
             marginal_likelihood = tf.reduce_mean(marginal_likelihood)
-            KL_divergence = 0.5 * tf.reduce_sum(tf.square(mu) + tf.square(sigma) -
-                                                tf.log(1e-8 + tf.square(sigma)) - 1, 1)
-            KL_divergence = tf.reduce_mean(KL_divergence)
-            # KL_divergence = encoder_distribution.kl_divergence(sample_noise) ?
-            ELBO = marginal_likelihood - KL_divergence
-            loss = -ELBO
+            kl_divergence = self.build_kl_divergence()
+            elbo = marginal_likelihood - kl_divergence
+            loss = -elbo
 
             # summaries
             self.add_evaluate_metric("marginal_likelihood", marginal_likelihood)
-            self.add_evaluate_metric("kl_divergence", KL_divergence)
             if loss_name:
                 self.add_evaluate_metric(loss_name, loss)
 
             # minimize loss
-            if optimize:
-                optimize_networks = [self.encoder_network, self.decoder_network]
-                self.optimize_loss(loss, networks=optimize_networks, name="vae_optimize")
+            optimize_networks = [self.encoder_network, self.decoder_network]
+            self.optimize_loss(loss, networks=optimize_networks, name="vae_optimize")
 
         return loss
 
-    def build_vae_summary_images(self, x, decoded):
+    def build_vae_summary_images(self, decoded):
+        # decoded image summaries
         with tf.variable_scope("summary_images"):
-            images = tf.reshape(decoded, tf.shape(x))
+            images = tf.reshape(decoded, tf.shape(self.get_feed("X")))
             labels = self.get_feed("Y")
             label_count = len(self.dataset.label_names)
             indexes = [tf.where(tf.equal(labels, l))[:, 0] for l in range(label_count)]

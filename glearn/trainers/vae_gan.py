@@ -4,67 +4,76 @@ from .generative_adversarial_network import GenerativeAdversarialNetworkTrainer
 
 
 class VAEGANTrainer(VariationalAutoencoderTrainer, GenerativeAdversarialNetworkTrainer):
-    def __init__(self, config, **kwargs):
-        # TODO - parse extra config params
+    def __init__(self, config, gamma=0.5, **kwargs):
+        self.gamma = gamma
 
         VariationalAutoencoderTrainer.__init__(self, config, **kwargs)
         GenerativeAdversarialNetworkTrainer.__init__(self, config, **kwargs)
 
     def build_trainer(self):
         with tf.variable_scope("vae_gan"):
-            # real input
-            x = self.get_feed("X")
+            # normalize real input
+            with tf.name_scope("normalize_images"):
+                x = self.get_feed("X")
+                x = x * 2 - 1  # normalize (-1, 1)
 
             # build encoder-network
-            encoded = self.build_encoder(x)
+            z = self.build_encoder(x)
 
             # build decoder-network
-            x_hat = self.build_decoder(encoded)
-
-            # build VAE loss
-            vae_loss = self.build_vae_loss(x, x_hat, optimize_decoder=False, name="vae_loss")
+            decoder_network = self.build_generator_network("decoder", self.decoder_definition, z=z)
+            x_tilde = decoder_network.outputs
 
             # build generator-network
-            x_p = self.build_decoder(reuse=True)
-            x_p = x_p * 2 - 1  # normalize (-1, 1)  # HACK?
+            decoder_p_network = self.build_generator_network("decoder", self.decoder_definition,
+                                                             reuse=True)
+            x_p = decoder_p_network.outputs
+            # x_p = x_p * 2 - 1  # normalize (-1, 1)  # HACK - not needed with tanh act?
 
             # build discriminator-networks
-            self.real_discriminator_network = self.build_discriminator(x)
-            self.fake_discriminator_network = self.build_discriminator(x_p, reuse=True)
-            self.fake_discriminator_network = self.build_discriminator(x_p, reuse=True)
-            self.build_discriminator(x, x_p)
+            self.build_discriminator(x, True, scale_factor=self.discriminator_scale_factor)
+            self.build_discriminator(x_tilde, False)
+            self.build_discriminator(x_p, False)
 
-            # optimize discriminator loss
-            self.build_discriminator_loss()
+            # optimize discriminator with loss
+            gan_loss = self.build_discriminator_loss()
 
-            # TODO - need to also optimize discriminator on decoded images?
+            # calculate reconstruction VAE loss
+            with tf.name_scope("vae_optimize"):
+                l_prior = self.build_kl_divergence()
+                d_x = self.discriminator_networks[0]
+                d_x_l = d_x.get_layer(-2).references["Z"]
+                d_x_tilde = self.discriminator_networks[1]
+                d_x_tilde_l = d_x_tilde.get_layer(-2).references["Z"]
+                vae_loss = tf.reduce_mean(tf.squared_difference(d_x_l, d_x_tilde_l))  # FIXME?
+                # vae_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=?, labels=?)
+                # vae_loss += tf.reduce_mean(vae_loss)
 
-            # optimize generator loss
-            l_prior = self.get_fetch("kl_divergence")
-            gan_loss = self.build_generator_loss(optimize=False)
+            # optimize encoder/decoder
+            with tf.name_scope("encoder_optimize"):
+                encoder_loss = l_prior + vae_loss
+                self.add_evaluate_metric("encoder_loss", encoder_loss)
+                self.encoder_network.optimize_loss(encoder_loss, name="encoder_optimize")
+            with tf.name_scope("decoder_optimize"):
+                decoder_loss = self.gamma * vae_loss - gan_loss
+                self.add_evaluate_metric("decoder_loss", decoder_loss)
+                decoder_network.optimize_loss(decoder_loss, name="decoder_optimize")
 
             # summary images
-            self.build_vae_summary_images(x, decoded)
-            self.build_gan_summary_images(generated)
-
-        # minimize generator loss  TODO - use generic optimize_loss
-        with tf.variable_scope("vae_gan_optimize"):
-            loss = vae_loss + gan_loss  # FIXME - some linear combination?
-
-            optimize_networks = [self.generator_network]
-            self.optimize_loss(loss, networks=optimize_networks, name="generator_optimize")
+            self.build_vae_summary_images(x_tilde)
+            self.build_gan_summary_images(x_p)
 
     def optimize(self, batch, feed_map):
         # optimize encoder-network
-        vae_results = self.run("encoder_optimize", feed_map)
+        encoder_results = self.run("encoder_optimize", feed_map)
 
         # optimize discriminator-network
         for i in range(self.discriminator_steps):
             discriminator_results = self.run("discriminator_optimize", feed_map)
 
         # optimize generator-network
-        generator_results = self.run("generator_optimize", feed_map)
+        decoder_results = self.run("decoder_optimize", feed_map)
 
-        results = {**vae_results, **generator_results, **discriminator_results}
+        results = {**encoder_results, **decoder_results, **discriminator_results}
 
         return results

@@ -31,14 +31,8 @@ class Network(Configurable):
     def add_layer(self, layer):
         self.layers.append(layer)
 
-    def get_layer(self, layer_type=None, index=0):
-        i = 0
-        for layer in self.layers:
-            if layer_type is None or isinstance(layer, layer_type):
-                if i == index:
-                    return layer
-                i += 1
-        return None
+    def get_layer(self, index):
+        return self.layers[index]
 
     def get_output_layer(self):
         return self.layers[-1]
@@ -52,9 +46,18 @@ class Network(Configurable):
                 layers.append(layer)
         return layers
 
+    def find_layer(self, layer_type, index=0):
+        i = 0
+        for layer in self.layers:
+            if layer_type is None or isinstance(layer, layer_type):
+                if i == index:
+                    return layer
+                i += 1
+        return None
+
     def get_distribution_layer(self):
         # look for distribution layer
-        return self.get_layer(DistributionLayer)
+        return self.find_layer(DistributionLayer)
 
     def global_variables(self):
         # get all global variables in network scope

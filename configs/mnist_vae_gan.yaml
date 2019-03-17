@@ -7,6 +7,8 @@
   trainer:
     name: glearn.trainers:VAEGANTrainer
     args:
+      discriminator_scale_factor: 0.25
+      generator_scale_factor: 0.625  # = 1 - 0.75/2
 
       encoder:  # encoder network
         layers:
@@ -23,7 +25,7 @@
               size: 100  # encoding size
         optimizer: adam
         learning_rate: 2.0e-4
-        # batch_norm: true
+        batch_norm: true
 
       decoder:  # decoder network
         layers:
@@ -38,10 +40,10 @@
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [784]
-              activation: tensorflow.nn:sigmoid
+              activation: tensorflow.nn:tanh
         optimizer: adam
         learning_rate: 2.0e-4
-        # batch_norm: true
+        batch_norm: true
 
       discriminator:  # discriminator network
         layers:
@@ -55,7 +57,7 @@
               activation: tensorflow.nn:sigmoid
         optimizer: adam
         learning_rate: 2.0e-4
-        # batch_norm: true
+        batch_norm: true
       discriminator_steps: 1
 
       epochs: 200
