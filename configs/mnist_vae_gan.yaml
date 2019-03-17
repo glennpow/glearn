@@ -7,8 +7,8 @@
   trainer:
     name: glearn.trainers:VAEGANTrainer
     args:
-      discriminator_scale_factor: 0.25
-      generator_scale_factor: 0.625  # = 1 - 0.75/2
+      # discriminator_scale_factor: 0.25
+      # generator_scale_factor: 0.625  # = 1 - 0.75/2
 
       encoder:  # encoder network
         layers:

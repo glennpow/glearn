@@ -20,9 +20,6 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
 
         super().__init__(config, **kwargs)
 
-        # only works for datasets
-        assert(self.has_dataset)
-
     def build_discriminator(self, x, real):
         # build network
         definition = self.discriminator_definition
@@ -78,7 +75,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
                     continue
 
                 if self.alternative_generator_loss:
-                    # alternative of using negative discriminator loss
+                    # alternative of using negative discriminator loss  (FIXME)
                     network_loss = -network.loss
                 else:
                     # prepare negative labels
@@ -98,12 +95,6 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             # optimize loss for network
             self.generator_network.optimize_loss(loss, name="generator_optimize")
         return loss
-
-    def build_gan_summary_images(self, generated):
-        # generated image summaries
-        with tf.variable_scope("summary_images"):
-            images = tf.reshape(generated, tf.shape(self.get_feed("X")))
-            self.summary.add_images(f"generated", images, self.summary_images)
 
     def build_trainer(self):
         super().build_trainer()
@@ -128,7 +119,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             self.build_generator_loss()
 
             # summary images
-            self.build_gan_summary_images(generated)
+            self.build_summary_images("generated", generated)
 
     def optimize(self, batch, feed_map):
         # optimize discriminator-network

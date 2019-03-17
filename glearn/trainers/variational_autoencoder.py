@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 from .generative import GenerativeTrainer
-from glearn.datasets.labeled import LabeledDataset
 
 
 class VariationalAutoencoderTrainer(GenerativeTrainer):
@@ -11,10 +10,6 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
         self.decoder_definition = decoder
 
         super().__init__(config, **kwargs)
-
-        # only works for labeled datasets
-        assert(self.has_dataset)
-        assert(isinstance(self.dataset, LabeledDataset))
 
     def build_encoder(self, x):
         self.encoder_network = self.build_network("encoder", self.encoder_definition, x)
@@ -62,25 +57,13 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
 
         return loss
 
-    def build_vae_summary_images(self, decoded):
-        # decoded image summaries
-        with tf.variable_scope("summary_images"):
-            images = tf.reshape(decoded, tf.shape(self.get_feed("X")))
-            labels = self.get_feed("Y")
-            label_count = len(self.dataset.label_names)
-            indexes = [tf.where(tf.equal(labels, l))[:, 0] for l in range(label_count)]
-            for i in range(label_count):
-                label_name = self.dataset.label_names[i]
-                index = tf.squeeze(indexes[i])[0]
-                decoded_image = images[index:index + 1]
-                self.summary.add_images(f"decoded_{label_name}", decoded_image)
-
     def build_trainer(self):
         super().build_trainer()
 
         with tf.variable_scope("vae"):
-            # real input
+            # real images and labels
             x = self.get_feed("X")
+            y = self.get_feed("Y")
 
             # build encoder-network
             encoded = self.build_encoder(x)
@@ -92,7 +75,7 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
             self.build_vae_loss(x, decoded)
 
             # generated image summaries
-            self.build_vae_summary_images(decoded)
+            self.build_summary_images("decoded", decoded, labels=y)
 
     def optimize(self, batch, feed_map):
         # optimize encoder/decoder-networks
