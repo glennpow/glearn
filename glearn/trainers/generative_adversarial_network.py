@@ -5,7 +5,7 @@ from .generative import GenerativeTrainer
 class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
     def __init__(self, config, discriminator=None, generator=None, discriminator_steps=1,
                  discriminator_scale_factor=None, generator_scale_factor=None,
-                 alternative_generator_loss=False, summary_images=4, fixed_evaluate_noise=False,
+                 alternative_generator_loss=False, summary_images=9, fixed_evaluate_noise=False,
                  **kwargs):
         # get basic params
         self.discriminator_definition = discriminator

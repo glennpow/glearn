@@ -500,7 +500,9 @@ class Trainer(NetworkContext):
 
                     if experiment_yield(True):
                         return
+
                 epoch += 1
+                self.epoch_step = 0
         else:
             # evaluate single epoch
             self.epoch = 0
