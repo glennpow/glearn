@@ -11,7 +11,7 @@ class VAEGANTrainer(VariationalAutoencoderTrainer, GenerativeAdversarialNetworkT
         GenerativeAdversarialNetworkTrainer.__init__(self, config, **kwargs)
 
     def build_trainer(self):
-        with tf.variable_scope("vae_gan"):
+        with tf.variable_scope("VAE_GAN"):
             # get normalized real images and labels
             with tf.name_scope("normalize_images"):
                 x = self.get_feed("X")
@@ -40,7 +40,7 @@ class VAEGANTrainer(VariationalAutoencoderTrainer, GenerativeAdversarialNetworkT
             gan_loss = self.build_discriminator_loss()
 
             # calculate reconstruction VAE loss
-            with tf.name_scope("vae_optimize"):
+            with tf.name_scope("VAE_optimize"):
                 l_prior = self.build_kl_divergence()
                 d_x = self.discriminator_networks[0]
                 d_x_l = d_x.get_layer(-2).references["Z"]

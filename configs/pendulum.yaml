@@ -24,7 +24,7 @@
     args:
       episodes: 5000
       keep_prob: 0.8
-      epsilon: [1, 0.1, 10]
+      # epsilon: [1, 0.1, 10]
       evaluate_interval: 1
 
       

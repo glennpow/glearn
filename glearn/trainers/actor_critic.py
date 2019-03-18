@@ -1,6 +1,5 @@
 import tensorflow as tf
 from glearn.trainers.temporal_difference import TemporalDifferenceTrainer
-from glearn.networks import load_network
 
 
 # FIXME - old broken code
@@ -25,7 +24,7 @@ class ActorCriticTrainer(TemporalDifferenceTrainer):
         policy = self.policy
 
         # build critic network
-        self.critic_network = load_network("value", policy, self.critic_definition)
+        self.critic_network = self.build_network("value", policy, self.critic_definition)
         critic_inputs = self.get_feed("X")
         critic_value = self.critic_network.build_predict(critic_inputs)
         self.add_fetch("value", critic_value)
@@ -37,9 +36,7 @@ class ActorCriticTrainer(TemporalDifferenceTrainer):
         with tf.name_scope(query):
             value_loss = self.build_value_loss(critic_value)
 
-            optimize = self.optimize_loss(value_loss, query, self.critic_definition)
-
-            self.add_fetch(query, optimize)
+            self.critic_network.optimize_loss(value_loss, name=query)
 
             self.summary.add_scalar("value", avg_critic_value)
 
@@ -63,13 +60,12 @@ class ActorCriticTrainer(TemporalDifferenceTrainer):
                 # total policy loss
                 policy_loss = self.policy_network.get_total_loss()
                 policy_loss = tf.reduce_mean(policy_loss)
-                self.add_fetch("policy_loss", policy_loss, "evaluate")
-            self.summary.add_scalar("policy_loss", policy_loss)
+
+            # summary
+            self.add_evaluate_metric("policy_loss", policy_loss)
 
             # optimize the policy loss
-            optimize = self.optimize_loss(policy_loss, query, update_global_step=False)
-
-            self.add_fetch(query, optimize)
+            self.optimize_loss(policy_loss, networks=[self.policy_network], name=query)
 
     def run(self, queries, feed_map={}, **kwargs):
         if not isinstance(queries, list):

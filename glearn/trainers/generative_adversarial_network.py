@@ -99,7 +99,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
     def build_trainer(self):
         super().build_trainer()
 
-        with tf.variable_scope("gan"):
+        with tf.variable_scope("GAN"):
             # build generator-network
             generated = self.build_generator()
 

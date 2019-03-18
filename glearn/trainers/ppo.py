@@ -2,10 +2,12 @@ import tensorflow as tf
 from glearn.trainers.advantage_actor_critic import AdvantageActorCriticTrainer
 
 
-# FIXME - old broken code
+# FIXME - broken code
 
 
 class PPOTrainer(AdvantageActorCriticTrainer):
+    # Proximal Policy Optimization
+
     def __init__(self, config, critic, clip_epsilon=0.2, **kwargs):
         self.clip_epsilon = clip_epsilon
 
@@ -53,10 +55,11 @@ class PPOTrainer(AdvantageActorCriticTrainer):
                 # total policy loss
                 policy_loss = self.policy_network.get_total_loss()
                 policy_loss = tf.reduce_mean(policy_loss)
-                self.add_fetch("policy_loss", policy_loss, "evaluate")
-            self.summary.add_scalar("policy_loss", policy_loss)
+
+            # summary
+            self.add_evaluate_metric("policy_loss", policy_loss)
 
             # optimize the policy loss
-            optimize = self.optimize_loss(policy_loss, query, update_global_step=False)
+            optimize = self.optimize_loss(policy_loss, name=query, update_global_step=False)
 
             self.add_fetch(query, optimize)

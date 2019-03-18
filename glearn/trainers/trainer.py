@@ -45,6 +45,8 @@ class Trainer(NetworkContext):
         self.episode_reward = 0
         self.batch = None
 
+        self.networks = {}
+
     def __str__(self):
         properties = [
             "training" if self.training else "evaluating",
@@ -160,9 +162,15 @@ class Trainer(NetworkContext):
         pass
 
     def build_network(self, name, definition, inputs, reuse=False):
+        # build network output and add fetch
         network = load_network(name, self, definition)
         y = network.build_predict(inputs, reuse=reuse)
         self.add_fetch(name, y)
+
+        # keep track of all networks
+        if not reuse:
+            self.networks[name] = network
+
         return network
 
     def prepare_feeds(self, queries, feed_map):
@@ -232,7 +240,10 @@ class Trainer(NetworkContext):
         action = self.action()
 
         # perform action
-        next_state, reward, done, info = self.env.step(action)
+        env_action = action
+        if self.output.discrete:
+            env_action = env_action[0]  # HACK? - is this the case for all envs?
+        next_state, reward, done, info = self.env.step(env_action)
 
         # build and process transition
         transition = Transition(self.state, action, reward, next_state, done, info)
