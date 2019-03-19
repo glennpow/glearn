@@ -21,7 +21,7 @@
         batch_norm: true
 
   trainer:
-    name: glearn.trainers:PolicyGradientTrainer
+    name: glearn.trainers:SupervisedTrainer
     args:
       epochs: 40
       keep_prob: 0.8

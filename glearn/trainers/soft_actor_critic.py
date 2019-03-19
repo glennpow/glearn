@@ -1,9 +1,9 @@
 import tensorflow as tf
-from glearn.trainers.trainer import Trainer
+from glearn.trainers.reinforcement import ReinforcementTrainer
 from glearn.networks import load_network
 
 
-class SoftActorCriticTrainer(Trainer):
+class SoftActorCriticTrainer(ReinforcementTrainer):
     def __init__(self, config, Q, V, Q_count=2, tau=1e-2, ent_coef=1e-6, gamma=0.95,
                  **kwargs):
         # get basic params

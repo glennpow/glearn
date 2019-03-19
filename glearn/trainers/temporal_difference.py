@@ -1,9 +1,9 @@
 import numpy as np
-from glearn.trainers.trainer import Trainer
+from glearn.trainers.reinforcement import ReinforcementTrainer
 from glearn.utils.collections import intersects
 
 
-class TemporalDifferenceTrainer(Trainer):
+class TemporalDifferenceTrainer(ReinforcementTrainer):
     def __init__(self, config, gamma=0.95, **kwargs):
         self.gamma = gamma
 

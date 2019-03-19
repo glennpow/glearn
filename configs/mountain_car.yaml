@@ -20,7 +20,7 @@
         max_grad_norm: 5
 
   trainer:
-    name: glearn.trainers:PolicyGradientTrainer
+    name: glearn.trainers:ReinforcementTrainer
     args:
       episodes: 1000
       # keep_prob: 0.8

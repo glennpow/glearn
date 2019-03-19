@@ -1,7 +1,8 @@
 from glearn.utils.reflection import get_class
 
 from .trainer import Trainer
-from .policy_gradient import PolicyGradientTrainer  # noqa
+from .supervised import SupervisedTrainer  # noqa
+from .reinforcement import ReinforcementTrainer  # noqa
 from .advantage_actor_critic import AdvantageActorCriticTrainer  # noqa
 from .soft_actor_critic import SoftActorCriticTrainer  # noqa
 from .ppo import PPOTrainer  # noqa

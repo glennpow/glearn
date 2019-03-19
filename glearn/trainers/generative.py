@@ -1,10 +1,10 @@
 import numpy as np
 import tensorflow as tf
-from glearn.trainers.trainer import Trainer
+from glearn.trainers.unsupervised import UnsupervisedTrainer
 from glearn.datasets.labeled import LabeledDataset
 
 
-class GenerativeTrainer(Trainer):
+class GenerativeTrainer(UnsupervisedTrainer):
     def __init__(self, config, latent_size=100, conditional=False, fixed_evaluate_latent=False,
                  **kwargs):
         self.latent_size = latent_size
@@ -63,12 +63,12 @@ class GenerativeTrainer(Trainer):
             else:
                 self.summary.add_images(name, images, self.summary_images)
 
-    def evaluate(self, experiment_yield):
+    def evaluate(self):
         # reset fixed evaluate noise
         if self.fixed_evaluate_latent:
             self.evaluate_index = 0
 
-        super().evaluate(experiment_yield)
+        super().evaluate()
 
     def prepare_feeds(self, queries, feed_map):
         # set latent feed, if expected

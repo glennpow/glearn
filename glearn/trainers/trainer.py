@@ -3,9 +3,7 @@ import random
 import numpy as np
 import tensorflow as tf
 import pyglet
-from glearn.data.transition import Transition, TransitionBatch
-from glearn.networks.context import num_global_parameters, num_trainable_parameters, \
-    saveable_objects, NetworkContext
+from glearn.networks.context import num_global_parameters, num_trainable_parameters, NetworkContext
 from glearn.policies import load_policy
 from glearn.policies.random import RandomPolicy
 from glearn.networks import load_network
@@ -16,9 +14,7 @@ from glearn.utils.memory import print_virtual_memory, print_gpu_memory
 
 
 class Trainer(NetworkContext):
-    def __init__(self, config, epochs=None, episodes=None,
-                 max_episode_time=None, min_episode_reward=None, evaluate_interval=10, epsilon=0,
-                 keep_prob=1, **kwargs):
+    def __init__(self, config, evaluate_interval=10, keep_prob=1, **kwargs):
         super().__init__(config)
 
         self.policy = None
@@ -29,31 +25,18 @@ class Trainer(NetworkContext):
         self.debug_memory = self.config.is_debugging("debug_memory")
         self.debug_numerics = self.config.is_debugging("debug_numerics")
 
-        self.epochs = epochs
-        self.episodes = episodes
-        self.max_episode_time = max_episode_time
-        self.min_episode_reward = min_episode_reward
         self.evaluate_interval = evaluate_interval
+        self.keep_prob = keep_prob  # TODO - refactor
 
-        self.epsilon = epsilon
-        self.keep_prob = keep_prob
-
-        self.epoch_step = 0
-        self.episode_step = 0
-        self.state = None
-        self.transitions = []
-        self.episode_reward = 0
+        self.iteration = 0
         self.batch = None
-
         self.networks = {}
 
     def __str__(self):
         properties = [
-            "training" if self.training else "evaluating",
             self.learning_type(),
+            "training" if self.training else "evaluating",
         ]
-        if self.has_env:
-            properties.append("on-policy" if self.on_policy() else "off-policy")
         return f"{type(self).__name__}({', '.join(properties)})"
 
     def get_info(self):
@@ -61,19 +44,8 @@ class Trainer(NetworkContext):
             "Description": str(self),
             "Total Global Parameters": num_global_parameters(),
             "Total Trainable Parameters": num_trainable_parameters(),
-            "Total Saveable Objects": len(saveable_objects()),
             "Evaluate Interval": self.evaluate_interval,
         }
-        if self.has_dataset:
-            info.update({
-                "Epochs": self.epochs,
-            })
-        else:
-            info.update({
-                "Episodes": self.episodes,
-                "Max Episode Time": self.max_episode_time,
-                "Min Episode Reward": self.min_episode_reward,
-            })
         return info
 
     def print_info(self):
@@ -81,7 +53,7 @@ class Trainer(NetworkContext):
         info = {}
         if self.has_dataset:
             info["Dataset"] = self.dataset.get_info()
-        else:
+        elif self.has_env:
             info["Environment"] = {
                 "Description": self.env.name,
                 "Input": self.input,
@@ -97,20 +69,10 @@ class Trainer(NetworkContext):
         print()
 
     def learning_type(self):
-        return "supervised" if self.has_dataset else "reinforcement"
-
-    def on_policy(self):
-        # override
-        return False
-
-    def off_policy(self):
-        return not self.on_policy()
+        return "unknown"
 
     def reset(self):
-        # reset env and episode
-        if self.env is not None:
-            self.state = self.env.reset()
-            self.episode_reward = 0
+        pass
 
     def build_models(self, random=False):
         # initialize render viewer
@@ -158,8 +120,15 @@ class Trainer(NetworkContext):
             self.policy.build_predict(self.get_feed("X"))
 
     def build_trainer(self):
-        # overwrite
-        pass
+        # optimize policy, if defined
+        if self.policy:
+            query = "policy_optimize"
+            with tf.name_scope(query):
+                # build policy loss
+                loss, _ = self.policy.build_loss(self.get_feed("Y"))
+
+                # minimize policy loss
+                self.policy.optimize_loss(loss, name=query)
 
     def build_network(self, name, definition, inputs, reuse=False):
         # build network output and add fetch
@@ -188,6 +157,11 @@ class Trainer(NetworkContext):
     def run(self, queries, feed_map={}, render=True):
         if not isinstance(queries, list):
             queries = [queries]
+
+        # check numerics
+        if self.debug_numerics:
+            if np.any(["optimize" in query for query in queries]):
+                queries.append("check_numerics")
 
         # run policy for queries with feeds
         feed_map = self.prepare_feeds(queries, feed_map)
@@ -219,59 +193,13 @@ class Trainer(NetworkContext):
         results = self.run(queries, feed_map)
         return results["predict"][0]
 
-    def action(self):
-        # decaying epsilon-greedy
-        epsilon = self.epsilon if self.training else 0
-        if isinstance(epsilon, list):
-            t = min(1, self.current_global_step / epsilon[2])
-            epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
-            self.summary.add_simple_value("epsilon", epsilon, "experiment")
-
-        # get action
-        if epsilon > 0 and np.random.random() < epsilon:
-            # choose epsilon-greedy random action
-            return self.output.sample()
-        else:
-            # choose optimal policy action
-            return self.predict(self.state)
-
-    def rollout(self):
-        # get action
-        action = self.action()
-
-        # perform action
-        env_action = action
-        if self.output.discrete:
-            env_action = env_action[0]  # HACK? - is this the case for all envs?
-        next_state, reward, done, info = self.env.step(env_action)
-
-        # build and process transition
-        transition = Transition(self.state, action, reward, next_state, done, info)
-        self.process_transition(transition)
-
-        # record transition
-        self.transitions.append(transition)
-
-        # update stats
-        self.state = next_state
-        self.episode_reward += transition.reward
-        return transition
-
-    def process_transition(self, transition):
-        pass
+    def get_iteration_name(self):
+        # override
+        return "Iteration"
 
     def get_batch(self, mode="train"):
-        if self.has_dataset:
-            # dataset batch of samples
-            return self.dataset.get_batch(mode=mode)
-        else:
-            # env experience replay batch of samples (TODO - ReplayBuffer)
-            batch = TransitionBatch(self.transitions[:self.batch_size], mode=mode)
-            feed_map = {
-                "X": batch.inputs,
-                "Y": batch.outputs,
-            }
-            return batch, feed_map
+        # override
+        return None, {}
 
     def pre_optimize(self, feed_map):
         pass
@@ -280,12 +208,7 @@ class Trainer(NetworkContext):
         pass
 
     def should_optimize(self):
-        if not self.training:
-            return False
-        if self.has_dataset:
-            return True
-        else:
-            return len(self.transitions) >= self.batch_size
+        return self.training
 
     def optimize(self, batch, feed_map):
         # run desired queries
@@ -299,34 +222,37 @@ class Trainer(NetworkContext):
         self.current_global_step = global_step
 
         # print log
-        iteration_name = "Epoch" if self.has_dataset else "Episode"
-        iteration = self.epoch if self.has_dataset else self.episode
+        iteration_name = self.get_iteration_name()
+        iteration = self.iteration
         print_update(f"Optimizing | {iteration_name}: {iteration} | Global Step: {global_step}")
         return results
 
     def should_evaluate(self):
-        if self.has_env and len(self.transitions) < self.batch_size:
-            return False
         return not self.training or self.current_global_step % self.evaluate_interval == 0
 
-    def evaluate(self, experiment_yield):
+    def reset_evaluate(self):
+        # override
+        return 1
+
+    def extra_evaluate_stats(self):
+        # override
+        return {}
+
+    def evaluate(self):
         # Evaluate using the test dataset
         queries = ["evaluate"]
 
         # prepare dataset partition
-        if self.has_dataset:
-            epoch_size = self.dataset.reset(mode="test")
-        else:
-            epoch_size = 1
+        evaluate_steps = self.reset_evaluate()
 
         # get batch data and desired queries
         eval_start_time = time.time()
         averaged_results = {}
-        report_step = random.randrange(epoch_size)
+        report_step = random.randrange(evaluate_steps)
         report_results = None
         report_feed_map = None
-        for step in range(epoch_size):
-            print_update(f"Evaluating | Progress: {step}/{epoch_size}")
+        for step in range(evaluate_steps):
+            print_update(f"Evaluating | Progress: {step}/{evaluate_steps}")
 
             reporting = step == report_step
             self.batch, feed_map = self.get_batch(mode="test")
@@ -346,7 +272,7 @@ class Trainer(NetworkContext):
                     else:
                         averaged_results[k] = v
 
-            if experiment_yield():
+            if self.experiment_yield():
                 return
 
         if report_results is not None:
@@ -359,28 +285,19 @@ class Trainer(NetworkContext):
             steps_per_second = eval_steps / eval_elapsed_time
             self.last_eval_time = current_time
             self.last_eval_step = self.current_global_step
+            iteration_name = self.get_iteration_name()
             stats = {
                 "global step": self.current_global_step,
                 "training time": train_elapsed_time,
                 "steps/second": steps_per_second,
+                f"{iteration_name.lower()} step": self.iteration_step,
+                f"{iteration_name.lower()} time": iteration_elapsed_time,
             }
-            if self.has_dataset:
-                stats.update({
-                    "epoch step": self.epoch_step,
-                    "epoch time": iteration_elapsed_time,
-                })
-                table = {f"Epoch: {self.epoch}": stats}
-            else:
-                stats.update({
-                    "episode steps": self.episode_step,
-                    "episode time": iteration_elapsed_time,
-                    "reward": self.episode_reward,
-                    "max reward": self.max_episode_reward,
-                })
-                table = {f"Episode: {self.episode}": stats}
+            stats.update(self.extra_evaluate_stats())
+            table = {f"{iteration_name}: {self.iteration}": stats}
 
             # average evaluate results
-            averaged_results = {k: v / epoch_size for k, v in averaged_results.items()}
+            averaged_results = {k: v / evaluate_steps for k, v in averaged_results.items()}
             report_results.update(averaged_results)
 
             # remove None values
@@ -406,9 +323,33 @@ class Trainer(NetworkContext):
 
         print()
 
+    def experiment_loop(self):
+        # override
+        pass
+
+    def experiment_yield(self, flush_summary=False):
+        # write summary results
+        if flush_summary:
+            self.summary.flush(global_step=self.current_global_step)
+
+        while True:
+            # check if experiment stopped
+            if not self.running:
+                return True
+
+            # render frame
+            if self.rendering:
+                self.render()
+
+            # loop while paused
+            if self.paused:
+                time.sleep(0)
+            else:
+                break
+        return False
+
     def execute(self, render=False, profile=False, random=False):
         try:
-            self.max_episode_reward = None
             self.running = True
             self.paused = False
             self.start_time = time.time()
@@ -423,7 +364,7 @@ class Trainer(NetworkContext):
 
             # check for invalid values in the current graph
             if self.debug_numerics:
-                self.add_fetch("check", tf.add_check_numerics_ops(), "policy_optimize")
+                self.add_fetch("check_numerics", tf.add_check_numerics_ops())
 
             # prepare viewer
             self.viewer.prepare(self)
@@ -431,199 +372,26 @@ class Trainer(NetworkContext):
             # print experiment info
             self.print_info()
 
-            # yield after each experiment iteration
-            def experiment_yield(flush_summary=False):
-                # write summary results
-                if flush_summary:
-                    self.summary.flush(global_step=self.current_global_step)
-
-                while True:
-                    # check if experiment stopped
-                    if not self.running:
-                        return True
-
-                    # render frame
-                    if render:
-                        self.render()
-
-                    # loop while paused
-                    if self.paused:
-                        time.sleep(0)
-                    else:
-                        break
-                return False
-
-            # main experiment loop
-            def experiment_loop():
-                # get current global step, and prepare evaluation counters
-                global_step = tf.train.global_step(self.sess, self.global_step)
-                self.current_global_step = global_step
-                self.last_eval_time = None
-                self.last_eval_step = self.current_global_step
-
-                # do specific experiment loop
-                if self.has_dataset:
-                    self.experiment_dataset_loop(experiment_yield)
-                else:
-                    self.experiment_env_loop(experiment_yield)
+            # get current global step, and prepare evaluation counters
+            global_step = tf.train.global_step(self.sess, self.global_step)
+            self.current_global_step = global_step
+            self.last_eval_time = None
+            self.last_eval_step = self.current_global_step
 
             if profile:
                 # profile experiment loop
-                profile_path = run_profile(experiment_loop, self.config)
+                profile_path = run_profile(self.experiment_loop, self.config)
 
                 # show profiling results
                 open_profile(profile_path)
             else:
                 # run training loop without profiling
-                experiment_loop()
+                self.experiment_loop()
         finally:
             # cleanup session after evaluation
             if self.policy:
                 self.policy.stop_session()
             self.config.close_session()
-
-    def experiment_dataset_loop(self, experiment_yield):
-        # dataset learning
-        if self.training:
-            # train desired epochs
-            epoch = 1
-            while self.epochs is None or epoch <= self.epochs:
-                # start current epoch
-                epoch_size = self.dataset.reset(mode="train")
-                self.epoch = epoch
-                self.iteration_start_time = time.time()
-
-                # epoch summary
-                global_epoch = self.current_global_step / epoch_size
-                self.summary.add_simple_value("epoch", global_epoch, "experiment")
-
-                for step in range(epoch_size):
-                    # epoch time
-                    self.epoch_step = step + 1
-
-                    # optimize batch
-                    self.batch, feed_map = self.get_batch()
-                    self.optimize_and_report(self.batch, feed_map)
-
-                    # evaluate if time to do so
-                    if self.should_evaluate():
-                        self.evaluate(experiment_yield)
-
-                    if experiment_yield(True):
-                        return
-
-                epoch += 1
-                self.epoch_step = 0
-        else:
-            # evaluate single epoch
-            self.epoch = 0
-            self.iteration_start_time = time.time()
-            self.evaluate(experiment_yield)
-
-    def experiment_env_loop(self, experiment_yield):
-        # reinforcement learning
-        episode = 1
-        reset_evaluate = True
-
-        while self.episodes is None or episode <= self.episodes:
-            # start current episode
-            self.iteration_start_time = time.time()
-            self.episode = episode
-            self.reset()
-            self.episode_step = 0
-
-            # episode count summary
-            self.summary.add_simple_value("episode", episode, "experiment")
-
-            if reset_evaluate:
-                episode_rewards = []
-                episode_times = []
-                episode_steps = []
-
-            while self.running:
-                if experiment_yield(True):
-                    return
-
-                # rollout
-                transition = self.rollout()
-                done = transition.done
-                self.episode_step += 1
-
-                # episode time
-                current_time = time.time()
-                episode_time = current_time - self.iteration_start_time
-                if self.max_episode_time is not None:
-                    # episode timeout
-                    if episode_time > self.max_episode_time:
-                        done = True
-
-                # episode performance
-                if self.min_episode_reward is not None:
-                    # episode poor performance
-                    if self.episode_reward < self.min_episode_reward:
-                        done = True
-
-                if done:
-                    # track max episode reward
-                    if self.max_episode_reward is None \
-                       or self.episode_reward > self.max_episode_reward:
-                        self.max_episode_reward = self.episode_reward
-
-                    # track episode reward, time and steps
-                    episode_rewards.append(self.episode_reward)
-                    episode_time = time.time() - self.iteration_start_time
-                    episode_times.append(episode_time)
-                    episode_steps.append(self.episode_step)
-
-                    # stats update
-                    episode_num = len(episode_rewards)
-                    transitions = len(self.transitions)
-                    print_update(f"Simulating | Episode: {episode_num} | Time: {episode_time:.02}"
-                                 f" | Reward: {self.episode_reward} | Transitions: {transitions}")
-
-                    # optimize when enough transitions have been gathered
-                    processed_transitions = False
-                    if self.should_optimize():
-                        processed_transitions = True
-                        self.batch, feed_map = self.get_batch()
-                        self.optimize_and_report(self.batch, feed_map)
-
-                    # evaluate if time to do so
-                    if self.should_evaluate():
-                        processed_transitions = True
-                        self.evaluate(experiment_yield)
-
-                        # episode summary values
-                        avg_rewards = np.mean(episode_rewards)
-                        self.summary.add_simple_value("episode_reward", avg_rewards,
-                                                      "experiment")
-                        self.summary.add_simple_value("max_episode_reward",
-                                                      self.max_episode_reward, "experiment")
-                        self.summary.add_simple_value("episode_time", np.mean(episode_times),
-                                                      "experiment")
-                        self.summary.add_simple_value("episode_steps", np.mean(episode_steps),
-                                                      "experiment")
-
-                        # env summary values
-                        if hasattr(self.env, "evaluate"):
-                            self.env.evaluate(self.policy)
-
-                        reset_evaluate = True
-
-                        if not self.training:
-                            self.current_global_step += 1
-
-                    if processed_transitions:
-                        if self.on_policy():
-                            # clear transitions after processing
-                            self.transitions = []
-
-                    break
-
-            if not self.running:
-                return
-
-            episode += 1
 
     def init_viewer(self):
         # register for events from viewer
