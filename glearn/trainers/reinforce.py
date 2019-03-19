@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from glearn.trainers.reinforcement import ReinforcementTrainer
 
 
@@ -6,9 +7,28 @@ class ReinforceTrainer(ReinforcementTrainer):
     def __init__(self, config, gamma=0.95, **kwargs):
         self.gamma = gamma
 
-        self.create_feed("discount_rewards", ["policy_optimize", "evaluate"], (None, 1))
-
         super().__init__(config, **kwargs)
+
+    def build_trainer(self):
+        query = "policy_optimize"
+        with tf.name_scope(query):
+            # get log prob of action
+            with tf.name_scope("loss"):
+                policy_distribution = self.policy.network.get_distribution_layer()
+                actions = self.get_feed("Y")
+                # log_prob_actions = policy_distribution.log_prob(actions)
+                neg_log_prob_actions = policy_distribution.neg_log_prob(actions)
+
+                discount_rewards = self.create_feed("discount_rewards", query, (None, 1))
+                policy_loss = tf.reduce_mean(neg_log_prob_actions * discount_rewards)
+            self.add_metric("policy_loss", policy_loss, query=query)
+
+            # minimize policy loss
+            self.policy.optimize_loss(policy_loss, name=query)
+
+    # def process_transition(self, transition):
+    #     # store log prob of action
+    #     transition.info["log_prob_action"] = self.latest_results["log_prob_action"]
 
     def calculate_discount_rewards(self, rewards):
         # gather discounted rewards
@@ -23,6 +43,7 @@ class ReinforceTrainer(ReinforcementTrainer):
         std = np.std(discount_rewards)
         mean = np.mean(discount_rewards)
         discount_rewards = (discount_rewards - mean) / std
+        discount_rewards = np.expand_dims(discount_rewards, -1)
         return discount_rewards
 
     # def prepare_feeds(self, queries, feed_map):

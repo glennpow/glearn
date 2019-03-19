@@ -34,8 +34,8 @@ class NetworkPolicy(Policy):
         self.outputs = outputs
         loss, accuracy = self.network.build_loss(outputs)
 
-        self.add_evaluate_metric("policy_loss", loss)
-        self.add_evaluate_metric("policy_accuracy", accuracy)
+        self.add_metric("policy_loss", loss)
+        self.add_metric("policy_accuracy", accuracy)
 
         return loss, accuracy
 

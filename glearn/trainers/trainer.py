@@ -7,7 +7,6 @@ from glearn.networks.context import num_global_parameters, num_trainable_paramet
 from glearn.policies import load_policy
 from glearn.policies.random import RandomPolicy
 from glearn.networks import load_network
-from glearn.utils.collections import intersects
 from glearn.utils.printing import print_update, print_tabular
 from glearn.utils.profile import run_profile, open_profile
 from glearn.utils.memory import print_virtual_memory, print_gpu_memory
@@ -121,7 +120,7 @@ class Trainer(NetworkContext):
             self.policy.build_predict(self.get_feed("X"))
 
     def build_trainer(self):
-        # optimize policy, if defined
+        # build default policy optimize, if defined
         if self.policy:
             query = "policy_optimize"
             with tf.name_scope(query):
@@ -147,8 +146,8 @@ class Trainer(NetworkContext):
         if self.policy:
             self.policy.prepare_default_feeds(queries, feed_map)
 
-        # dropout  FIXME - implement this like batch_norm, and check all appropriate queries...
-        if intersects(["policy_optimize", "value_optimize"], queries):
+        # dropout  FIXME - implement this like batch_norm
+        if self.is_optimize(queries):
             feed_map["dropout"] = self.keep_prob
         else:
             feed_map["dropout"] = 1
@@ -161,7 +160,7 @@ class Trainer(NetworkContext):
 
         # check numerics
         if self.debug_numerics:
-            if np.any(["optimize" in query for query in queries]):
+            if self.is_optimize(queries):
                 queries.append("check_numerics")
 
         # run policy for queries with feeds
@@ -202,6 +201,9 @@ class Trainer(NetworkContext):
         # override
         return None, {}
 
+    def is_optimize(self, queries):
+        return np.any(["optimize" in query for query in queries])
+
     def pre_optimize(self, feed_map):
         pass
 
@@ -212,7 +214,7 @@ class Trainer(NetworkContext):
         return self.training
 
     def optimize(self, batch, feed_map):
-        # run desired queries
+        # run default policy optimize query
         return self.run(["policy_optimize"], feed_map)
 
     def optimize_and_report(self, batch, feed_map):

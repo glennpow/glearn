@@ -53,11 +53,11 @@ class VAEGANTrainer(VariationalAutoencoderTrainer, GenerativeAdversarialNetworkT
             # optimize encoder/decoder
             with tf.name_scope("encoder_optimize"):
                 encoder_loss = l_prior + vae_loss
-                self.add_evaluate_metric("encoder_loss", encoder_loss)
+                self.add_metric("encoder_loss", encoder_loss)
                 self.encoder_network.optimize_loss(encoder_loss, name="encoder_optimize")
             with tf.name_scope("decoder_optimize"):
                 decoder_loss = self.gamma * vae_loss - gan_loss
-                self.add_evaluate_metric("decoder_loss", decoder_loss)
+                self.add_metric("decoder_loss", decoder_loss)
                 decoder_network.optimize_loss(decoder_loss, name="decoder_optimize")
 
             # summary images

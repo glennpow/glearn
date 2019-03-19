@@ -34,7 +34,7 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
         kl_divergence = tf.reduce_mean(kl_divergence)
 
         # summary
-        self.add_evaluate_metric("KL_divergence", kl_divergence)
+        self.add_metric("KL_divergence", kl_divergence)
 
         return kl_divergence
 
@@ -50,9 +50,9 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
             loss = -elbo
 
             # summaries
-            self.add_evaluate_metric("marginal_likelihood", marginal_likelihood)
+            self.add_metric("marginal_likelihood", marginal_likelihood)
             if loss_name:
-                self.add_evaluate_metric(loss_name, loss)
+                self.add_metric(loss_name, loss)
 
             # minimize loss
             optimize_networks = [self.encoder_network, self.decoder_network]

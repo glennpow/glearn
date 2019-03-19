@@ -57,7 +57,7 @@ class PPOTrainer(AdvantageActorCriticTrainer):
                 policy_loss = tf.reduce_mean(policy_loss)
 
             # summary
-            self.add_evaluate_metric("policy_loss", policy_loss)
+            self.add_metric("policy_loss", policy_loss)
 
             # optimize the policy loss
             optimize = self.optimize_loss(policy_loss, name=query, update_global_step=False)

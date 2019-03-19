@@ -62,7 +62,7 @@ class ActorCriticTrainer(TemporalDifferenceTrainer):
                 policy_loss = tf.reduce_mean(policy_loss)
 
             # summary
-            self.add_evaluate_metric("policy_loss", policy_loss)
+            self.add_metric("policy_loss", policy_loss)
 
             # optimize the policy loss
             self.optimize_loss(policy_loss, networks=[self.policy_network], name=query)

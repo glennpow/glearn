@@ -163,10 +163,12 @@ class NetworkContext(Configurable):
 
         return fetches
 
-    def add_evaluate_metric(self, name, value):
-        # add an evaluation metric to log to console and summary
-        self.add_fetch(name, value, "evaluate")
-        self.summary.add_scalar(name, value)
+    def add_metric(self, name, value, query=None):
+        # add a metric to log to console and summary
+        if query is None:
+            query = "evaluate"
+        self.add_fetch(name, value, queries=query)
+        self.summary.add_scalar(name, value, query=query)
 
     def run(self, queries, feed_map):
         # get configured fetches
@@ -308,8 +310,8 @@ class NetworkContextProxy(Configurable):
     def get_fetches(self, queries):
         return self.context.get_fetches(queries)
 
-    def add_evaluate_metric(self, name, value):
-        self.context.add_evaluate_metric(name, value)
+    def add_metric(self, name, value, query=None):
+        self.context.add_metric(name, value, query=query)
 
     def run(self, queries, feed_map):
         return self.context.run(queries, feed_map=feed_map)

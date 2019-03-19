@@ -2,7 +2,7 @@
   import: _base
 
   env: CartPole-v0
-  batch_size: 128
+  batch_size: 10
 
   policy:
     name: glearn.policies:NetworkPolicy
@@ -11,17 +11,18 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [128]
+              hidden_sizes: [16]
           - name: glearn.networks:CategoricalDistributionLayer
         optimizer: adam
-        learning_rate: 3.0e-4
+        learning_rate: 1.0e-2
         # max_grad_norm: 5
 
   trainer:
-    name: glearn.trainers:ReinforcementTrainer
+    name: glearn.trainers:ReinforceTrainer
     args:
-      episodes: 5000
-      keep_prob: 0.8
+      gamma: 0.99
+      episodes: 2000
+      # keep_prob: 0.8
       # epsilon: [1, 0.1, 10]
       evaluate_interval: 1
 

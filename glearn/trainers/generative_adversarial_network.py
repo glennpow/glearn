@@ -60,7 +60,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
 
             # loss summary
             if loss_name:
-                self.add_evaluate_metric(loss_name, loss)
+                self.add_metric(loss_name, loss)
 
             # optimize loss for networks
             self.discriminator_networks[0].optimize_loss(loss, name="discriminator_optimize")
@@ -90,7 +90,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
 
             # loss summary
             if loss_name:
-                self.add_evaluate_metric(loss_name, loss)
+                self.add_metric(loss_name, loss)
 
             # optimize loss for network
             self.generator_network.optimize_loss(loss, name="generator_optimize")
