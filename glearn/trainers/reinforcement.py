@@ -13,7 +13,6 @@ class ReinforcementTrainer(Trainer):
         self.episodes = episodes
         self.max_episode_time = max_episode_time
         self.min_episode_reward = min_episode_reward
-
         self.epsilon = epsilon
 
         self.state = None
@@ -40,10 +39,11 @@ class ReinforcementTrainer(Trainer):
     def off_policy(self):
         return not self.on_policy()
 
-    def reset(self):
+    def reset(self, mode="train"):
         # reset env and episode
         self.state = self.env.reset()
         self.episode_reward = 0
+        return 1
 
     def action(self):
         # decaying epsilon-greedy
@@ -116,19 +116,19 @@ class ReinforcementTrainer(Trainer):
 
     def experiment_loop(self):
         # reinforcement learning
-        episode = 1
+        self.iteration = 0
         reset_evaluate = True
         self.max_episode_reward = None
 
-        while self.episodes is None or episode <= self.episodes:
+        while self.episodes is None or self.iteration < self.episodes:
             # start current episode
             self.iteration_start_time = time.time()
-            self.iteration = episode
+            self.iteration += 1
             self.iteration_step = 0
             self.reset()
 
             # episode count summary
-            self.summary.add_simple_value("episode", episode, "experiment")
+            self.summary.add_simple_value("episode", self.iteration, "experiment")
 
             if reset_evaluate:
                 episode_rewards = []
@@ -217,5 +217,3 @@ class ReinforcementTrainer(Trainer):
 
             if not self.running:
                 return
-
-            episode += 1

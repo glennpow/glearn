@@ -18,6 +18,9 @@ class SupervisedTrainer(Trainer):
     def learning_type(self):
         return "supervised"
 
+    def reset(self, mode="train"):
+        return self.dataset.reset(mode=mode)
+
     def get_iteration_name(self):
         return "Epoch"
 
@@ -25,26 +28,24 @@ class SupervisedTrainer(Trainer):
         # dataset batch of samples
         return self.dataset.get_batch(mode=mode)
 
-    def reset_evaluate(self):
-        return self.dataset.reset(mode="test")
-
     def experiment_loop(self):
         # dataset learning
         if self.training:
             # train desired epochs
-            self.iteration = 1
+            self.iteration = 0
 
-            while self.epochs is None or self.iteration <= self.epochs:
+            while self.epochs is None or self.iteration < self.epochs:
                 # start current epoch
-                epoch_size = self.dataset.reset(mode="train")
+                self.iteration += 1
                 self.iteration_step = 0
                 self.iteration_start_time = time.time()
+                epoch_steps = self.reset()
 
                 # epoch summary
-                global_epoch = self.current_global_step / epoch_size
+                global_epoch = self.current_global_step / epoch_steps
                 self.summary.add_simple_value("epoch", global_epoch, "experiment")
 
-                for step in range(epoch_size):
+                for step in range(epoch_steps):
                     # epoch time
                     self.iteration_step = step + 1
 
@@ -58,8 +59,6 @@ class SupervisedTrainer(Trainer):
 
                     if self.experiment_yield(True):
                         return
-
-                self.iteration += 1
         else:
             # evaluate single epoch
             self.epoch = 0

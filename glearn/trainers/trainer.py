@@ -71,8 +71,9 @@ class Trainer(NetworkContext):
     def learning_type(self):
         return "unknown"
 
-    def reset(self):
-        pass
+    def reset(self, mode="train"):
+        # override
+        return 1
 
     def build_models(self, random=False):
         # initialize render viewer
@@ -230,10 +231,6 @@ class Trainer(NetworkContext):
     def should_evaluate(self):
         return not self.training or self.current_global_step % self.evaluate_interval == 0
 
-    def reset_evaluate(self):
-        # override
-        return 1
-
     def extra_evaluate_stats(self):
         # override
         return {}
@@ -243,7 +240,7 @@ class Trainer(NetworkContext):
         queries = ["evaluate"]
 
         # prepare dataset partition
-        evaluate_steps = self.reset_evaluate()
+        evaluate_steps = self.reset(mode="test")
 
         # get batch data and desired queries
         eval_start_time = time.time()
