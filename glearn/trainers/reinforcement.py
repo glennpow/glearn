@@ -19,6 +19,8 @@ class ReinforcementTrainer(Trainer):
         self.transitions = []
         self.episode_reward = 0
 
+        # self.debug_evaluate_pause = self.is_debugging("debug_evaluate_pause")
+
     def get_info(self):
         info = super().get_info()
         info.update({
@@ -114,11 +116,33 @@ class ReinforcementTrainer(Trainer):
             "max reward": self.max_episode_reward,
         }
 
+    def evaluate(self):
+        super().evaluate()
+
+        # episode summary values
+        avg_rewards = np.mean(self.episode_rewards)
+        self.summary.add_simple_value("episode_reward", avg_rewards,
+                                      "experiment")
+        self.summary.add_simple_value("max_episode_reward",
+                                      self.max_episode_reward, "experiment")
+        self.summary.add_simple_value("episode_time", np.mean(self.episode_times),
+                                      "experiment")
+        self.summary.add_simple_value("episode_steps", np.mean(self.episode_steps),
+                                      "experiment")
+
+        # env summary values
+        if hasattr(self.env, "evaluate"):
+            self.env.evaluate(self.policy)
+
     def experiment_loop(self):
         # reinforcement learning
         self.iteration = 0
-        reset_evaluate = True
         self.max_episode_reward = None
+
+        def reset_evaluate_stats():
+            self.episode_rewards = []
+            self.episode_times = []
+            self.episode_steps = []
 
         while self.episodes is None or self.iteration < self.episodes:
             # start current episode
@@ -130,10 +154,7 @@ class ReinforcementTrainer(Trainer):
             # episode count summary
             self.summary.add_simple_value("episode", self.iteration, "experiment")
 
-            if reset_evaluate:
-                episode_rewards = []
-                episode_times = []
-                episode_steps = []
+            reset_evaluate_stats()
 
             while self.running:
                 if self.experiment_yield(True):
@@ -165,13 +186,13 @@ class ReinforcementTrainer(Trainer):
                         self.max_episode_reward = self.episode_reward
 
                     # track episode reward, time and steps
-                    episode_rewards.append(self.episode_reward)
+                    self.episode_rewards.append(self.episode_reward)
                     episode_time = time.time() - self.iteration_start_time
-                    episode_times.append(episode_time)
-                    episode_steps.append(self.iteration_step)
+                    self.episode_times.append(episode_time)
+                    self.episode_steps.append(self.iteration_step)
 
                     # stats update
-                    episode_num = len(episode_rewards)
+                    episode_num = len(self.episode_rewards)
                     transitions = len(self.transitions)
                     print_update(f"Simulating | Episode: {episode_num} | Time: {episode_time:.02}"
                                  f" | Reward: {self.episode_reward} | Transitions: {transitions}")
@@ -186,27 +207,17 @@ class ReinforcementTrainer(Trainer):
                     # evaluate if time to do so
                     if self.should_evaluate():
                         processed_transitions = True
-                        self.evaluate()
+                        self.evaluate_and_report()
 
-                        # episode summary values
-                        avg_rewards = np.mean(episode_rewards)
-                        self.summary.add_simple_value("episode_reward", avg_rewards,
-                                                      "experiment")
-                        self.summary.add_simple_value("max_episode_reward",
-                                                      self.max_episode_reward, "experiment")
-                        self.summary.add_simple_value("episode_time", np.mean(episode_times),
-                                                      "experiment")
-                        self.summary.add_simple_value("episode_steps", np.mean(episode_steps),
-                                                      "experiment")
+                        reset_evaluate_stats()
 
-                        # env summary values
-                        if hasattr(self.env, "evaluate"):
-                            self.env.evaluate(self.policy)
+                        # # option to pause after each evaluation
+                        # if self.debug_evaluate_pause:
+                        #     self.pause()
 
-                        reset_evaluate = True
-
-                        if not self.training:
-                            self.current_global_step += 1
+                        # # finally update global step
+                        # if not self.training:
+                        #     self.current_global_step += 1
 
                     if processed_transitions:
                         if self.on_policy():
@@ -217,3 +228,8 @@ class ReinforcementTrainer(Trainer):
 
             if not self.running:
                 return
+
+    def render(self, mode="human"):
+        self.env.render(mode=mode)
+
+        super().render(mode=mode)

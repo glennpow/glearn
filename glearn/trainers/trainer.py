@@ -1,5 +1,7 @@
 import time
 import random
+import queue
+import threading
 import numpy as np
 import tensorflow as tf
 import pyglet
@@ -7,7 +9,7 @@ from glearn.networks.context import num_global_parameters, num_trainable_paramet
 from glearn.policies import load_policy
 from glearn.policies.random import RandomPolicy
 from glearn.networks import load_network
-from glearn.utils.printing import print_update, print_tabular
+from glearn.utils.printing import print_update, print_tabular, getch
 from glearn.utils.profile import run_profile, open_profile
 from glearn.utils.memory import print_virtual_memory, print_gpu_memory
 
@@ -21,8 +23,9 @@ class Trainer(NetworkContext):
         self.kwargs = kwargs
 
         self.batch_size = self.config.get("batch_size", 1)
-        self.debug_memory = self.config.is_debugging("debug_memory")
-        self.debug_numerics = self.config.is_debugging("debug_numerics")
+        self.debug_evaluate_pause = self.is_debugging("debug_evaluate_pause")
+        self.debug_memory = self.is_debugging("debug_memory")
+        self.debug_numerics = self.is_debugging("debug_numerics")
 
         self.evaluate_interval = evaluate_interval
         self.keep_prob = keep_prob  # TODO - refactor
@@ -322,6 +325,17 @@ class Trainer(NetworkContext):
 
         print()
 
+    def evaluate_and_report(self):
+        self.evaluate()
+
+        # option to pause after each evaluation
+        if self.debug_evaluate_pause:
+            self.pause()
+
+        # finally update global step
+        if not self.training:
+            self.current_global_step += 1
+
     def experiment_loop(self):
         # override
         pass
@@ -339,6 +353,9 @@ class Trainer(NetworkContext):
             # render frame
             if self.rendering:
                 self.render()
+
+            # handle terminal input
+            self.handle_terminal_input()
 
             # loop while paused
             if self.paused:
@@ -377,6 +394,9 @@ class Trainer(NetworkContext):
             self.last_eval_time = None
             self.last_eval_step = self.current_global_step
 
+            # start listening for terminal input
+            self.start_terminal_input()
+
             if profile:
                 # profile experiment loop
                 profile_path = run_profile(self.experiment_loop, self.config)
@@ -387,6 +407,8 @@ class Trainer(NetworkContext):
                 # run training loop without profiling
                 self.experiment_loop()
         finally:
+            self.stop_terminal_input()
+
             # cleanup session after evaluation
             if self.policy:
                 self.policy.stop_session()
@@ -397,9 +419,48 @@ class Trainer(NetworkContext):
         self.viewer.add_listener(self)
 
     def render(self, mode="human"):
-        if self.env is not None:
-            self.env.render(mode=mode)
         self.viewer.render()
+
+    def pause(self):
+        self.paused = True
+
+    def start_terminal_input(self):
+        # FIXME - make this work (...and refactor out of this class)
+        return
+
+        self.terminal_input = queue.Queue()
+        self.terminal_input_stop = threading.Event()
+
+        def listen_terminal_input():
+            while not self.terminal_input_stop.is_set():
+                key = getch(blocking=False)
+                if key != '':
+                    self.terminal_input.put_nowait(key)
+
+                time.sleep(0.1)
+
+        self.terminal_input_thread = threading.Thread(target=listen_terminal_input)
+        self.terminal_input_thread.start()
+
+    def stop_terminal_input(self):
+        # FIXME - make this work
+        return
+
+        if self.terminal_input_thread:
+            self.terminal_input_stop.set()
+            self.terminal_input_thread.join()
+
+    def handle_terminal_input(self):
+        # FIXME - make this work
+        return
+
+        while not self.terminal_input.empty():
+            key = self.terminal_input.get()
+            self.handle_terminal_key(key)
+
+    def handle_terminal_key(self, key):
+        print(f"KEY PRESS: '{key}' {ord(key)}")
+        # TODO - forward these to on_key_press()
 
     def on_key_press(self, key, modifiers):
         # feature visualization keys

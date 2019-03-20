@@ -24,6 +24,7 @@
       episodes: 2000
       # keep_prob: 0.8
       # epsilon: [1, 0.1, 10]
-      evaluate_interval: 1
+      evaluate_interval: 10
 
-      
+  # sweeps:
+  #   learning_rate: [2.0e-2, 3.0e-2, 4.0e-2, 5.0e-2]

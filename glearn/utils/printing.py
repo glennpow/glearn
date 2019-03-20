@@ -1,6 +1,8 @@
+import os
 import sys
 import termios
 import tty
+import fcntl
 from collections import abc, OrderedDict
 import numpy as np
 
@@ -19,14 +21,31 @@ COLOR_NUMBERS = dict(
 MAX_TABULAR_WIDTH = 120
 
 
-def getch():
+def getch(blocking=True):
+    # get original terminal state
     fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
+    original_termios = termios.tcgetattr(fd)
+    if not blocking:
+        original_fcntl = fcntl.fcntl(fd, fcntl.F_GETFL)
+
     try:
+        # set to immediate (possibly blocking) terminal state
         tty.setraw(sys.stdin.fileno())
+        if not blocking:
+            fcntl.fcntl(fd, fcntl.F_SETFL, original_fcntl | os.O_NONBLOCK)
+
+        # read single terminal character
         ch = sys.stdin.read(1)
+    except IOError as e:
+        # if not blocking, ignore empty input
+        if blocking:
+            raise e
+        return 0
     finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        # reset to original terminal state
+        if not blocking:
+            fcntl.fcntl(fd, fcntl.F_SETFL, original_fcntl)
+        termios.tcsetattr(fd, termios.TCSADRAIN, original_termios)
     return ch
 
 

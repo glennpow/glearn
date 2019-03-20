@@ -55,7 +55,7 @@ class SupervisedTrainer(Trainer):
 
                     # evaluate if time to do so
                     if self.should_evaluate():
-                        self.evaluate()
+                        self.evaluate_and_report()
 
                     if self.experiment_yield(True):
                         return
@@ -63,4 +63,4 @@ class SupervisedTrainer(Trainer):
             # evaluate single epoch
             self.epoch = 0
             self.iteration_start_time = time.time()
-            self.evaluate()
+            self.evaluate_and_report()

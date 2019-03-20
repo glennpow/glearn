@@ -397,9 +397,8 @@ class Configurable(Loggable):
     def debugging(self):
         return self.config.debugging
 
-    @property
     def is_debugging(self, key):
-        return self.condfig.is_debugging(key)
+        return self.config.is_debugging(key)
 
     @property
     def training(self):
@@ -451,7 +450,7 @@ class Configurable(Loggable):
 
     @property
     def rendering(self):
-        return self.config.viewer.rendering
+        return self.config.rendering
 
 
 def load_config(identifier, search_defaults=True, **kwargs):

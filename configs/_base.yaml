@@ -7,6 +7,9 @@
 
   ### Debug Config
 
+  ## pause after each step
+  debug_evaluate_pause: true
+
   ## write activation summaries to tensorboard
   # debug_activations: true
 

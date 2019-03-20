@@ -51,7 +51,7 @@ class NetworkContext(Configurable):
         self.fetches = {}
         self.latest_results = {}
 
-        self.debug_runs = self.config.is_debugging("debug_runs")
+        self.debug_runs = self.is_debugging("debug_runs")
         self.debug_runs_ignored = self.config.get("debug_runs_ignored", None)
 
     def set_feed(self, name, value, queries=None):
@@ -214,7 +214,7 @@ class NetworkContext(Configurable):
             else:
                 definition = networks[0].definition
         learning_rate = definition.get("learning_rate", 1e-4)
-        debug_gradients = self.config.is_debugging("debug_gradients")
+        debug_gradients = self.is_debugging("debug_gradients")  # TODO - check network configs?
 
         # learning rate decay
         lr_decay = definition.get("lr_decay", None)

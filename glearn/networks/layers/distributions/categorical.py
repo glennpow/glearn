@@ -46,7 +46,14 @@ class CategoricalDistributionLayer(DistributionLayer):
         # NOTE: unfortunately, using -self.log_prob(value) does not return correct results
         logits = self.references["logits"]
         labels = tf.one_hot(value, self.categories)
-        return tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels)
+        ce = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels)
+
+        # HACK
+        # nlp = -self.log_prob(value)
+        # self.summary.add_scalar("neg_logp", tf.reduce_mean(nlp))
+        # self.summary.add_scalar("cross_entropy", tf.reduce_mean(ce))
+
+        return ce
 
     def log_prob(self, value, **kwargs):
         return self.distribution.log_prob(value)

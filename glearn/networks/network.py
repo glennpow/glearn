@@ -20,7 +20,7 @@ class Network(Configurable):
 
         super().__init__(self.context.config)
 
-        self.debug_activations = self.config.is_debugging("debug_activations")
+        self.debug_activations = self.is_debugging("debug_activations")
 
     def get_info(self):
         return {
