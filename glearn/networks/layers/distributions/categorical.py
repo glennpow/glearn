@@ -43,10 +43,11 @@ class CategoricalDistributionLayer(DistributionLayer):
         return feed_map
 
     def neg_log_prob(self, value, **kwargs):
-        # NOTE: unfortunately, using -self.log_prob(value) does not return correct results
+        # NOTE: unfortunately, using -self.log_prob(value) does not return desired results (?)
         logits = self.references["logits"]
         labels = tf.one_hot(value, self.categories)
         ce = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels)
+        # FIXME - should I be using sparse_softmax_cross_entropy_with_logits()?
 
         # HACK
         # nlp = -self.log_prob(value)

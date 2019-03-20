@@ -359,7 +359,16 @@ class Trainer(NetworkContext):
 
             # loop while paused
             if self.paused:
-                time.sleep(0)
+                if not self.rendering:
+                    # HACK until terminal input is working
+                    print("Experiment paused.  Press Esc to exit, Space to resume...")
+                    key = getch()
+                    if ord(key) == 27:
+                        self.on_key_press(pyglet.window.key.ESCAPE, None)
+                    elif ord(key) == 32:
+                        self.on_key_press(pyglet.window.key.SPACE, None)
+                else:
+                    time.sleep(0)
             else:
                 break
         return False

@@ -1,4 +1,3 @@
-
 import sys
 import numpy as np
 from glearn.utils.config import Configurable

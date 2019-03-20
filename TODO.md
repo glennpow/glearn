@@ -38,3 +38,11 @@ sigma doesn't come from state, init to high value (0.1)
 # train VAE or CAE in parallel.
   * 3-way classify for discriminator?
   * the Generator could use combined (weighted?) loss.
+
+
+### QUESTIONS
+
+# how does batch-size fit into RL?
+  * are episodes chunked up into steps of batch-size?
+  * are they shown batch-size number of episodes for each training step?
+# explain difference between neglogp and softmax functions (all of them)
