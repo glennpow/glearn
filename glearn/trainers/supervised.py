@@ -1,4 +1,3 @@
-import time
 from glearn.trainers import Trainer
 
 
@@ -21,24 +20,21 @@ class SupervisedTrainer(Trainer):
     def reset(self, mode="train"):
         return self.dataset.reset(mode=mode)
 
-    def get_iteration_name(self):
-        return "Epoch"
-
     def get_batch(self, mode="train"):
         # dataset batch of samples
         return self.dataset.get_batch(mode=mode)
 
     def experiment_loop(self):
-        # dataset learning
+        # supervised training loop
         if self.training:
             # train desired epochs
-            self.iteration = 0
+            self.epoch = 0
 
-            while self.epochs is None or self.iteration < self.epochs:
+            while self.epochs is None or self.epoch < self.epochs:
                 # start current epoch
-                self.iteration += 1
-                self.iteration_step = 0
-                self.iteration_start_time = time.time()
+                self.epoch += 1
+                self.epoch_step = 0
+                self.epoch_start_time = self.time()
                 epoch_steps = self.reset()
 
                 # epoch summary
@@ -47,11 +43,11 @@ class SupervisedTrainer(Trainer):
 
                 for step in range(epoch_steps):
                     # epoch time
-                    self.iteration_step = step + 1
+                    self.epoch_step = step + 1
 
                     # optimize batch
-                    self.batch, feed_map = self.get_batch()
-                    self.optimize_and_report(self.batch, feed_map)
+                    self.batch = self.get_batch()
+                    self.optimize_and_report(self.batch)
 
                     # evaluate if time to do so
                     if self.should_evaluate():
@@ -61,6 +57,6 @@ class SupervisedTrainer(Trainer):
                         return
         else:
             # evaluate single epoch
-            self.epoch = 0
-            self.iteration_start_time = time.time()
+            self.epoch = 1
+            self.epoch_start_time = self.time()
             self.evaluate_and_report()

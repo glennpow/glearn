@@ -209,6 +209,9 @@ class Config(object):
         tf.set_random_seed(self.seed)
         np.random.seed(self.seed)
 
+        # config batch size
+        self.batch_size = self.get("batch_size", 1)
+
         # load env or dataset
         self.env = None
         self.dataset = None
@@ -286,12 +289,15 @@ class Config(object):
     def has_dataset(self):
         return self.dataset is not None
 
-    def get_interval_size(self, mode="train"):
+    def time(self):
+        return time.time()
+
+    def get_epoch_size(self, mode="train"):
         if self.has_dataset:
-            # interval size is epoch worth of steps
+            # dataset epoch size
             return self.dataset.get_epoch_size(mode=mode)
         else:
-            # interval is a single episode
+            # epoch is a single episode (FIXME)
             return 1
 
     def _init_session(self):
@@ -419,6 +425,13 @@ class Configurable(Loggable):
     @property
     def has_env(self):
         return self.config.has_env
+
+    def time(self):
+        return self.config.time()
+
+    @property
+    def batch_size(self):
+        return self.config.batch_size
 
     @property
     def input(self):

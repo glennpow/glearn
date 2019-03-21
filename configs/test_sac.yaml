@@ -59,7 +59,7 @@
       tau: 5.0e-3
       ent_coef: 2.782559402207126e-05
       evaluate_interval: 1  # 100
-      episodes: 2000
+      epochs: 200
       max_episode_time: 1
 
   # sweeps:

@@ -1,31 +1,30 @@
-import time
 import numpy as np
 from glearn.trainers import Trainer
-from glearn.data.transition import Transition, TransitionBatch
+from glearn.data.transition import Transition
+from glearn.data.episode import Episode
+from glearn.data.replay_buffer import ReplayBuffer
 from glearn.utils.printing import print_update
 
 
 class ReinforcementTrainer(Trainer):
-    def __init__(self, config, episodes=None, max_episode_time=None, min_episode_reward=None,
+    def __init__(self, config, epochs=None, max_episode_time=None, min_episode_reward=None,
                  epsilon=0, **kwargs):
         super().__init__(config, **kwargs)
 
-        self.episodes = episodes
+        self.epochs = epochs
         self.max_episode_time = max_episode_time
         self.min_episode_reward = min_episode_reward
         self.epsilon = epsilon
 
         self.state = None
-        self.transitions = []
-        self.episode_reward = 0
-
-        # self.debug_evaluate_pause = self.is_debugging("debug_evaluate_pause")
+        self.episode = None
+        self.replay_buffer = ReplayBuffer(config, self)
 
     def get_info(self):
         info = super().get_info()
         info.update({
             "Strategy": "on-policy" if self.on_policy() else "off-policy",
-            "Episodes": self.episodes,
+            "Epochs": self.epochs,
             "Max Episode Time": self.max_episode_time,
             "Min Episode Reward": self.min_episode_reward,
         })
@@ -36,15 +35,16 @@ class ReinforcementTrainer(Trainer):
 
     def on_policy(self):
         # override
-        return False
+        return True
 
     def off_policy(self):
         return not self.on_policy()
 
-    def reset(self, mode="train"):
-        # reset env and episode
-        self.state = self.env.reset()
-        self.episode_reward = 0
+    def reset(self, mode="train", episode_count=1):
+        if mode == "train":
+            # reset env and episode
+            self.state = self.env.reset()
+            self.episode = Episode(episode_count)
         return 1
 
     def action(self):
@@ -68,51 +68,45 @@ class ReinforcementTrainer(Trainer):
         action = self.action()
 
         # perform action
+        timestamp = self.time()
         env_action = action
         if self.output.discrete:
             env_action = env_action[0]  # HACK? - is this the case for all envs?
         next_state, reward, done, info = self.env.step(env_action)
 
         # build and process transition
-        transition = Transition(self.state, action, reward, next_state, done, info)
+        transition = Transition(self.state, action, reward, next_state, done, info, timestamp)
         self.process_transition(transition)
 
         # record transition
-        self.transitions.append(transition)
+        self.episode.add_transition(transition)
 
         # update stats
         self.state = next_state
-        self.episode_reward += transition.reward
         return transition
 
     def process_transition(self, transition):
         pass
 
-    def get_iteration_name(self):
-        return "Episode"
-
     def get_batch(self, mode="train"):
-        # env experience replay batch of samples (TODO - ReplayBuffer)
-        batch = TransitionBatch(self.transitions[:self.batch_size], mode=mode)
-        feed_map = {
-            "X": batch.inputs,
-            "Y": batch.outputs,
-        }
-        return batch, feed_map
+        # get env experience replay batch of episodes
+        return self.replay_buffer.get_batch(mode=mode)
 
     def should_optimize(self):
         if not super().should_optimize():
             return False
-        return len(self.transitions) >= self.batch_size
+        return self.replay_buffer.is_ready()
 
     def should_evaluate(self):
         if not super().should_evaluate():
             return False
-        return len(self.transitions) >= self.batch_size
+        return self.replay_buffer.is_ready()
 
     def extra_evaluate_stats(self):
         return {
-            "reward": self.episode_reward,
+            # "episode step": self.episode_step,
+            # "episode time": episode_elapsed_time,
+            "reward": self.episode.reward,
             "max reward": self.max_episode_reward,
         }
 
@@ -135,8 +129,9 @@ class ReinforcementTrainer(Trainer):
             self.env.evaluate(self.policy)
 
     def experiment_loop(self):
-        # reinforcement learning
-        self.iteration = 0
+        # reinforcement learning loop
+        self.epoch = 0
+        self.episode_count = 0
         self.max_episode_reward = None
 
         def reset_evaluate_stats():
@@ -144,90 +139,93 @@ class ReinforcementTrainer(Trainer):
             self.episode_times = []
             self.episode_steps = []
 
-        while self.episodes is None or self.iteration < self.episodes:
-            # start current episode
-            self.iteration_start_time = time.time()
-            self.iteration += 1
-            self.iteration_step = 0
-            self.reset()
+        while self.epochs is None or self.epoch < self.epochs:
+            # start current epoch
+            self.epoch_start_time = self.time()
+            self.epoch += 1
+            self.epoch_step = 0
+            self.epoch_episodes = 0
 
-            # episode count summary
-            self.summary.add_simple_value("episode", self.iteration, "experiment")
+            self.summary.add_simple_value("epoch", self.epoch, "experiment")
 
-            reset_evaluate_stats()
+            while True:
+                # start current episode
+                self.episode_start_time = self.time()
+                self.episode_count += 1
+                self.episode_step = 0
+                self.reset(episode_count=self.episode_count)
 
-            while self.running:
-                if self.experiment_yield(True):
-                    return
+                self.summary.add_simple_value("episode", self.episode_count, "experiment")
 
-                # rollout
-                transition = self.rollout()
-                done = transition.done
-                self.iteration_step += 1
+                reset_evaluate_stats()
 
-                # episode time
-                current_time = time.time()
-                episode_time = current_time - self.iteration_start_time
-                if self.max_episode_time is not None:
-                    # episode timeout
-                    if episode_time > self.max_episode_time:
-                        done = True
+                while self.running:
+                    if self.experiment_yield(True):
+                        return
 
-                # episode performance
-                if self.min_episode_reward is not None:
-                    # episode poor performance
-                    if self.episode_reward < self.min_episode_reward:
-                        done = True
+                    # rollout
+                    transition = self.rollout()
+                    done = transition.done
+                    self.episode_step += 1
 
-                if done:
-                    # track max episode reward
-                    if self.max_episode_reward is None \
-                       or self.episode_reward > self.max_episode_reward:
-                        self.max_episode_reward = self.episode_reward
+                    # check episode timeout
+                    episode_time = self.time() - self.episode_start_time
+                    if self.max_episode_time is not None:
+                        if episode_time > self.max_episode_time:
+                            done = True
 
-                    # track episode reward, time and steps
-                    self.episode_rewards.append(self.episode_reward)
-                    episode_time = time.time() - self.iteration_start_time
-                    self.episode_times.append(episode_time)
-                    self.episode_steps.append(self.iteration_step)
+                    # check episode performance
+                    if self.min_episode_reward is not None:
+                        if self.episode_reward < self.min_episode_reward:
+                            done = True
 
-                    # stats update
-                    episode_num = len(self.episode_rewards)
-                    transitions = len(self.transitions)
-                    print_update(f"Simulating | Episode: {episode_num} | Time: {episode_time:.02}"
-                                 f" | Reward: {self.episode_reward} | Transitions: {transitions}")
+                    if done:
+                        # store episode
+                        self.replay_buffer.add_episode(self.episode)
 
-                    # optimize when enough transitions have been gathered
-                    processed_transitions = False
-                    if self.should_optimize():
-                        processed_transitions = True
-                        self.batch, feed_map = self.get_batch()
-                        self.optimize_and_report(self.batch, feed_map)
+                        # track max episode reward
+                        if self.max_episode_reward is None \
+                           or self.episode.reward > self.max_episode_reward:
+                            self.max_episode_reward = self.episode.reward
+
+                        # track episode reward, time and steps
+                        self.episode_rewards.append(self.episode.reward)
+                        self.episode_times.append(episode_time)
+                        self.episode_steps.append(self.episode_step)
+                        self.epoch_episodes += 1
+
+                        # stats update
+                        print_update(f"Simulating | Episode: {self.episode_count} "
+                                     f"| Time: {episode_time:.02} "
+                                     f"| Reward: {self.episode.reward} "
+                                     f"| Transitions: {self.episode.transition_count()}")
+
+                        break
+
+                # optimize and evaluate when enough transitions have been gathered
+                optimizing = self.should_optimize()
+                evaluating = self.should_evaluate()
+                if optimizing or evaluating:
+                    if optimizing:
+                        self.batch = self.get_batch()
+                        self.optimize_and_report(self.batch)
+
+                        self.epoch_step += 1
 
                     # evaluate if time to do so
-                    if self.should_evaluate():
-                        processed_transitions = True
+                    if evaluating:
                         self.evaluate_and_report()
 
                         reset_evaluate_stats()
 
-                        # # option to pause after each evaluation
-                        # if self.debug_evaluate_pause:
-                        #     self.pause()
+                    # prepare buffer for next epoch
+                    self.replay_buffer.update()
 
-                        # # finally update global step
-                        # if not self.training:
-                        #     self.current_global_step += 1
+                if not self.running:
+                    return
 
-                    if processed_transitions:
-                        if self.on_policy():
-                            # clear transitions after processing
-                            self.transitions = []
-
+                if optimizing:
                     break
-
-            if not self.running:
-                return
 
     def render(self, mode="human"):
         self.env.render(mode=mode)

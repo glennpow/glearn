@@ -29,8 +29,8 @@ class TemporalDifferenceTrainer(ReinforcementTrainer):
             if self.batch is not None:
                 # compute discounted rewards
                 batch = self.batch
-                new_values = self.compute_values(batch.next_states)
-                td_targets = np.add(batch.rewards, self.gamma * new_values * (1 - batch.dones))
+                new_values = self.compute_values(batch["next_state"])
+                td_targets = np.add(batch["reward"], self.gamma * new_values * (1 - batch["done"]))
                 feed_map["td_target"] = td_targets
             else:
                 shape = np.shape(feed_map["X"])[:-1] + (1,)

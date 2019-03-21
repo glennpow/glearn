@@ -6,6 +6,19 @@ from glearn.data.interface import Interface
 from glearn.utils.file_cache import TEMP_DIR
 
 
+class DatasetBatch(Batch):
+    def __init__(self, dataset, **kwargs):
+        super().__init__(**kwargs)
+
+        self.dataset = dataset
+
+    def prepare_feeds(self):
+        return {
+            "X": self.samples["X"],
+            "Y": self.samples["Y"],
+        }
+
+
 class Dataset(object):
     def __init__(self, name, data, batch_size, input_space=None, output_space=None,
                  epoch_size=None, producer=False):
@@ -91,12 +104,8 @@ class Dataset(object):
         else:
             # return individual batches instead of producer
             batch = self.build_batch(mode=mode)
-            feed_map = {
-                "X": batch.inputs,
-                "Y": batch.outputs,
-            }
             # dataset = tf.data.Dataset.from_tensor_slices(batch)
-            return batch, feed_map
+            return batch
 
     def build_batch(self, mode="train"):
         inputs = self.data[mode][0]
@@ -107,11 +116,12 @@ class Dataset(object):
             self.heads[mode] = 0
         head = self.heads[mode]
 
-        # get slices of data
-        batch = Batch(mode=mode)
-        batch.dataset = self
-        batch.inputs = inputs[head:head + self.batch_size]
-        batch.outputs = outputs[head:head + self.batch_size]
+        # build batch from slices of data
+        samples = {
+            "X": inputs[head:head + self.batch_size],
+            "Y": outputs[head:head + self.batch_size],
+        }
+        batch = DatasetBatch(self, mode=mode, samples=samples)
 
         # move batch head
         head = (head + self.batch_size) % len(inputs)

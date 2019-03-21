@@ -220,7 +220,7 @@ class NetworkContext(Configurable):
         lr_decay = definition.get("lr_decay", None)
         if lr_decay is not None:
             lr_decay_intervals = definition.get("lr_decay_intervals", 1)
-            decay_steps = int(lr_decay_intervals * self.config.get_interval_size())
+            decay_steps = int(lr_decay_intervals * self.config.get_epoch_size())
             learning_rate = tf.train.exponential_decay(learning_rate, self.global_step,
                                                        decay_steps, lr_decay, staircase=True)
 

@@ -22,7 +22,7 @@ class LSTMLayer(NetworkLayer):
         self.dropout = self.context.get_or_create_feed("dropout")
 
         # get configs
-        batch_size = self.context.config.get("batch_size", 1)
+        batch_size = self.context.config.batch_size
         timesteps = self.context.config.get("timesteps", 1)
         vocabulary_size = self.context.dataset.vocabulary.size
 
@@ -78,7 +78,7 @@ class LSTMLayer(NetworkLayer):
 
     def build_predict(self, y):
         # get configs
-        batch_size = self.context.config.get("batch_size", 1)
+        batch_size = self.context.config.batch_size
         timesteps = self.context.config.get("timesteps", 1)
         vocabulary_size = self.context.dataset.vocabulary.size
 
@@ -91,10 +91,9 @@ class LSTMLayer(NetworkLayer):
 
     def build_loss(self, outputs):
         # get variables
-        context = self.network.context
-        batch_size = context.config.get("batch_size", 1)
-        timesteps = context.config.get("timesteps", 1)
-        vocabulary_size = context.dataset.vocabulary.size
+        batch_size = self.context.config.batch_size
+        timesteps = self.context.config.get("timesteps", 1)
+        vocabulary_size = self.context.dataset.vocabulary.size
         predict = self.network.outputs
         logits = self.references["Z"]
 

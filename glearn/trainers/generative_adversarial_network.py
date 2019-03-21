@@ -121,7 +121,9 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             # summary images
             self.build_summary_images("generated", generated)
 
-    def optimize(self, batch, feed_map):
+    def optimize(self, batch):
+        feed_map = batch.prepare_feeds()
+
         # optimize discriminator-network
         for i in range(self.discriminator_steps):
             self.run("discriminator_optimize", feed_map)

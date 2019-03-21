@@ -22,7 +22,6 @@ class Trainer(NetworkContext):
         self.policy_scope = None
         self.kwargs = kwargs
 
-        self.batch_size = self.config.get("batch_size", 1)
         self.debug_evaluate_pause = self.is_debugging("debug_evaluate_pause")
         self.debug_memory = self.is_debugging("debug_memory")
         self.debug_numerics = self.is_debugging("debug_numerics")
@@ -30,7 +29,7 @@ class Trainer(NetworkContext):
         self.evaluate_interval = evaluate_interval
         self.keep_prob = keep_prob  # TODO - refactor
 
-        self.iteration = 0
+        self.epoch = 0
         self.batch = None
         self.networks = {}
 
@@ -189,20 +188,14 @@ class Trainer(NetworkContext):
         # input as feed map
         feed_map = {"X": [inputs]}
 
-        # get desired queries
-        queries = ["predict"]
-
         # evaluate and extract single prediction
-        results = self.run(queries, feed_map)
-        return results["predict"][0]
-
-    def get_iteration_name(self):
-        # override
-        return "Iteration"
+        query = "predict"
+        results = self.run(query, feed_map)
+        return results[query][0]
 
     def get_batch(self, mode="train"):
         # override
-        return None, {}
+        return None
 
     def is_optimize(self, queries):
         return np.any(["optimize" in query for query in queries])
@@ -216,25 +209,24 @@ class Trainer(NetworkContext):
     def should_optimize(self):
         return self.training
 
-    def optimize(self, batch, feed_map):
+    def optimize(self, batch):
         # run default policy optimize query
-        return self.run(["policy_optimize"], feed_map)
+        feed_map = batch.prepare_feeds()
+        return self.run("policy_optimize", feed_map)
 
-    def optimize_and_report(self, batch, feed_map):
-        results = self.optimize(batch, feed_map)
+    def optimize_and_report(self, batch):
+        results = self.optimize(batch)
 
         # get current global step
         global_step = self.config.update_global_step()
         self.current_global_step = global_step
 
         # print log
-        iteration_name = self.get_iteration_name()
-        iteration = self.iteration
-        print_update(f"Optimizing | {iteration_name}: {iteration} | Global Step: {global_step}")
+        print_update(f"Optimizing | Epoch: {self.epoch} | Global Step: {global_step}")
         return results
 
     def should_evaluate(self):
-        return not self.training or self.current_global_step % self.evaluate_interval == 0
+        return not self.training or (self.current_global_step + 1) % self.evaluate_interval == 0
 
     def extra_evaluate_stats(self):
         # override
@@ -242,13 +234,13 @@ class Trainer(NetworkContext):
 
     def evaluate(self):
         # Evaluate using the test dataset
-        queries = ["evaluate"]
+        query = "evaluate"
 
         # prepare dataset partition
         evaluate_steps = self.reset(mode="test")
 
         # get batch data and desired queries
-        eval_start_time = time.time()
+        eval_start_time = self.time()
         averaged_results = {}
         report_step = random.randrange(evaluate_steps)
         report_results = None
@@ -257,10 +249,11 @@ class Trainer(NetworkContext):
             print_update(f"Evaluating | Progress: {step}/{evaluate_steps}")
 
             reporting = step == report_step
-            self.batch, feed_map = self.get_batch(mode="test")
+            self.batch = self.get_batch(mode="test")
+            feed_map = self.batch.prepare_feeds()
 
-            # run evaluate queries
-            results = self.run(queries, feed_map, render=reporting)
+            # run evaluate query
+            results = self.run(query, feed_map, render=reporting)
 
             # gather reporting results
             if reporting:
@@ -279,24 +272,23 @@ class Trainer(NetworkContext):
 
         if report_results is not None:
             # log stats for current evaluation
-            current_time = time.time()
+            current_time = self.time()
             train_elapsed_time = current_time - self.start_time
-            iteration_elapsed_time = current_time - self.iteration_start_time
+            epoch_elapsed_time = current_time - self.epoch_start_time
             eval_elapsed_time = eval_start_time - (self.last_eval_time or self.start_time)
             eval_steps = self.current_global_step - (self.last_eval_step or 0)
             steps_per_second = eval_steps / eval_elapsed_time
             self.last_eval_time = current_time
             self.last_eval_step = self.current_global_step
-            iteration_name = self.get_iteration_name()
             stats = {
                 "global step": self.current_global_step,
                 "training time": train_elapsed_time,
                 "steps/second": steps_per_second,
-                f"{iteration_name.lower()} step": self.iteration_step,
-                f"{iteration_name.lower()} time": iteration_elapsed_time,
+                "epoch step": self.epoch_step,
+                "epoch time": epoch_elapsed_time,
             }
             stats.update(self.extra_evaluate_stats())
-            table = {f"{iteration_name}: {self.iteration}": stats}
+            table = {f"Epoch: {self.epoch}": stats}
 
             # average evaluate results
             averaged_results = {k: v / evaluate_steps for k, v in averaged_results.items()}
@@ -377,7 +369,7 @@ class Trainer(NetworkContext):
         try:
             self.running = True
             self.paused = False
-            self.start_time = time.time()
+            self.start_time = self.time()
 
             # build models
             self.build_models(random=random)

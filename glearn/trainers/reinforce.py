@@ -9,6 +9,9 @@ class ReinforceTrainer(ReinforcementTrainer):
 
         super().__init__(config, **kwargs)
 
+    def on_policy(self):
+        return False  # TODO - could be either?
+
     def build_trainer(self):
         query = "policy_optimize"
         with tf.name_scope(query):
@@ -16,8 +19,8 @@ class ReinforceTrainer(ReinforcementTrainer):
             with tf.name_scope("loss"):
                 policy_distribution = self.policy.network.get_distribution_layer()
                 actions = self.get_feed("Y")
-                neg_logp = -policy_distribution.log_prob(actions)
-                # neg_logp = policy_distribution.neg_log_prob(actions)
+                # neg_logp = -policy_distribution.log_prob(actions)
+                neg_logp = policy_distribution.neg_log_prob(actions)
                 # neg_logp = policy_distribution.cross_entropy(actions)
 
                 discount_rewards = self.create_feed("discount_rewards", query, (None, 1))
@@ -43,10 +46,12 @@ class ReinforceTrainer(ReinforcementTrainer):
         discount_rewards = np.expand_dims(discount_rewards, -1)
         return discount_rewards
 
-    def optimize(self, batch, feed_map):
+    def optimize(self, batch):
+        feed_map = batch.prepare_feeds()
+
         # compute discounted rewards
-        batch = self.batch
-        discount_rewards = self.calculate_discount_rewards(batch.rewards)
+        # batch = self.batch
+        discount_rewards = self.calculate_discount_rewards(batch["reward"])  # FIXME - do this in process_transition
         feed_map["discount_rewards"] = discount_rewards
 
         # run desired queries

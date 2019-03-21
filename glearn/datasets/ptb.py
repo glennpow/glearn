@@ -51,7 +51,7 @@ def ptb_dataset(config, mode="train"):
         "test": test_data,
     }
 
-    batch_size = config.get("batch_size", 20)
+    batch_size = config.batch_size
     timesteps = config.get("timesteps", 35)
 
     return SequenceDataset("PTB", data, batch_size, vocabulary, timesteps)

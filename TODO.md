@@ -1,4 +1,5 @@
-# show seed in evaluation start
+X show seed in evaluation start
+# add metrics to ReplayBuffer
 # dropout  FIXME - implement this like batch_norm, and check all appropriate queries...
 # fix tensorboard staying alive on Ctrl-C?
 # from "trainer.py", extract "evaluator.py", "optimizer.py", etc.  (and could subclass dataset/env versions)
@@ -43,6 +44,9 @@ sigma doesn't come from state, init to high value (0.1)
 ### QUESTIONS
 
 # how does batch-size fit into RL?
-  * are episodes chunked up into steps of batch-size?
-  * are they shown batch-size number of episodes for each training step?
+  * are single episodes chunked up into steps of batch-size?
+  * are they shown batch-size number of whole-episodes (still possibly chunked)?
+# replay buffers
+  * detail "chunks"
+  * does python/numpy handle buffer swaps in memory well?  (eg. calling store_episode)
 # explain difference between neglogp and softmax functions (all of them)

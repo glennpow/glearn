@@ -21,6 +21,9 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
 
         # self.policy_scope = "actor"
 
+    def on_policy(self):
+        return False
+
     def build_trainer(self):
         self.build_critic()
         self.build_actor()
@@ -178,20 +181,22 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
         feed_map = {"X": states}
         return self.fetch(query, feed_map, squeeze=squeeze)
 
-    def optimize(self, batch, feed_map):
+    def optimize(self, batch):
+        feed_map = batch.prepare_feeds()
+
         # get next actions
         sampled_actions = self.fetch("predict", {"X": feed_map["X"]})
 
         # get V-target
-        target_V = self.fetch_V("target_V", batch.next_states, squeeze=True)
+        target_V = self.fetch_V("target_V", batch["next_state"], squeeze=True)
 
         # optimize critic Q-networks
         Q_feed_map = {
             "X": feed_map["X"],
             "Y": feed_map["Y"],
             "target_V": target_V,
-            "reward": batch.rewards,
-            "done": batch.dones,
+            "reward": batch["reward"],
+            "done": batch["done"],
         }
         Q_results = self.run("Q_update", Q_feed_map)
 
@@ -214,11 +219,11 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
     def prepare_feeds(self, queries, feed_map):
         if "evaluate" in queries:
             # get V-target
-            target_V = self.fetch_V("target_V", self.batch.next_states, squeeze=True)
+            target_V = self.fetch_V("target_V", self.batch["next_state"], squeeze=True)
 
             # add required feeds
             feed_map["target_V"] = target_V
-            feed_map["reward"] = self.batch.rewards
-            feed_map["done"] = self.batch.dones
+            feed_map["reward"] = self.batch["reward"]
+            feed_map["done"] = self.batch["done"]
 
         return super().prepare_feeds(queries, feed_map)

@@ -39,7 +39,7 @@
       learning_rate: 1.0e-4
       max_grad_norm: 5
       gamma: 0.999
-      episodes: 1000
+      epochs: 100
       ent_coef: 2.782559402207126e-05
       # keep_prob: 0.8
       evaluate_interval: 10

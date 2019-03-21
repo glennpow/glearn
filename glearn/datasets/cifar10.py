@@ -106,7 +106,7 @@ def cifar10_dataset(config):
         labels[begin:end] = labels_batch
         begin = end
 
-    batch_size = config.get("batch_size", 128)
+    batch_size = config.batch_size
     output_space = gym.spaces.Discrete(IMAGE_CLASSES)
 
     label_names = _load_label_names()

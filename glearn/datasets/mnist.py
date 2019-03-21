@@ -114,7 +114,7 @@ def mnist_dataset(config, mode="train"):
     data["train"] = _load_data(f'train-images-idx3-ubyte', f'train-labels-idx1-ubyte', config)
     data["test"] = _load_data(f't10k-images-idx3-ubyte', f't10k-labels-idx1-ubyte', config)
 
-    batch_size = config.get("batch_size", 128)
+    batch_size = config.batch_size
     output_space = gym.spaces.Discrete(10)
 
     label_names = [str(i) for i in range(10)]

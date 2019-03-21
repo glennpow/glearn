@@ -21,7 +21,7 @@
     name: glearn.trainers:ReinforceTrainer
     args:
       gamma: 0.99
-      episodes: 2000
+      epochs: 2000
       # keep_prob: 0.8
       # epsilon: [1, 0.1, 10]
       evaluate_interval: 10

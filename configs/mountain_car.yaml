@@ -2,7 +2,7 @@
   import: _base
 
   env: MountainCarContinuous-v0
-  batch_size: 128
+  batch_size: 1  # 10
 
   policy:
     name: glearn.policies:NetworkPolicy
@@ -20,8 +20,8 @@
         max_grad_norm: 5
 
   trainer:
-    name: glearn.trainers:ReinforcementTrainer
+    name: glearn.trainers:ReinforceTrainer
     args:
-      episodes: 1000
+      epochs: 100
       # keep_prob: 0.8
-      evaluate_interval: 10
+      evaluate_interval: 1

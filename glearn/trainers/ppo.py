@@ -13,9 +13,6 @@ class PPOTrainer(AdvantageActorCriticTrainer):
 
         super().__init__(config, critic, **kwargs)
 
-    def on_policy(self):
-        return True  # FIXME - DDPG vs. SAC vs. PPO etc.
-
     def init_actor(self):
         policy = self.policy
         self.policy_network = policy.network

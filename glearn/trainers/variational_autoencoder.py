@@ -80,7 +80,9 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
             # generated image summaries
             self.build_summary_images("decoded", decoded, labels=y)
 
-    def optimize(self, batch, feed_map):
+    def optimize(self, batch):
+        feed_map = batch.prepare_feeds()
+
         # optimize encoder/decoder-networks
         results = self.run("VAE_optimize", feed_map)
 

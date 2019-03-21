@@ -53,7 +53,7 @@
       gamma: 0.99
       tau: 5.0e-3
       ent_coef: 2.782559402207126e-05
-      episodes: 500
+      epochs: 50
       # keep_prob: 0.8
       evaluate_interval: 10
 
