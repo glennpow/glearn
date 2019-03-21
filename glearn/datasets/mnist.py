@@ -7,7 +7,6 @@ from six.moves import urllib
 import tensorflow as tf
 import gym
 from glearn.datasets.labeled import LabeledDataset
-from glearn.utils.path import script_relpath
 
 
 def read32(bytestream):
@@ -79,7 +78,7 @@ def _load_data_file(path, element_size, max_count=None, header_bytes=0, mapping=
 
 def _load_data(images_file, labels_file, config):
     """Download and parse MNIST dataset."""
-    directory = script_relpath("../../data/mnist")
+    directory = LabeledDataset.get_data_path("mnist")
     images_file = _ensure_download(directory, images_file)
     labels_file = _ensure_download(directory, labels_file)
 

@@ -3,6 +3,7 @@ import tensorflow as tf
 import gym
 from glearn.data.batch import Batch
 from glearn.data.interface import Interface
+from glearn.utils.file_cache import TEMP_DIR
 
 
 class Dataset(object):
@@ -53,6 +54,11 @@ class Dataset(object):
             "Input": self.input,
             "Output": self.output,
         }
+
+    @staticmethod
+    def get_data_path(path):
+        # return script_relpath(f"../../data/{path}/")
+        return f"{TEMP_DIR}/data/{path}"
 
     def _format_modes(self, modes):
         return ", ".join([f"{k}:{v}" for k, v in modes.items()])

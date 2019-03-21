@@ -1,7 +1,7 @@
 import requests
 import numpy as np
 from glearn.utils.file_cache import FileCache
-from glearn.utils.path import script_relpath
+from glearn.datasets.dataset import Dataset
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -54,7 +54,7 @@ class StockData(object):
                 },
                 "2018-11-27": ...
         """
-        data_path = script_relpath("../../data/finance")
+        data_path = Dataset.get_data_path("finance")
         cache = FileCache(data_path)
 
         datatype = datatype or "60min"

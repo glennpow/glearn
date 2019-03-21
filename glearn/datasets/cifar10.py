@@ -4,10 +4,9 @@ import os
 import gym
 from glearn.datasets.labeled import LabeledDataset
 from glearn.utils.download import ensure_download
-from glearn.utils.path import script_relpath
 
 
-DATA_PATH = script_relpath("../../data/cifar10/")
+DATA_PATH = LabeledDataset.get_data_path("cifar10")
 DATA_URL = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
 DATA_PARENT = "cifar-10-batches-py"
 

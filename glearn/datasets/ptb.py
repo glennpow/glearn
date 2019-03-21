@@ -30,7 +30,7 @@ def _file_to_word_ids(filename, vocabulary):
 
 
 def _load_data():
-    data_path = script_relpath("../../data/ptb")
+    data_path = SequenceDataset.get_data_path("ptb")
 
     train_path = ensure_download(f"{BASE_URL}/ptb.train.txt", data_path)
     valid_path = ensure_download(f"{BASE_URL}/ptb.valid.txt", data_path)

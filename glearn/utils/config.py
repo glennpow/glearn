@@ -11,6 +11,7 @@ import tensorflow as tf
 from glearn.datasets import load_dataset
 from glearn.envs import load_env
 from glearn.utils.log import log, log_warning, Loggable
+from glearn.utils.file_cache import TEMP_DIR
 from glearn.utils.printing import print_tabular
 from glearn.utils.path import script_relpath
 from glearn.utils.session import DebuggableSession
@@ -20,7 +21,6 @@ from glearn.data.interface import Interface
 from glearn.viewers import load_view_controller
 
 
-TEMP_DIR = "/tmp/glearn"
 CONFIG_EXTENSIONS = [".yaml", ".yml", "json"]
 
 
@@ -34,7 +34,7 @@ class Config(object):
 
         # get default log paths
         config_name, _ = os.path.splitext(os.path.basename(path))
-        self.root_log_dir = f"{TEMP_DIR}/{config_name}/{self.version}"
+        self.root_log_dir = f"{TEMP_DIR}/experiments/{config_name}/{self.version}"
         # self.tensorboard_path = f"{self.root_log_dir}/summaries/"
         self.tensorboard_path = f"{self.root_log_dir}"
 

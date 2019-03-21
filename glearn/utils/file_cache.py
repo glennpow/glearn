@@ -6,6 +6,8 @@ import logging
 from glearn.utils.printing import colorize
 
 
+TEMP_DIR = "/tmp/glearn"
+
 logger = logging.getLogger(__name__)
 
 
