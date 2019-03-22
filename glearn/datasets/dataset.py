@@ -3,7 +3,7 @@ import tensorflow as tf
 import gym
 from glearn.data.batch import Batch
 from glearn.data.interface import Interface
-from glearn.utils.file_cache import TEMP_DIR
+from glearn.utils.path import TEMP_DIR
 
 
 class DatasetBatch(Batch):

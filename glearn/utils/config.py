@@ -11,7 +11,7 @@ import tensorflow as tf
 from glearn.datasets import load_dataset
 from glearn.envs import load_env
 from glearn.utils.log import log, log_warning, log_error, Loggable
-from glearn.utils.file_cache import TEMP_DIR
+from glearn.utils.path import TEMP_DIR
 from glearn.utils.printing import print_tabular
 from glearn.utils.path import script_relpath
 from glearn.utils.session import DebuggableSession
@@ -35,7 +35,6 @@ class Config(object):
         # get default log paths
         config_name, _ = os.path.splitext(os.path.basename(path))
         self.root_log_dir = f"{TEMP_DIR}/experiments/{config_name}/{self.version}"
-        # self.tensorboard_path = f"{self.root_log_dir}/summaries/"
         self.tensorboard_path = f"{self.root_log_dir}"
 
         # determine local or external IP address
@@ -57,6 +56,7 @@ class Config(object):
 
         self.sess = None
         self.summary = None
+        self.loading = version is not None
         self._load_evaluations()
 
     def _load_properties(self, config_path, local=False):
@@ -227,8 +227,8 @@ class Config(object):
         # prepare log and save/load paths
         self.log_dir = f"{self.root_log_dir}/{self.current_evaluation + 1}"
         self.summary_path = f"{self.tensorboard_path}/{self.current_evaluation + 1}"
-        self.load_path = f"{self.log_dir}/model.ckpt"
-        self.save_path = self.load_path
+        self.save_path = f"{self.log_dir}/checkpoints/model.ckpt"
+        self.load_path = self.save_path if self.loading else None
 
         # create render viewer controller
         self.viewer = load_view_controller(self, render=self.rendering)

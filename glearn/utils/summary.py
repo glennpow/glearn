@@ -1,9 +1,9 @@
 import os
-import shutil
 import atexit
 import tensorflow as tf
 from subprocess import Popen
 from glearn.utils.log import log
+from glearn.utils.path import remove_empty_dirs
 
 
 SUMMARY_KEY_PREFIX = "_summary_"
@@ -44,16 +44,13 @@ class SummaryWriter(object):
         if server:
             # start tensorboard server
             if self.server is None:
-                # FIXME - need to remove only tensorboard summaries (not saved models)
-                if self.config.training:
-                    shutil.rmtree(self.config.tensorboard_path, ignore_errors=True)
+                # if this is the first evaluation, clean all experiment summaries
+                self.clean_summaries(self.config.tensorboard_path)
 
                 self.start_server()
         else:
-            # FIXME - need to remove only tensorboard summaries (not saved models)
-            if self.config.training:
-                # prepare summary directory
-                shutil.rmtree(self.summary_path, ignore_errors=True)
+            # clean only this evaluation's summaries
+            self.clean_summaries(self.summary_path)
         os.makedirs(self.summary_path, exist_ok=True)
 
     def stop(self):
@@ -78,6 +75,14 @@ class SummaryWriter(object):
 
             self.server.terminate()
             self.server = None
+
+    def clean_summaries(self, path):
+        # delete all events.out.tfevents files, and cleanup empty dirs
+        for root, dirs, files in os.walk(path):
+            for sub_path in files:
+                if sub_path.startswith("events.out.tfevents"):
+                    os.remove(os.path.join(root, sub_path))
+        remove_empty_dirs(path)
 
     def get_summary_results(self, query):
         if query not in self.summary_results:
