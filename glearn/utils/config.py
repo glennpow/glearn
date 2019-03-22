@@ -10,7 +10,7 @@ import numpy as np
 import tensorflow as tf
 from glearn.datasets import load_dataset
 from glearn.envs import load_env
-from glearn.utils.log import log, log_warning, Loggable
+from glearn.utils.log import log, log_warning, log_error, Loggable
 from glearn.utils.file_cache import TEMP_DIR
 from glearn.utils.printing import print_tabular
 from glearn.utils.path import script_relpath
@@ -378,17 +378,19 @@ class Config(object):
                                         write_meta_graph=self.dirty_meta_graph)
             self.dirty_meta_graph = False
 
-            # TODO - could show total file size as well...
             log(f"Saved model: {save_path}  ({time.time() - t0:.2} secs)")
 
     def load(self):
         if self.load_path is not None:
-            if os.path.exists(f"{self.load_path}.index"):
+            load_dir = os.path.dirname(self.load_path)
+            load_checkpoint = tf.train.latest_checkpoint(load_dir)
+            if load_checkpoint:
                 try:
-                    log(f"Loading model: {self.load_path}")
-                    self.saver.restore(self.sess, self.load_path)
+                    log(f"Loading model: {load_checkpoint}")
+
+                    self.saver.restore(self.sess, load_checkpoint)
                 except Exception as e:
-                    self.error(str(e))
+                    log_error(f"Failed to load model: {e}")
 
 
 class Configurable(Loggable):

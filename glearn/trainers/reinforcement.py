@@ -53,7 +53,7 @@ class ReinforcementTrainer(Trainer):
         if isinstance(epsilon, list):
             t = min(1, self.current_global_step / epsilon[2])
             epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
-            self.summary.add_simple_value("epsilon", epsilon, "experiment")
+            self.summary.add_simple_value("epsilon", epsilon)
 
         # get action
         if epsilon > 0 and np.random.random() < epsilon:
@@ -68,14 +68,16 @@ class ReinforcementTrainer(Trainer):
         action = self.action()
 
         # perform action
+        step = self.episode_step
         timestamp = self.time()
+        state = self.state
         env_action = action
         if self.output.discrete:
-            env_action = env_action[0]  # HACK? - is this the case for all envs?
+            env_action = env_action[0]  # HACK? - is this the case for all discrete envs?
         next_state, reward, done, info = self.env.step(env_action)
 
         # build and process transition
-        transition = Transition(self.state, action, reward, next_state, done, info, timestamp)
+        transition = Transition(step, timestamp, state, action, reward, next_state, done, info)
         self.process_transition(transition)
 
         # record transition
@@ -86,6 +88,9 @@ class ReinforcementTrainer(Trainer):
         return transition
 
     def process_transition(self, transition):
+        pass
+
+    def process_episode(self, episode):
         pass
 
     def get_batch(self, mode="train"):
@@ -104,9 +109,6 @@ class ReinforcementTrainer(Trainer):
 
     def extra_evaluate_stats(self):
         return {
-            # "episode step": self.episode_step,
-            # "episode time": episode_elapsed_time,
-            "reward": self.episode.reward,
             "max reward": self.max_episode_reward,
         }
 
@@ -114,15 +116,10 @@ class ReinforcementTrainer(Trainer):
         super().evaluate()
 
         # episode summary values
-        avg_rewards = np.mean(self.episode_rewards)
-        self.summary.add_simple_value("episode_reward", avg_rewards,
-                                      "experiment")
-        self.summary.add_simple_value("max_episode_reward",
-                                      self.max_episode_reward, "experiment")
-        self.summary.add_simple_value("episode_time", np.mean(self.episode_times),
-                                      "experiment")
-        self.summary.add_simple_value("episode_steps", np.mean(self.episode_steps),
-                                      "experiment")
+        self.summary.add_simple_value("episode_reward", np.mean(self.episode_rewards))
+        self.summary.add_simple_value("max_episode_reward", self.max_episode_reward)
+        self.summary.add_simple_value("episode_time", np.mean(self.episode_times))
+        self.summary.add_simple_value("episode_steps", np.mean(self.episode_steps))
 
         # env summary values
         if hasattr(self.env, "evaluate"):
@@ -146,7 +143,7 @@ class ReinforcementTrainer(Trainer):
             self.epoch_step = 0
             self.epoch_episodes = 0
 
-            self.summary.add_simple_value("epoch", self.epoch, "experiment")
+            self.summary.add_simple_value("epoch", self.epoch)
 
             while True:
                 # start current episode
@@ -155,7 +152,7 @@ class ReinforcementTrainer(Trainer):
                 self.episode_step = 0
                 self.reset(episode_count=self.episode_count)
 
-                self.summary.add_simple_value("episode", self.episode_count, "experiment")
+                self.summary.add_simple_value("episode", self.episode_count)
 
                 reset_evaluate_stats()
 
@@ -176,11 +173,12 @@ class ReinforcementTrainer(Trainer):
 
                     # check episode performance
                     if self.min_episode_reward is not None:
-                        if self.episode_reward < self.min_episode_reward:
+                        if self.episode.reward < self.min_episode_reward:
                             done = True
 
                     if done:
-                        # store episode
+                        # process and store episode
+                        self.process_episode(self.episode)
                         self.replay_buffer.add_episode(self.episode)
 
                         # track max episode reward

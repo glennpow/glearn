@@ -6,9 +6,20 @@ class Batch(object):
         self.mode = mode
         self.samples = samples
 
-    def __getitem__(self, indices):
-        assert isinstance(indices, str)
-        return self.samples.get(indices, None)
+    def __contains__(self, key):
+        if not isinstance(key, str):
+            raise KeyError()
+        return key in self.samples
+
+    def __getitem__(self, key):
+        if not isinstance(key, str):
+            raise KeyError()
+        return self.samples[key]
+
+    def __setitem__(self, key, values):
+        if not isinstance(key, str):
+            raise KeyError()
+        self.samples[key] = values
 
     def __iter__(self):
         return self
@@ -42,7 +53,8 @@ class Batch(object):
 
     def sample_count(self):
         if len(self.samples) > 0:
-            return len(self.samples[list(self.samples.keys())[0]])
+            first_key = list(self.samples.keys())[0]
+            return len(self.samples[first_key])
         return 0
 
     def prepare_feeds(self):

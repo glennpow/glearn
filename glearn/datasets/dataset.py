@@ -28,10 +28,12 @@ class Dataset(object):
 
         if input_space is None:
             inputs = data["train"][0]
-            input_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=np.shape(inputs)[1:])
+            shape = np.shape(inputs)[1:]
+            input_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=shape, dtype=np.float32)
         if output_space is None:
             outputs = data["train"][1]
-            output_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=np.shape(outputs)[1:])
+            shape = np.shape(outputs)[1:]
+            output_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=shape, dtype=np.float32)
         self.input = Interface(input_space)
         self.output = Interface(output_space)
 

@@ -305,7 +305,7 @@ class Trainer(NetworkContext):
             print_tabular(table, grouped=True)
 
             # summaries
-            self.summary.add_simple_value("steps_per_second", steps_per_second, "experiment")
+            self.summary.add_simple_value("steps_per_second", steps_per_second)
 
             # profile memory
             if self.debug_memory:

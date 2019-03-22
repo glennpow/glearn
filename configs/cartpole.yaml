@@ -21,10 +21,10 @@
     name: glearn.trainers:ReinforceTrainer
     args:
       gamma: 0.99
-      epochs: 2000
+      epochs: 500
       # keep_prob: 0.8
       # epsilon: [1, 0.1, 10]
-      evaluate_interval: 10
+      evaluate_interval: 1
 
   # sweeps:
   #   learning_rate: [2.0e-2, 3.0e-2, 4.0e-2, 5.0e-2]

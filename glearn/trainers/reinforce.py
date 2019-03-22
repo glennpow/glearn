@@ -10,7 +10,7 @@ class ReinforceTrainer(ReinforcementTrainer):
         super().__init__(config, **kwargs)
 
     def on_policy(self):
-        return False  # TODO - could be either?
+        return True  # False  # TODO - could be either?
 
     def build_trainer(self):
         query = "policy_optimize"
@@ -34,7 +34,7 @@ class ReinforceTrainer(ReinforcementTrainer):
         # gather discounted rewards
         trajectory_length = len(rewards)
         reward = 0
-        discount_rewards = np.zeros(trajectory_length)
+        discount_rewards = np.zeros(trajectory_length, dtype=np.float32)
         for i in reversed(range(trajectory_length)):
             reward = rewards[i] + self.gamma * reward
             discount_rewards[i] = reward
@@ -43,16 +43,19 @@ class ReinforceTrainer(ReinforcementTrainer):
         std = np.std(discount_rewards)
         mean = np.mean(discount_rewards)
         discount_rewards = (discount_rewards - mean) / std
-        discount_rewards = np.expand_dims(discount_rewards, -1)
+        discount_rewards = np.expand_dims(discount_rewards, -1).tolist()
         return discount_rewards
+
+    def process_episode(self, episode):
+        # compute discounted rewards
+        discount_rewards = self.calculate_discount_rewards(episode["reward"])
+        episode["discount_rewards"] = discount_rewards
 
     def optimize(self, batch):
         feed_map = batch.prepare_feeds()
 
-        # compute discounted rewards
-        # batch = self.batch
-        discount_rewards = self.calculate_discount_rewards(batch["reward"])  # FIXME - do this in process_transition
-        feed_map["discount_rewards"] = discount_rewards
+        # feed discounted rewards
+        feed_map["discount_rewards"] = batch["discount_rewards"]
 
         # run desired queries
         return self.run(["policy_optimize"], feed_map)

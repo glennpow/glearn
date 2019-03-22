@@ -39,7 +39,7 @@ class SupervisedTrainer(Trainer):
 
                 # epoch summary
                 global_epoch = self.current_global_step / epoch_steps
-                self.summary.add_simple_value("epoch", global_epoch, "experiment")
+                self.summary.add_simple_value("epoch", global_epoch)
 
                 for step in range(epoch_steps):
                     # epoch time

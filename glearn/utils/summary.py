@@ -7,7 +7,8 @@ from glearn.utils.log import log
 
 
 SUMMARY_KEY_PREFIX = "_summary_"
-DEFAULT_QUERY = "evaluate"
+DEFAULT_EVALUATE_QUERY = "evaluate"
+DEFAULT_EXPERIMENT_QUERY = "experiment"
 
 
 class SummaryWriter(object):
@@ -43,12 +44,16 @@ class SummaryWriter(object):
         if server:
             # start tensorboard server
             if self.server is None:
-                shutil.rmtree(self.config.tensorboard_path, ignore_errors=True)
+                # FIXME - need to remove only tensorboard summaries (not saved models)
+                if self.config.training:
+                    shutil.rmtree(self.config.tensorboard_path, ignore_errors=True)
 
                 self.start_server()
         else:
-            # prepare summary directory
-            shutil.rmtree(self.summary_path, ignore_errors=True)
+            # FIXME - need to remove only tensorboard summaries (not saved models)
+            if self.config.training:
+                # prepare summary directory
+                shutil.rmtree(self.summary_path, ignore_errors=True)
         os.makedirs(self.summary_path, exist_ok=True)
 
     def stop(self):
@@ -80,12 +85,12 @@ class SummaryWriter(object):
         return self.summary_results[query]
 
     def add_simple_value(self, name, value, query=None):
-        query = query or DEFAULT_QUERY
+        query = query or DEFAULT_EXPERIMENT_QUERY
         summary_results = self.get_summary_results(query)
         summary_results.values[name] = value  # TODO - average
 
     def add_summary_value(self, name, summary, query=None):
-        query = query or DEFAULT_QUERY
+        query = query or DEFAULT_EVALUATE_QUERY
         if query in self.summaries:
             query_summaries = self.summaries[query]
         else:
@@ -125,9 +130,8 @@ class SummaryWriter(object):
         return self.add_summary_value(name, summary, query=query)
 
     def write_text(self, name, tensor):
-        query = "experiment"
         summary = tf.summary.text(name, tensor)
-        self.config.sess.run({self.get_query_key(query): summary})
+        self.config.sess.run({self.get_query_key(DEFAULT_EXPERIMENT_QUERY): summary})
 
     def add_run_metadata(self, run_metadata, query=None):
         self.run_metadatas[query] = run_metadata
@@ -179,7 +183,7 @@ class SummaryWriter(object):
             # get writer
             path = os.path.abspath(self.summary_path)
             if query is None:
-                query = DEFAULT_QUERY
+                query = DEFAULT_EVALUATE_QUERY
             path = os.path.join(path, query)
             if query in self.writers:
                 writer = self.writers[query]
