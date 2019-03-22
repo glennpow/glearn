@@ -5,8 +5,7 @@ from .layer import NetworkLayer
 
 class DenseLayer(NetworkLayer):
     def __init__(self, network, index, batch_norm=None, hidden_sizes=[128], activation=tf.nn.relu,
-                 weights_initializer=None, biases_initializer=None, weight_decay=None,
-                 multiplier=None):
+                 weights_initializer=None, biases_initializer=None, weight_decay=None):
         super().__init__(network, index, batch_norm=batch_norm)
 
         self.hidden_sizes = hidden_sizes
@@ -14,7 +13,6 @@ class DenseLayer(NetworkLayer):
         self.weights_initializer = weights_initializer
         self.biases_initializer = biases_initializer
         self.weight_decay = weight_decay
-        self.multiplier = multiplier
 
     def build(self, inputs):
         # get variables
@@ -43,10 +41,6 @@ class DenseLayer(NetworkLayer):
                            weight_decay=self.weight_decay)
             layers.append(y)
         self.references["layers"] = layers
-
-        # multiplier
-        if self.multiplier is not None:
-            y *= self.multiplier
 
         return y
 

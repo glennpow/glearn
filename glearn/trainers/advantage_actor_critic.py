@@ -93,7 +93,7 @@ class AdvantageActorCriticTrainer(TemporalDifferenceTrainer):
             self.summary.add_scalar("policy_loss", policy_loss)
 
             # optimize the policy loss
-            optimize = self.optimize_loss(policy_loss, query, update_global_step=False)
+            optimize = self.optimize_loss(policy_loss, query)
 
             self.add_fetch(query, optimize)
 

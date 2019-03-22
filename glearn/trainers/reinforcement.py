@@ -145,6 +145,8 @@ class ReinforcementTrainer(Trainer):
 
             self.summary.add_simple_value("epoch", self.epoch)
 
+            reset_evaluate_stats()
+
             while True:
                 # start current episode
                 self.episode_start_time = self.time()
@@ -154,10 +156,8 @@ class ReinforcementTrainer(Trainer):
 
                 self.summary.add_simple_value("episode", self.episode_count)
 
-                reset_evaluate_stats()
-
                 while self.running:
-                    if self.experiment_yield(True):
+                    if self.experiment_yield():
                         return
 
                     # rollout
@@ -218,6 +218,9 @@ class ReinforcementTrainer(Trainer):
 
                     # prepare buffer for next epoch
                     self.replay_buffer.update()
+
+                    if self.experiment_yield(True):
+                        return
 
                 if not self.running:
                     return

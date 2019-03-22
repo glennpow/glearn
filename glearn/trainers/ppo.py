@@ -57,6 +57,6 @@ class PPOTrainer(AdvantageActorCriticTrainer):
             self.add_metric("policy_loss", policy_loss)
 
             # optimize the policy loss
-            optimize = self.optimize_loss(policy_loss, name=query, update_global_step=False)
+            optimize = self.optimize_loss(policy_loss, name=query)
 
             self.add_fetch(query, optimize)
