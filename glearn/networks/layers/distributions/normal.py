@@ -89,8 +89,9 @@ class NormalDistributionLayer(DistributionLayer):
         # evaluate accuracy
         correct = tf.exp(-tf.abs(self.outputs - outputs))
         accuracy = tf.reduce_mean(correct)
+        metrics = {"accuracy": accuracy}
 
-        return loss, accuracy
+        return loss, metrics
 
     def prepare_default_feeds(self, queries, feed_map):
         feed_map["dropout"] = 1

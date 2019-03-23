@@ -38,8 +38,9 @@ class CategoricalDistributionLayer(DistributionLayer):
         # evaluate accuracy
         correct = tf.equal(self.references["category"], outputs)
         accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
+        metrics = {"accuracy": accuracy}
 
-        return loss, accuracy
+        return loss, metrics
 
     # def neg_log_prob(self, value, **kwargs):
     #     nlp = super().neg_log_prob(value)

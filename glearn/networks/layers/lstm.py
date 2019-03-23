@@ -109,5 +109,6 @@ class LSTMLayer(NetworkLayer):
         # calculate accuracy
         correct_prediction = tf.equal(tf.reshape(predict, [-1]), tf.reshape(outputs, [-1]))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        metrics = {"accuracy": accuracy}
 
-        return loss, accuracy
+        return loss, metrics

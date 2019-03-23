@@ -130,14 +130,20 @@ class Network(Configurable):
 
     def build_loss(self, outputs):
         # build prediction loss
-        with tf.name_scope("loss"):
-            predict_loss, accuracy = self.get_output_layer().build_loss(outputs)
+        predict_metrics = {}
+        with tf.name_scope(f"{self.name}_loss"):
+            predict_loss, metrics = self.get_output_layer().build_loss(outputs)
             self.add_loss(predict_loss)
+            predict_metrics.update(metrics)
 
             # build combined total loss
             loss = self.build_total_loss()
 
-        return loss, accuracy
+        self.context.add_metric("loss", loss)
+        for k, v in predict_metrics.items():
+            self.context.add_metric(k, v)
+
+        return loss
 
     def optimize_loss(self, loss, name=None):
         return self.context.optimize_loss(loss, networks=[self], name=name)

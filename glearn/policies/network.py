@@ -37,14 +37,9 @@ class NetworkPolicy(Policy):
         self.add_fetch("predict", predict, ["predict", "evaluate"])
 
     def build_loss(self, outputs):
-        # build loss
+        # build policy network loss
         self.outputs = outputs
-        loss, accuracy = self.network.build_loss(outputs)
-
-        self.add_metric("policy_loss", loss)
-        self.add_metric("policy_accuracy", accuracy)
-
-        return loss, accuracy
+        return self.network.build_loss(outputs)
 
     def optimize_loss(self, loss, name=None):
         return self.network.optimize_loss(loss, name=name)

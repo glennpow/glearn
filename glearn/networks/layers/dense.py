@@ -50,8 +50,9 @@ class DenseLayer(NetworkLayer):
 
         # evaluate accuracy
         accuracy = tf.exp(-loss)
+        metrics = {"accuracy": accuracy}
 
-        return loss, accuracy
+        return loss, metrics
 
     def prepare_default_feeds(self, queries, feed_map):
         feed_map["dropout"] = 1
