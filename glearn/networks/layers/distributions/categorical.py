@@ -71,20 +71,14 @@ class CategoricalDistributionLayer(DistributionLayer):
         # get variables
         dropout = self.context.get_or_create_feed("dropout")
 
-        # initializer
-        weights_initializer = self.load_initializer(self.weights_initializer,
-                                                    default=tf.contrib.layers.xavier_initializer())
-        biases_initializer = self.load_initializer(self.biases_initializer,
-                                                   default=tf.contrib.layers.xavier_initializer())
-
         # create dense layer for logits
         input_size = np.prod(inputs.shape[1:])
         x = tf.reshape(inputs, (-1, input_size))
         if not isinstance(self.categories, int):
             self.categories = self.context.output.size
         logits = self.dense(x, self.categories, dropout, None,
-                            weights_initializer=weights_initializer,
-                            biases_initializer=biases_initializer)
+                            weights_initializer=self.weights_initializer,
+                            biases_initializer=self.biases_initializer)
 
         # categorical distribution
         self.references["logits"] = logits
