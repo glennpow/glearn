@@ -44,19 +44,28 @@ class ReinforceTrainer(ReinforcementTrainer):
             discount_rewards[i] = reward
 
         # normalize and reshape
-        std = np.std(discount_rewards)
         mean = np.mean(discount_rewards)
-        discount_rewards = (discount_rewards - mean) / std
+        discount_rewards = discount_rewards - mean
+        std = np.std(discount_rewards)
+        if std > 0:
+            discount_rewards /= std
         discount_rewards = np.expand_dims(discount_rewards, -1).tolist()
         return discount_rewards
 
     def process_episode(self, episode):
         # compute discounted rewards
         discount_rewards = self.calculate_discount_rewards(episode["reward"])
-        episode["discount_rewards"] = discount_rewards
+
+        # ignore zero-reward episodes
+        if np.allclose(discount_rewards, np.zeros_like(discount_rewards)):
+            self.warning("Ignoring episode with zero rewards!")
+            return False
 
         # HACK
         self.summary.add_simple_value("discount_episode_reward", discount_rewards[0][0])
+
+        episode["discount_rewards"] = discount_rewards
+        return True
 
     def optimize(self, batch):
         feed_map = batch.prepare_feeds()

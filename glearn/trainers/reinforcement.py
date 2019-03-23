@@ -58,7 +58,7 @@ class ReinforcementTrainer(Trainer):
         # get action
         if epsilon > 0 and np.random.random() < epsilon:
             # choose epsilon-greedy random action
-            return self.output.sample()
+            return [self.output.sample()]
         else:
             # choose optimal policy action
             return self.predict(self.state)
@@ -88,10 +88,12 @@ class ReinforcementTrainer(Trainer):
         return transition
 
     def process_transition(self, transition):
+        # override
         pass
 
     def process_episode(self, episode):
-        pass
+        # override
+        return True
 
     def get_batch(self, mode="train"):
         # get env experience replay batch of episodes
@@ -178,8 +180,8 @@ class ReinforcementTrainer(Trainer):
 
                     if done:
                         # process and store episode
-                        self.process_episode(self.episode)
-                        self.replay_buffer.add_episode(self.episode)
+                        if self.process_episode(self.episode):
+                            self.replay_buffer.add_episode(self.episode)
 
                         # track max episode reward
                         if self.max_episode_reward is None \
@@ -193,7 +195,8 @@ class ReinforcementTrainer(Trainer):
                         self.epoch_episodes += 1
 
                         # stats update
-                        print_update(f"Simulating | Episode: {self.episode_count} "
+                        print_update(f"Simulating | Global Step: {self.current_global_step}"
+                                     f"| Episode: {self.episode_count} "
                                      f"| Time: {episode_time:.02} "
                                      f"| Reward: {self.episode.reward} "
                                      f"| Transitions: {self.episode.transition_count()}")

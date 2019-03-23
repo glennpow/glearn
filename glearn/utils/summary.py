@@ -119,6 +119,11 @@ class SummaryWriter(object):
         self.add_histogram(f"{name}/activation", tensor, query=query)
         self.add_scalar(f"{name}/sparsity", tf.nn.zero_fraction(tensor), query=query)
 
+    def add_variables(self, tvars, query=None):
+        for tvar in tvars:
+            name = tvar.op.name
+            self.add_histogram(f"{name}/value", tvar, query=query)
+
     def add_gradients(self, grads_tvars, query=None):
         for grad, tvar in grads_tvars:
             if grad is None:

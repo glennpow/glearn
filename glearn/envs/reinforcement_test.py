@@ -37,8 +37,7 @@ class ReinforcementTestEnv(gym.Env):
         done = False
 
         if self.discrete:
-            predicted = np.argmax(action)
-            is_desired = predicted == self.desired
+            is_desired = action == self.desired
 
             if self.reward_mode == "sparse":
                 if is_desired:

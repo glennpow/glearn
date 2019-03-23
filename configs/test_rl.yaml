@@ -1,0 +1,33 @@
+--- # Test REINFORCE
+  import: _base
+  batch_size: 10
+
+  env:
+    name: glearn.envs.reinforcement_test:ReinforcementTestEnv
+    args:
+      discrete: true
+      max_undesired_steps: 10
+      # mode: decaying
+      # reward_multiple: 0
+      # mode: sparse
+
+  policy:
+    name: glearn.policies:NetworkPolicy
+    args:
+      network:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [16]
+          - name: glearn.networks:CategoricalDistributionLayer
+        optimizer: adam
+        learning_rate: 2.0e-1
+
+  trainer:
+    name: glearn.trainers:ReinforceTrainer
+    args:
+      gamma: 0.99
+      epochs: 1000
+      epsilon: [1, 0.1, 10]
+      evaluate_interval: 10
+      max_episode_time: 0.1
