@@ -28,39 +28,43 @@ class CategoricalDistributionLayer(DistributionLayer):
 
         return y
 
-    def build_loss(self, labels):
+    def build_loss(self, outputs):
         # evaluate discrete loss
-        loss = tf.reduce_mean(self.neg_log_prob(labels))
+        logits = self.references["logits"]
+        labels = tf.squeeze(outputs)
+        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
+        loss = tf.reduce_mean(loss)
 
         # evaluate accuracy
-        correct = tf.equal(self.references["category"], labels)
+        correct = tf.equal(self.references["category"], outputs)
         accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
 
         return loss, accuracy
 
+    # def neg_log_prob(self, value, **kwargs):
+    #     nlp = super().neg_log_prob(value)
+    #     self.summary.add_scalar("nlp", tf.reduce_mean(nlp))
+
+    #     lp = super().log_prob(value)
+    #     self.summary.add_scalar("lp", tf.reduce_mean(lp))
+
+    #     p = super().prob(value)
+    #     self.summary.add_scalar("p", tf.reduce_mean(p))
+
+    #     l_p = tf.log(p)
+    #     self.summary.add_scalar("l_p", tf.reduce_mean(l_p))
+
+    #     with tf.name_scope("cross_entropy"):
+    #         logits = self.references["logits"]
+    #         labels = tf.squeeze(value)
+    #         ce = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
+    #     self.summary.add_scalar("cross_entropy", tf.reduce_mean(ce))
+
+    #     return nlp
+
     def prepare_default_feeds(self, queries, feed_map):
         feed_map["dropout"] = 1
         return feed_map
-
-    def neg_log_prob(self, value, **kwargs):
-        # NOTE: unfortunately, using -self.log_prob(value) does not return desired results (?)
-        logits = self.references["logits"]
-        labels = tf.one_hot(value, self.categories)
-        ce = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels)
-        # FIXME - should I be using sparse_softmax_cross_entropy_with_logits()?
-
-        # HACK
-        # nlp = -self.log_prob(value)
-        # self.summary.add_scalar("neg_logp", tf.reduce_mean(nlp))
-        # self.summary.add_scalar("cross_entropy", tf.reduce_mean(ce))
-
-        return ce
-
-    def log_prob(self, value, **kwargs):
-        return self.distribution.log_prob(value)
-
-    def prob(self, value, **kwargs):
-        return self.distribution.prob(value, **kwargs)
 
     def _build_categorical(self, inputs):
         # get variables
@@ -123,6 +127,10 @@ class DiscretizedDistributionLayer(CategoricalDistributionLayer):
 
         return y
 
+    def neg_log_prob(self, value, **kwargs):
+        value = self.bijector._inverse(value)
+        return super().neg_log_prob(value, **kwargs)
+
     @property
     def probs(self):
         return self.distribution.distribution.probs
@@ -142,8 +150,8 @@ class DiscretizedBijector(tfd.bijectors.Bijector):
 
     def _inverse(self, y):
         # convert discretized range into categorical
-        # return tf.cast((y - self.low) / (self.high - self.low) * (self.divs - 1), tf.int32)
-        return (y - self.low) / (self.high - self.low) * (self.divs - 1)
+        return tf.cast((y - self.low) / (self.high - self.low) * (self.divs - 1), tf.int32)
+        # return (y - self.low) / (self.high - self.low) * (self.divs - 1)
 
     def _inverse_log_det_jacobian(self, y):
         return -self._forward_log_det_jacobian(self._inverse(y))

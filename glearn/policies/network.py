@@ -4,8 +4,9 @@ from glearn.networks import load_network
 
 
 class NetworkPolicy(Policy):
-    def __init__(self, config, context, network, **kwargs):
+    def __init__(self, config, context, network, scale_output=False, **kwargs):
         self.network_definition = network
+        self.scale_output = scale_output
 
         super().__init__(config, context, **kwargs)
 
@@ -19,11 +20,17 @@ class NetworkPolicy(Policy):
         self.network = load_network("policy", self.context, self.network_definition)
         predict = self.network.build_predict(inputs)
 
-        # clip output
+        # scale and clip output
         if self.config.output.continuous:
             with tf.name_scope(f"{self.network.scope}/"):
                 output_space = self.config.output.space
-                predict = tf.clip_by_value(predict, output_space.low, output_space.high)
+                low = output_space.low
+                high = output_space.high
+                if self.scale_output:
+                    # this only works with sigmoid activation in last layer
+                    predict = predict * (high - low) + low
+                predict = tf.clip_by_value(predict, low, high)
+
                 self.network.outputs = predict
 
         self.inputs = inputs

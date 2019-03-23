@@ -19,12 +19,16 @@ class ReinforceTrainer(ReinforcementTrainer):
             with tf.name_scope("loss"):
                 policy_distribution = self.policy.network.get_distribution_layer()
                 actions = self.get_feed("Y")
-                # neg_logp = -policy_distribution.log_prob(actions)
                 neg_logp = policy_distribution.neg_log_prob(actions)
-                # neg_logp = policy_distribution.cross_entropy(actions)
+
+                # HACK
+                # self.add_metric("neg_logp", tf.reduce_mean(neg_logp), query=query)
 
                 discount_rewards = self.create_feed("discount_rewards", query, (None, 1))
-                policy_loss = tf.reduce_mean(neg_logp * discount_rewards)
+
+                # FIXME
+                # policy_loss = tf.reduce_mean(neg_logp * discount_rewards)
+                policy_loss = tf.reduce_mean(tf.reduce_sum(neg_logp * discount_rewards, -1))
             self.add_metric("policy_loss", policy_loss, query=query)
 
             # minimize policy loss
@@ -36,7 +40,7 @@ class ReinforceTrainer(ReinforcementTrainer):
         reward = 0
         discount_rewards = np.zeros(trajectory_length, dtype=np.float32)
         for i in reversed(range(trajectory_length)):
-            reward = rewards[i] + self.gamma * reward
+            reward = rewards[i] * self.gamma + reward
             discount_rewards[i] = reward
 
         # normalize and reshape
@@ -50,6 +54,9 @@ class ReinforceTrainer(ReinforcementTrainer):
         # compute discounted rewards
         discount_rewards = self.calculate_discount_rewards(episode["reward"])
         episode["discount_rewards"] = discount_rewards
+
+        # HACK
+        self.summary.add_simple_value("discount_episode_reward", discount_rewards[0][0])
 
     def optimize(self, batch):
         feed_map = batch.prepare_feeds()
