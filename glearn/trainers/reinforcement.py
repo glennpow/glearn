@@ -118,10 +118,10 @@ class ReinforcementTrainer(Trainer):
         super().evaluate()
 
         # episode summary values
-        self.summary.add_simple_value("episode_reward", np.mean(self.episode_rewards))
+        self.summary.add_simple_value("average_episode_time", np.mean(self.episode_times))
+        self.summary.add_simple_value("average_episode_steps", np.mean(self.episode_steps))
+        self.summary.add_simple_value("average_episode_reward", np.mean(self.episode_rewards))
         self.summary.add_simple_value("max_episode_reward", self.max_episode_reward)
-        self.summary.add_simple_value("episode_time", np.mean(self.episode_times))
-        self.summary.add_simple_value("episode_steps", np.mean(self.episode_steps))
 
         # env summary values
         if hasattr(self.env, "evaluate"):
@@ -195,7 +195,7 @@ class ReinforcementTrainer(Trainer):
                         self.epoch_episodes += 1
 
                         # stats update
-                        print_update(f"Simulating | Global Step: {self.current_global_step}"
+                        print_update(f"Simulating | Global Step: {self.current_global_step} "
                                      f"| Episode: {self.episode_count} "
                                      f"| Time: {episode_time:.02} "
                                      f"| Reward: {self.episode.reward} "

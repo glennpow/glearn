@@ -5,11 +5,12 @@
   env:
     name: glearn.envs.reinforcement_test:ReinforcementTestEnv
     args:
+      action_size: 8
+      desired: [1, 2, 3]
+      sequence_desired: true
       discrete: true
-      max_undesired_steps: 10
-      # mode: decaying
-      # reward_multiple: 0
-      # mode: sparse
+      max_undesired_steps: 100
+      reward_mode: sparse decaying
 
   policy:
     name: glearn.policies:NetworkPolicy
@@ -28,6 +29,6 @@
     args:
       gamma: 0.99
       epochs: 1000
-      epsilon: [1, 0.1, 10]
+      epsilon: [1, 0.1, 300]
       evaluate_interval: 10
       max_episode_time: 0.1

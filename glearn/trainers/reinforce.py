@@ -7,6 +7,8 @@ class ReinforceTrainer(ReinforcementTrainer):
     def __init__(self, config, gamma=0.95, **kwargs):
         self.gamma = gamma
 
+        self._zero_reward_warning = False
+
         super().__init__(config, **kwargs)
 
     def on_policy(self):
@@ -52,13 +54,21 @@ class ReinforceTrainer(ReinforcementTrainer):
         discount_rewards = np.expand_dims(discount_rewards, -1).tolist()
         return discount_rewards
 
+    def reset(self, mode="train", **kwargs):
+        if mode == "test":
+            self._zero_reward_warning = False
+
+        return super().reset(**kwargs)
+
     def process_episode(self, episode):
         # compute discounted rewards
         discount_rewards = self.calculate_discount_rewards(episode["reward"])
 
         # ignore zero-reward episodes
         if np.allclose(discount_rewards, np.zeros_like(discount_rewards)):
-            self.warning("Ignoring episode with zero rewards!")
+            if not self._zero_reward_warning:
+                self.warning("Ignoring episode(s) with zero rewards!")
+                self._zero_reward_warning = True
             return False
 
         # HACK
