@@ -1,6 +1,6 @@
 --- # Test REINFORCE
   import: _base
-  batch_size: 10
+  batch_size: 1000
 
   env:
     name: glearn.envs.reinforcement_test:ReinforcementTestEnv

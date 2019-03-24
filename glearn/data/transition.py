@@ -1,4 +1,4 @@
-from .batch import Batch
+from .buffer import Buffer
 
 
 class Transition(object):
@@ -13,7 +13,7 @@ class Transition(object):
         self.info = info
 
 
-class TransitionBatch(Batch):
+class TransitionBuffer(Buffer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -40,7 +40,7 @@ class TransitionBatch(Batch):
         self.add_sample(sample)
 
     def transition_count(self):
-        return len(self)
+        return self.sample_count()
 
     def prepare_feeds(self):
         return {

@@ -1,7 +1,7 @@
-from .transition import TransitionBatch
+from .transition import TransitionBuffer
 
 
-class Episode(TransitionBatch):
+class Episode(TransitionBuffer):
     def __init__(self, id, **kwargs):
         super().__init__(**kwargs)
 

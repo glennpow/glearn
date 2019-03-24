@@ -1,12 +1,12 @@
 import numpy as np
 import tensorflow as tf
 import gym
-from glearn.data.batch import Batch
+from glearn.data.buffer import Buffer
 from glearn.data.interface import Interface
 from glearn.utils.path import TEMP_DIR
 
 
-class DatasetBatch(Batch):
+class DatasetBatch(Buffer):
     def __init__(self, dataset, **kwargs):
         super().__init__(**kwargs)
 

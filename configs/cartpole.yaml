@@ -2,7 +2,7 @@
   import: _base
 
   env: CartPole-v0
-  batch_size: 10
+  batch_size: 1024
 
   policy:
     name: glearn.policies:NetworkPolicy

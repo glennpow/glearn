@@ -1,107 +1,91 @@
+import copy
 import numpy as np
-from glearn.utils.config import Configurable
-from .transition import TransitionBatch
+from .transition import TransitionBuffer
 
 
-class ReplayBuffer(Configurable):
+class ReplayBuffer(TransitionBuffer):
     def __init__(self, config, trainer):
-        # TODO - allow batch_size to indicate num transitions as well
-        super().__init__(config)
-
+        self.config = config
         self.trainer = trainer
 
         # configure size
         self.definition = config.get("replay_buffer", {})
-        self.size = self.definition.get("size", self.batch_size)
-        assert self.size >= self.batch_size, \
-            f"ReplayBuffer not large enough for batches: {self.size} > {self.batch_size}"
+        size = self.definition.get("size", self.batch_size)
+        assert size >= self.batch_size, \
+            f"ReplayBuffer not large enough for batches: {size} > {self.batch_size}"
+
+        super().__init__(size=size)
 
         self._total_episodes = 0
         self._total_transitions = 0
         self._start_time = None
 
-        self.clear()
-
-    def clear(self):
-        self.episodes = []
-        self._current_transitions = 0
+    @property
+    def batch_size(self):
+        return self.config.batch_size
 
     def total_episodes(self):
         return self._total_episodes
 
-    def current_episodes(self):
-        return len(self.episodes)
-
     def total_transitions(self):
-        return self._total_transitions
-
-    def current_transitions(self):
-        return self._current_transitions
+        return self.total_samples()
 
     def is_ready(self):
-        return self.current_episodes() >= self.batch_size
+        return self.sample_count() >= self.batch_size
 
     def add_episode(self, episode):
+        # for on-policy, should not overflow buffer
+        episode_length = episode.transition_count()
+        if self.trainer.on_policy():
+            available = self.size - self.sample_count()
+            if episode_length > available:
+                episode.clip(available)
+
         # append to and trim buffer
-        self.episodes.append(episode)
+        self.add_buffer(episode)
 
-        # trim buffer to max size
-        self.trim()
-
-        # update basic stats
+        # update total episodes stored
         self._total_episodes += 1
-        transition_count = episode.transition_count()
-        self._total_transitions += transition_count
-        self._current_transitions += transition_count
+        self._total_transitions += episode_length
 
     def add_summaries(self):
-        # update rate stats
+        query = "replay_buffer"
+        t = self.config.time()
+        summary = self.config.summary
+
+        # rate summaries
         if self._start_time is None:
-            self._start_time = self.time()
-            episodes_per_second = 0
-            transitions_per_second = 0
+            self._start_time = t
         else:
-            elapsed = self.time() - self._start_time
+            elapsed = t - self._start_time
             episodes_per_second = self._total_episodes / elapsed
             transitions_per_second = self._total_transitions / elapsed
+            summary.add_simple_value("episodes_per_second", episodes_per_second, query)
+            summary.add_simple_value("transitions_per_second", transitions_per_second, query)
 
-        # summaries
-        query = "replay_buffer"
-        self.summary.add_simple_value("total_episodes", self._total_episodes, query)
-        self.summary.add_simple_value("current_episodes", self.current_episodes(), query)
-        self.summary.add_simple_value("total_transitions", self._total_transitions, query)
-        self.summary.add_simple_value("current_transitions", self._current_transitions, query)
-        self.summary.add_simple_value("episodes_per_second", episodes_per_second, query)
-        self.summary.add_simple_value("transitions_per_second", transitions_per_second, query)
-
-    def trim(self):
-        # handle evictions
-        evict_count = self.current_episodes() - self.size
-        if evict_count > 0:
-            idxs = np.array(list(range(evict_count)))
-            # TODO - could allow other (random-based) strategy
-            # idxs = np.random.choice(len(self.episodes), evict_count, replace=False)
-
-            for idx in idxs:
-                self._current_transitions -= self.episodes[idx].transition_count()
-            self.episodes = self.episodes[-self.size:]  # only works for age-based strategy
+        # count summaries
+        summary.add_simple_value("total_episodes", self._total_episodes, query)
+        summary.add_simple_value("total_transitions", self._total_transitions, query)
+        summary.add_simple_value("current_transitions", self.transition_count(), query)
 
     def get_batch(self, mode="train"):
+        assert not self.empty()
+
         # collect batch of episodes
         if self.trainer.on_policy():
             idxs = np.array(list(range(self.batch_size)))
         else:
-            idxs = np.random.choice(len(self.episodes), self.batch_size, replace=False)
+            idxs = np.random.choice(self.sample_count(), self.batch_size, replace=False)
+
+        # slice out these batches
+        batch_samples = {key: copy.deepcopy(values[idxs]) for key, values in self.samples.items()}
 
         # merge episode transitions
-        batch = TransitionBatch(mode=mode)
-        for idx in idxs:
-            batch.add_batch(self.episodes[idx])
-        return batch
+        return TransitionBuffer(mode=mode, samples=batch_samples)
 
     def update(self):
         self.add_summaries()
 
         if self.trainer.on_policy():
             self.clear()
-        # TODO - could evict based on age here
+        # TODO - could evict based on age here for off-policy

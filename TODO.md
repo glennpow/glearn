@@ -6,7 +6,7 @@ X add metrics to ReplayBuffer
 # fix tensorboard staying alive on Ctrl-C?
 # from "trainer.py", extract "evaluator.py", "optimizer.py", etc.  (and could subclass dataset/env versions)
 ? prepare_feeds should just look at fetches, not queries (requires callback from policy.run to trainer)
-# rename Batch to Data, and subclass Dataset from it.  Also load datasets using definitions paradigm?
+? Load datasets using definitions paradigm?
 # config option to stop all sweeps after first exception
 # empirical rewards for reinforcement (curiosity?)
 
