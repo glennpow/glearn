@@ -50,9 +50,20 @@ class Buffer(object):
             self.samples = {k: v[:size] for k, v in self.samples.items()}
 
     def _get_slice(self, count):
-        return np.array([(self._head + i) % self.size for i in range(count)])
+        # get slice of count indexes
+        idxs = np.array([(self._head + i) % self.size for i in range(count)])
+        self._head = (idxs[-1] + 1) % self.size
+        return idxs
 
-    def _add_samples(self, samples):
+    def _add_samples(self, samples, single=False):
+        # x = np.array(sample["timestamp"])
+        # import ipdb; ipdb.set_trace()  # HACK DEBUGGING !!!
+        for key, values in samples.items():
+            values = np.array(values)
+            if single:
+                values = values[np.newaxis]
+            samples[key] = values
+
         # make sure sample counts are equal for all keys
         samples_counts = np.array([len(values) for _, values in samples.items()])
         samples_count = samples_counts[0]
@@ -62,37 +73,37 @@ class Buffer(object):
         # make sure sample buffers are initialized
         if self.samples is None:
             self.samples = {}
-            for key, value in samples.items():
-                value_shape = np.shape(value[0])
+            for key, values in samples.items():
+                value_shape = np.shape(values[0])
+                value_dtype = values.dtype.base
                 if self.size is None:
                     # unbounded buffers
                     samples_shape = (0,) + value_shape
                 else:
                     # bounded buffers
                     samples_shape = (self.size,) + value_shape
-                self.samples[key] = np.zeros(samples_shape, dtype=np.float32)
+                self.samples[key] = np.zeros(samples_shape, dtype=value_dtype)
         assert len(samples) == len(self.samples)
 
-        for key, value in samples.items():
+        # get storage indexes for samples
+        if self.size:
+            idxs = self._get_slice(samples_count)
+
+        for key, values in samples.items():
             # make sure samples are compatible with this buffer
             assert key in self.samples, f"Invalid buffer sample key: {key}"
 
-            # prepare sample values shape
-            sample_values = np.array(value)
-
             # add sample values for key
             if self.size is None:
-                self.samples[key] = np.concatenate([self.samples[key], sample_values])
+                self.samples[key] = np.concatenate([self.samples[key], values])
             else:
-                idxs = self._get_slice(samples_count)
-                self.samples[key][idxs] = sample_values
-                self._head = (idxs[-1] + 1) % self.size
+                np.put(self.samples[key], idxs, values)
 
     def add_sample(self, sample):
-        self._add_samples({k: np.array(v)[np.newaxis] for k, v in sample.items()})
+        self._add_samples(sample, single=True)
 
     def add_samples(self, samples):
-        self._add_samples({k: np.array(v) for k, v in samples.items()})
+        self._add_samples(samples)
 
     def add_buffer(self, buffer):
         self.add_samples(buffer.samples)

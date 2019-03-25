@@ -240,7 +240,7 @@ class Trainer(NetworkContext):
         evaluate_steps = self.reset(mode="test")
 
         # get batch data and desired queries
-        eval_start_time = self.time()
+        eval_start_time = time.time()
         averaged_results = {}
         report_step = random.randrange(evaluate_steps)
         report_results = None
@@ -272,7 +272,7 @@ class Trainer(NetworkContext):
 
         if report_results is not None:
             # log stats for current evaluation
-            current_time = self.time()
+            current_time = time.time()
             train_elapsed_time = current_time - self.start_time
             epoch_elapsed_time = current_time - self.epoch_start_time
             eval_elapsed_time = eval_start_time - (self.last_eval_time or self.start_time)
@@ -369,7 +369,7 @@ class Trainer(NetworkContext):
         try:
             self.running = True
             self.paused = False
-            self.start_time = self.time()
+            self.start_time = time.time()
 
             # build models
             self.build_models(random=random)

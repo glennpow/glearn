@@ -1,5 +1,6 @@
 import os
 import atexit
+import numpy as np
 import tensorflow as tf
 from subprocess import Popen
 from glearn.utils.log import log
@@ -16,7 +17,7 @@ class SummaryWriter(object):
         def __init__(self, query):
             self.query = query
             self.results = []
-            self.values = {}
+            self.simple_summaries = []
 
     def __init__(self, config):
         self.config = config
@@ -89,10 +90,15 @@ class SummaryWriter(object):
             self.summary_results[query] = self.Results(query)
         return self.summary_results[query]
 
-    def add_simple_value(self, name, value, query=None):
+    def add_simple_summary(self, name, query=None, **kwargs):
         query = query or DEFAULT_EXPERIMENT_QUERY
         summary_results = self.get_summary_results(query)
-        summary_results.values[name] = value  # TODO - average
+        tag = self.summary_scope(name, query)
+        summary_results.simple_summaries.append(tf.Summary.Value(tag=tag, **kwargs))
+
+    def add_simple_value(self, name, value, query=None):
+        # TODO - average?
+        self.add_simple_summary(name, simple_value=value, query=query)
 
     def add_summary_value(self, name, summary, query=None):
         query = query or DEFAULT_EVALUATE_QUERY
@@ -135,13 +141,37 @@ class SummaryWriter(object):
         summary = tf.summary.image(name, images, max_outputs=max_outputs)
         return self.add_summary_value(name, summary, query=query)
 
+    def write_images(self, name, images, max_outputs=3, query=None):
+        # matplotlib allows image encoding.  the imports are here since they are slow.
+        import io
+        import matplotlib
+        try:
+            # first try this
+            matplotlib.use('TkAgg')
+        except Exception:
+            # fallback backend
+            matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+
+        # convert image to 3-channel
+        if images.shape[-1] == 1:
+            images = np.stack((np.squeeze(images, axis=-1),) * 3, axis=-1)
+
+        for i, image in enumerate(images):
+            im_bytes = io.BytesIO()
+            plt.imsave(im_bytes, image, format='png')
+            summary_image = tf.Summary.Image(encoded_image_string=im_bytes.getvalue())
+            self.add_simple_summary(f"{name}/{i}", image=summary_image, query=query)
+
     def add_text(self, name, tensor, query=None):
         summary = tf.summary.text(name, tensor)
         return self.add_summary_value(name, summary, query=query)
 
-    def write_text(self, name, tensor):
-        summary = tf.summary.text(name, tensor)
-        self.config.sess.run({self.get_query_key(DEFAULT_EXPERIMENT_QUERY): summary})
+    def write_text(self, name, tensor, query=None):
+        query = query or DEFAULT_EXPERIMENT_QUERY
+        tag = self.summary_scope(name, query)
+        summary = tf.summary.text(tag, tensor)
+        self.config.sess.run({self.get_query_key(query): summary})
 
     def add_run_metadata(self, run_metadata, query=None):
         self.run_metadatas[query] = run_metadata
@@ -211,9 +241,8 @@ class SummaryWriter(object):
 
                 # write simple values
                 summary_values = []
-                for name, value in summary_results.values.items():
-                    tag = self.summary_scope(name, query)
-                    summary_values.append(tf.Summary.Value(tag=tag, simple_value=value))
+                for summary in summary_results.simple_summaries:
+                    summary_values.append(summary)
                 simple_summary = tf.Summary(value=summary_values)
                 writer.add_summary(simple_summary, global_step=global_step)
 

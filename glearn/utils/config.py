@@ -289,9 +289,6 @@ class Config(object):
     def has_dataset(self):
         return self.dataset is not None
 
-    def time(self):
-        return time.time()
-
     def get_epoch_size(self, mode="train"):
         if self.has_dataset:
             # dataset epoch size
@@ -347,7 +344,7 @@ class Config(object):
             with tf.name_scope("sweep"):
                 tensor = tf.stack([tf.convert_to_tensor([k, str(v)])
                                    for k, v in self.current_sweep.items()])
-                self.summary.write_text('hyperparameters', tensor)
+                self.summary.write_text("hyperparameters", tensor)
 
     def _stop_summaries(self):
         if self.summary is not None:
@@ -427,9 +424,6 @@ class Configurable(Loggable):
     @property
     def has_env(self):
         return self.config.has_env
-
-    def time(self):
-        return self.config.time()
 
     @property
     def batch_size(self):

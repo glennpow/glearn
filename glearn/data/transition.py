@@ -1,3 +1,5 @@
+import time
+import numpy as np
 from .buffer import Buffer
 
 
@@ -38,6 +40,12 @@ class TransitionBuffer(Buffer):
                 sample[key] = value
 
         self.add_sample(sample)
+
+    def get_ages(self):
+        if self.empty():
+            return np.array([])
+        t = time.time()
+        return np.array([t - ts if ts > 0 else 0 for ts in self.samples["timestamp"]])
 
     def transition_count(self):
         return self.sample_count()

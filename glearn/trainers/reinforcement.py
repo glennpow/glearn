@@ -1,3 +1,4 @@
+import time
 import numpy as np
 from glearn.trainers import Trainer
 from glearn.data.transition import Transition
@@ -69,7 +70,8 @@ class ReinforcementTrainer(Trainer):
 
         # perform action
         step = self.episode_step
-        timestamp = self.time()
+        timestamp = time.time()
+
         state = self.state
         env_action = action
         if self.output.discrete:
@@ -140,7 +142,7 @@ class ReinforcementTrainer(Trainer):
 
         while self.epochs is None or self.epoch < self.epochs:
             # start current epoch
-            self.epoch_start_time = self.time()
+            self.epoch_start_time = time.time()
             self.epoch += 1
             self.epoch_step = 0
             self.epoch_episodes = 0
@@ -151,7 +153,7 @@ class ReinforcementTrainer(Trainer):
 
             while True:
                 # start current episode
-                self.episode_start_time = self.time()
+                self.episode_start_time = time.time()
                 self.episode_count += 1
                 self.episode_step = 0
                 self.reset(episode_count=self.episode_count)
@@ -168,7 +170,7 @@ class ReinforcementTrainer(Trainer):
                     self.episode_step += 1
 
                     # check episode timeout
-                    episode_time = self.time() - self.episode_start_time
+                    episode_time = time.time() - self.episode_start_time
                     if self.max_episode_time is not None:
                         if episode_time > self.max_episode_time:
                             done = True

@@ -1,3 +1,4 @@
+import time
 from glearn.trainers import Trainer
 
 
@@ -34,7 +35,7 @@ class SupervisedTrainer(Trainer):
                 # start current epoch
                 self.epoch += 1
                 self.epoch_step = 0
-                self.epoch_start_time = self.time()
+                self.epoch_start_time = time.time()
                 epoch_steps = self.reset()
 
                 # epoch summary
@@ -58,5 +59,5 @@ class SupervisedTrainer(Trainer):
         else:
             # evaluate single epoch
             self.epoch = 1
-            self.epoch_start_time = self.time()
+            self.epoch_start_time = time.time()
             self.evaluate_and_report()
