@@ -17,7 +17,7 @@ class SummaryWriter(object):
         def __init__(self, query):
             self.query = query
             self.results = []
-            self.simple_summaries = []
+            self.simple_summaries = {}
 
     def __init__(self, config):
         self.config = config
@@ -94,10 +94,10 @@ class SummaryWriter(object):
         query = query or DEFAULT_EXPERIMENT_QUERY
         summary_results = self.get_summary_results(query)
         tag = self.summary_scope(name, query)
-        summary_results.simple_summaries.append(tf.Summary.Value(tag=tag, **kwargs))
+        # TODO - ability to average?
+        summary_results.simple_summaries[tag] = tf.Summary.Value(tag=tag, **kwargs)
 
     def add_simple_value(self, name, value, query=None):
-        # TODO - average?
         self.add_simple_summary(name, simple_value=value, query=query)
 
     def add_summary_value(self, name, summary, query=None):
@@ -240,9 +240,7 @@ class SummaryWriter(object):
                     writer.add_summary(summary, global_step=global_step)
 
                 # write simple values
-                summary_values = []
-                for summary in summary_results.simple_summaries:
-                    summary_values.append(summary)
+                summary_values = list(summary_results.simple_summaries.values())
                 simple_summary = tf.Summary(value=summary_values)
                 writer.add_summary(simple_summary, global_step=global_step)
 
