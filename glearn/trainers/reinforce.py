@@ -8,6 +8,7 @@ class ReinforceTrainer(ReinforcementTrainer):
         self.gamma = gamma
 
         self._zero_reward_warning = False
+        self._discount_episode_rewards = []
 
         super().__init__(config, **kwargs)
 
@@ -21,6 +22,8 @@ class ReinforceTrainer(ReinforcementTrainer):
             with tf.name_scope("loss"):
                 policy_distribution = self.policy.network.get_distribution_layer()
                 actions = self.get_feed("Y")
+
+                # TODO - do I need to calc this at rollout time for off-policy?
                 neg_logp = policy_distribution.neg_log_prob(actions)
 
                 # HACK
@@ -42,7 +45,7 @@ class ReinforceTrainer(ReinforcementTrainer):
         reward = 0
         discount_rewards = np.zeros(trajectory_length, dtype=np.float32)
         for i in reversed(range(trajectory_length)):
-            reward = rewards[i] * self.gamma + reward
+            reward = rewards[i] + self.gamma * reward
             discount_rewards[i] = reward
 
         # normalize and reshape
@@ -51,7 +54,7 @@ class ReinforceTrainer(ReinforcementTrainer):
         std = np.std(discount_rewards)
         if std > 0:
             discount_rewards /= std
-        discount_rewards = np.expand_dims(discount_rewards, -1).tolist()
+        discount_rewards = np.expand_dims(discount_rewards, -1)
         return discount_rewards
 
     def reset(self, mode="train", **kwargs):
@@ -65,20 +68,25 @@ class ReinforceTrainer(ReinforcementTrainer):
         discount_rewards = self.calculate_discount_rewards(episode["reward"])
 
         # ignore zero-reward episodes
-        if np.allclose(discount_rewards, np.zeros_like(discount_rewards)):
+        if np.count_nonzero(discount_rewards) == 0:
             if not self._zero_reward_warning:
                 self.warning("Ignoring episode(s) with zero rewards!")
                 self._zero_reward_warning = True
             return False
 
-        # HACK
-        self.summary.add_simple_value("discount_episode_reward", discount_rewards[0][0])
+        # track average discounted episode reward
+        self._discount_episode_rewards.append(discount_rewards[0][0])
 
         episode["discount_rewards"] = discount_rewards
         return True
 
     def optimize(self, batch):
         feed_map = batch.prepare_feeds()
+
+        # summary of discounted episode rewards
+        average_episode_reward = np.mean(self._discount_episode_rewards)
+        self._discount_episode_rewards = []
+        self.summary.add_simple_value("discount_episode_reward", average_episode_reward)
 
         # feed discounted rewards
         feed_map["discount_rewards"] = batch["discount_rewards"]

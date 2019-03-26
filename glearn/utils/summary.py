@@ -3,7 +3,7 @@ import atexit
 import numpy as np
 import tensorflow as tf
 from subprocess import Popen
-from glearn.utils.log import log
+from glearn.utils.log import log, log_warning
 from glearn.utils.path import remove_empty_dirs
 
 
@@ -90,15 +90,21 @@ class SummaryWriter(object):
             self.summary_results[query] = self.Results(query)
         return self.summary_results[query]
 
-    def add_simple_summary(self, name, query=None, **kwargs):
+    def add_simple_summary(self, name, query=None, allow_overwrite=False, **kwargs):
         query = query or DEFAULT_EXPERIMENT_QUERY
         summary_results = self.get_summary_results(query)
         tag = self.summary_scope(name, query)
-        # TODO - ability to average?
+
+        if not allow_overwrite and tag in summary_results.simple_summaries:
+            log_warning(f"Overwriting simple summary value: {tag}")
         summary_results.simple_summaries[tag] = tf.Summary.Value(tag=tag, **kwargs)
 
-    def add_simple_value(self, name, value, query=None):
-        self.add_simple_summary(name, simple_value=value, query=query)
+    def add_simple_value(self, name, value, query=None, allow_overwrite=False):
+        self.add_simple_summary(name, simple_value=value, query=query,
+                                allow_overwrite=allow_overwrite)
+
+    def set_simple_value(self, name, value, query=None):
+        self.add_simple_value(name, value, query=query, allow_overwrite=True)
 
     def add_summary_value(self, name, summary, query=None):
         query = query or DEFAULT_EVALUATE_QUERY
@@ -141,7 +147,7 @@ class SummaryWriter(object):
         summary = tf.summary.image(name, images, max_outputs=max_outputs)
         return self.add_summary_value(name, summary, query=query)
 
-    def write_images(self, name, images, max_outputs=3, query=None):
+    def add_simple_images(self, name, images, max_outputs=3, query=None, allow_overwrite=False):
         # matplotlib allows image encoding.  the imports are here since they are slow.
         import io
         import matplotlib
@@ -163,11 +169,16 @@ class SummaryWriter(object):
             summary_image = tf.Summary.Image(encoded_image_string=im_bytes.getvalue())
             self.add_simple_summary(f"{name}/{i}", image=summary_image, query=query)
 
+    def set_simple_images(self, name, images, max_outputs=3, query=None):
+        self.add_simple_images(name, images, max_outputs=max_outputs, query=query,
+                               allow_overwrite=True)
+
     def add_text(self, name, tensor, query=None):
         summary = tf.summary.text(name, tensor)
         return self.add_summary_value(name, summary, query=query)
 
     def write_text(self, name, tensor, query=None):
+        # TODO - convert to: add_simple_text(...)
         query = query or DEFAULT_EXPERIMENT_QUERY
         tag = self.summary_scope(name, query)
         summary = tf.summary.text(tag, tensor)

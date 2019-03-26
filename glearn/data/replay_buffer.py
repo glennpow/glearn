@@ -126,7 +126,7 @@ class ReplayBuffer(TransitionBuffer):
                 padding = np.tile(invalid_color, (image_pad, 1))
                 rgb_values = np.concatenate([rgb_values, padding])
             image = rgb_values.reshape((1, image_height, image_width, -1))
-            summary.write_images(name, image, query=query)
+            summary.add_simple_images(name, image, query=query)
 
     def get_batch(self, mode="train"):
         assert not self.empty()

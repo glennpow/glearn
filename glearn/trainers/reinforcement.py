@@ -54,7 +54,7 @@ class ReinforcementTrainer(Trainer):
         if isinstance(epsilon, list):
             t = min(1, self.current_global_step / epsilon[2])
             epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
-            self.summary.add_simple_value("epsilon", epsilon)
+            self.summary.set_simple_value("epsilon", epsilon)
 
         # get action
         if epsilon > 0 and np.random.random() < epsilon:
@@ -158,7 +158,7 @@ class ReinforcementTrainer(Trainer):
                 self.episode_step = 0
                 self.reset(episode_count=self.episode_count)
 
-                self.summary.add_simple_value("episode", self.episode_count)
+                self.summary.set_simple_value("episode", self.episode_count)
 
                 while self.running:
                     if self.experiment_yield():
