@@ -49,7 +49,6 @@ class NetworkContext(Configurable):
 
         self.feeds = {}
         self.fetches = {}
-        self.latest_results = {}
 
         self.debug_runs = self.is_debugging("debug_runs")
         self.debug_runs_ignored = self.config.get("debug_runs_ignored", None)
@@ -194,9 +193,6 @@ class NetworkContext(Configurable):
 
             # run query
             results = self.sess.run(fetches, feed_dict)
-
-            # store results
-            self.latest_results.update(results)
 
             return results
 
