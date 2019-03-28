@@ -213,11 +213,11 @@ class NetworkContext(Configurable):
         debug_gradients = self.is_debugging("debug_gradients")  # TODO - check network configs?
 
         # learning rate decay
-        lr_decay = definition.get("lr_decay", None)
-        if lr_decay is not None:
-            lr_decay_intervals = definition.get("lr_decay_intervals", 1)
+        if isinstance(learning_rate, list):
+            lr_decay = learning_rate[1]
+            lr_decay_intervals = learning_rate[2] if len(learning_rate) >= 3 else 1
             decay_steps = int(lr_decay_intervals * self.config.get_epoch_size())
-            learning_rate = tf.train.exponential_decay(learning_rate, self.global_step,
+            learning_rate = tf.train.exponential_decay(learning_rate[0], self.global_step,
                                                        decay_steps, lr_decay, staircase=True)
 
         # create optimizer

@@ -45,9 +45,7 @@
                   value: 0.1
           - name: glearn.networks:CategoricalDistributionLayer
         optimizer: adam
-        learning_rate: 2.0e-4
-        lr_decay: 0.5
-        lr_decay_intervals: 40
+        learning_rate: [2.0e-4, 0.5, 40]
         max_grad_norm: 5
 
   trainer:

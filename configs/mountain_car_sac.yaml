@@ -32,9 +32,7 @@
               hidden_sizes: [1]
               activation: null
         optimizer: adam
-        learning_rate: 3.0e-4
-        # lr_decay: 0.5
-        # lr_decay_intervals: 100
+        learning_rate: [3.0e-4, 0.5, 100]
         max_grad_norm: 5
       V:
         layers:
@@ -46,9 +44,7 @@
               hidden_sizes: [1]
               activation: null
         optimizer: adam
-        learning_rate: 3.0e-4
-        # lr_decay: 0.5
-        # lr_decay_intervals: 100
+        learning_rate: [3.0e-4, 0.5, 100]
         max_grad_norm: 5
       gamma: 0.99
       tau: 5.0e-3

@@ -32,8 +32,9 @@ class ReinforcementTestEnv(gym.Env):
 
     def reset(self):
         self.undesired_steps = 0
-        self.state = np.zeros(self.obs_shape, self.obs_dtype)
         self.desired_index = 0
+        self.state = np.zeros(self.obs_shape, self.obs_dtype)
+        self.state[0] = self.desired[self.desired_index]
         return copy.deepcopy(self.state)
 
     def step(self, action):
