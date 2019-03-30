@@ -49,7 +49,7 @@ class Config(object):
         # load properties from config file
         self.properties = self._load_properties(self.path, local=self.local)
 
-        # debugging
+        # catch segfaults when debugging
         if self.debugging:
             from glearn.utils.debug import debug_faults
             debug_faults()
@@ -162,6 +162,8 @@ class Config(object):
 
     def _start_evaluation(self):
         message = f"Starting Evaluation: {self.current_evaluation + 1} / {self.num_evaluations}"
+        warning_message = False
+        evaluation_props = {}
         print()
 
         if self.evaluations:
@@ -169,6 +171,7 @@ class Config(object):
             self.current_properties = copy.deepcopy(self.properties)
             evaluation_sweep = self.evaluations[self.current_evaluation]
             self.current_sweep = dict(evaluation_sweep)
+            evaluation_props["Sweep"] = self.current_sweep
 
             def _recursive_replace(node, param, value, path=None):
                 num_replaced_values = 0
@@ -191,14 +194,31 @@ class Config(object):
                 replacements = _recursive_replace(self.current_properties, param, value)
                 if replacements == 0:
                     log_warning(f"Sweeps parameter '{param}' not found in config.")
-
-            # log evaluation sweep info
-            print_tabular({message: self.current_sweep}, grouped=True, color="white", bold=True)
         else:
             self.current_properties = self.properties
 
-            # log evaluation info
-            log(message, color="white", bold=True)
+        # debugging info
+        debug_props = ', '.join([k for k in self.properties.keys() if k.startswith("debug_")])
+        if self.debugging:
+            if len(debug_props) > 0:
+                evaluation_props["Debug"] = f"Enabled:  Using options: {debug_props}"
+            else:
+                evaluation_props["Debug"] = f"Enabled:  ALTHOUGH NO CONFIG OPTIONS DETECTED!"
+                warning_message = True
+
+            # catch segfaults
+            from glearn.utils.debug import debug_faults
+            debug_faults()
+        else:
+            if len(debug_props) > 0:
+                # warn about ignored debug options
+                evaluation_props[f"Debug"] = f"Disabled:  IGNORING OPTIONS: {debug_props}"
+                warning_message = True
+
+        # log evaluation sweep info
+        message = {message: evaluation_props}
+        table_color = "yellow" if warning_message else "white"
+        print_tabular(message, grouped=True, color=table_color, bold=True, show_type=False)
         print()
 
         # init session

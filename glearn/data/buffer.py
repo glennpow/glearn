@@ -1,11 +1,13 @@
 import numpy as np
+from glearn.utils.log import log_warning
 
 
 class Buffer(object):
-    def __init__(self, mode=None, samples=None, size=None):
+    def __init__(self, mode=None, samples=None, size=None, circular=False):
         self.mode = mode
         self.samples = samples
         self.size = size
+        self.circular = circular
 
         self._head = 0
         self._count = 0
@@ -49,15 +51,22 @@ class Buffer(object):
         if self.size is None:
             self.samples = {k: v[:size] for k, v in self.samples.items()}
 
-    def _get_slice(self, count):
+    def _get_slice(self, count, whole=False):
         # get slice of count indexes
-        idxs = np.array([(self._head + i) % self.size for i in range(count)])
-        self._head = (idxs[-1] + 1) % self.size
+        if self.circular:
+            idxs = np.array([(self._head + i) % self.size for i in range(count)])
+            self._head = (idxs[-1] + 1) % self.size
+        else:
+            available = self.size - self.sample_count()
+            if whole and count > available:
+                idxs = None
+            else:
+                count = min(count, available)
+                idxs = np.array([self._head + i for i in range(count)])
+                self._head += count
         return idxs
 
-    def _add_samples(self, samples, single=False):
-        # x = np.array(sample["timestamp"])
-        # import ipdb; ipdb.set_trace()  # HACK DEBUGGING !!!
+    def _add_samples(self, samples, single=False, whole=False):
         for key, values in samples.items():
             values = np.array(values)
             if single:
@@ -67,8 +76,9 @@ class Buffer(object):
         # make sure sample counts are equal for all keys
         samples_counts = np.array([len(values) for _, values in samples.items()])
         samples_count = samples_counts[0]
+        assert samples_count > 0
         assert np.all(samples_counts == samples_count)
-        self._count += samples_count
+        original_sample_count = samples_count
 
         # make sure sample buffers are initialized
         if self.samples is None:
@@ -87,7 +97,15 @@ class Buffer(object):
 
         # get storage indexes for samples
         if self.size:
-            idxs = self._get_slice(samples_count)
+            idxs = self._get_slice(samples_count, whole=whole)
+            if idxs is None or len(idxs) > 0:
+                samples_count = len(idxs)
+            else:
+                available = self.size - self.sample_count()
+                log_warning(f"Unable to store any of the {original_sample_count} samples in buffer"
+                            f"  |  Available: {available} / {self.size})")
+                return 0
+        self._count += samples_count
 
         for key, values in samples.items():
             # make sure samples are compatible with this buffer
@@ -97,16 +115,18 @@ class Buffer(object):
             if self.size is None:
                 self.samples[key] = np.concatenate([self.samples[key], values])
             else:
-                np.put(self.samples[key], idxs, values)
+                np.put(self.samples[key], idxs, values[:samples_count])
+
+        return samples_count
 
     def add_sample(self, sample):
-        self._add_samples(sample, single=True)
+        return self._add_samples(sample, single=True)
 
-    def add_samples(self, samples):
-        self._add_samples(samples)
+    def add_samples(self, samples, whole=False):
+        return self._add_samples(samples, whole=whole)
 
-    def add_buffer(self, buffer):
-        self.add_samples(buffer.samples)
+    def add_buffer(self, buffer, whole=False):
+        return self.add_samples(buffer.samples, whole=whole)
 
     def prepare_feeds(self):
         # override

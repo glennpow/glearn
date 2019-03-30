@@ -18,7 +18,7 @@ COLOR_NUMBERS = dict(
     white=37,
     crimson=38
 )
-MAX_TABULAR_WIDTH = 120
+MAX_TABULAR_WIDTH = 80
 
 
 def getch(blocking=True):

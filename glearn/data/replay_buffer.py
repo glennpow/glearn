@@ -14,9 +14,12 @@ class ReplayBuffer(TransitionBuffer):
         size = self.definition.get("size", self.batch_size)
         assert size >= self.batch_size, \
             f"ReplayBuffer not large enough for batches: {size} > {self.batch_size}"
+        self.whole_episodes = self.definition.get("whole_episodes", False)
+        circular = not self.trainer.on_policy()
 
-        super().__init__(size=size)
+        super().__init__(size=size, circular=circular)
 
+        self._total_epochs = 0
         self._total_episodes = 0
         self._total_transitions = 0
         self._start_time = None
@@ -35,19 +38,13 @@ class ReplayBuffer(TransitionBuffer):
         return self.sample_count() >= self.batch_size
 
     def add_episode(self, episode):
-        # for on-policy, should not overflow buffer
-        episode_length = episode.transition_count()
-        if self.trainer.on_policy():
-            available = self.size - self.sample_count()
-            if episode_length > available:
-                episode.clip(available)
-
         # append to and trim buffer
-        self.add_buffer(episode)
+        stored = self.add_buffer(episode, whole=self.whole_episodes)
 
-        # update total episodes stored
-        self._total_episodes += 1
-        self._total_transitions += episode_length
+        if stored > 0:
+            # update total episodes stored
+            self._total_episodes += 1
+            self._total_transitions += stored
 
     def _add_summaries(self):
         query = "replay_buffer"
@@ -60,8 +57,11 @@ class ReplayBuffer(TransitionBuffer):
         else:
             elapsed = t - self._start_time
             episodes_per_second = self._total_episodes / elapsed
+            episodes_per_epoch = self._total_episodes / self._total_epochs
             transitions_per_second = self._total_transitions / elapsed
             summary.add_simple_value("episodes_per_second", episodes_per_second, query)
+            summary.add_simple_value("episodes_per_epoch", episodes_per_epoch, query)
+
             summary.add_simple_value("transitions_per_second", transitions_per_second, query)
 
         # count summaries
@@ -91,17 +91,7 @@ class ReplayBuffer(TransitionBuffer):
         image_size = image_width * image_height
         image_pad = image_size - sample_count
 
-        def normalize(values):
-            # normalize values in [0, 1]
-            # valid_values = [v for v in values if v > 0]
-            # if len(valid_values) > 0:
-            #     if image_pad > 0:
-            #         values = np.concatenate([values, np.zeros(image_pad)])
-            #     invalid_idxs = np.array([i for i, v in enumerate(values) if v == 0])
-
-            #     min_value = np.amin(valid_values)
-            #     max_value = np.amax(valid_values)
-
+        def normalize(values, definition):
             min_value = np.amin(values)
             max_value = np.amax(values)
             span_value = (max_value - min_value)
@@ -109,7 +99,7 @@ class ReplayBuffer(TransitionBuffer):
                 values = (values - min_value) / span_value
             return np.clip(values, 0, 1)
 
-        def get_colors(values):
+        def get_colors(values, definition):
             # interpolate colors
             min_color = np.array(definition.get("min_color", [0, 0, 0]))
             max_color = np.array(definition.get("max_color", [1, 1, 1]))
@@ -118,8 +108,8 @@ class ReplayBuffer(TransitionBuffer):
 
         # loop through building images from definitions and writing summaries
         for name, definition in image_definitions.items():
-            values = normalize(definition["values"])
-            rgb_values = get_colors(values)
+            values = normalize(definition["values"], definition)
+            rgb_values = get_colors(values, definition)
 
             invalid_color = definition.get("invalid_color", [0, 0, 0])
             if image_pad > 0:
@@ -144,6 +134,8 @@ class ReplayBuffer(TransitionBuffer):
         return TransitionBuffer(mode=mode, samples=batch_samples)
 
     def update(self):
+        self._total_epochs += 1
+
         self._add_summaries()
 
         if self.trainer.on_policy():

@@ -244,13 +244,13 @@ class NetworkContext(Configurable):
         # apply gradient clipping
         if max_grad_norm is not None:
             with tf.name_scope("clipped_gradients"):
-                grads, global_norm = tf.clip_by_global_norm(grads, max_grad_norm)
+                grads, global_norm = tf.clip_by_global_norm(grads, max_grad_norm,
+                                                            name="clip_by_global_norm")
 
                 # metrics to observe clipped gradient ratio and global norm
-                if debug_gradients:
-                    clipped_ratio = tf.maximum(global_norm - max_grad_norm, 0) / global_norm
-                    self.summary.add_scalar("global_norm", global_norm, query=name)
-                    self.summary.add_scalar("clipped_ratio", clipped_ratio, query=name)
+                clipped_ratio = tf.maximum(global_norm - max_grad_norm, 0) / global_norm
+                self.summary.add_scalar("global_norm", global_norm, query=name)
+                self.summary.add_scalar("clipped_ratio", clipped_ratio, query=name)
 
         if require_unzip:
             grads_tvars = zip(grads, tvars)
@@ -259,7 +259,7 @@ class NetworkContext(Configurable):
         optimize = optimizer.apply_gradients(grads_tvars)
 
         # add learning rate and gradient summaries
-        self.summary.add_scalar("learning_rate", learning_rate)
+        self.summary.add_scalar("learning_rate", learning_rate, query=name)
         if debug_gradients:
             self.summary.add_variables(tvars, query=name)
             self.summary.add_gradients(zip(grads, tvars), query=name)

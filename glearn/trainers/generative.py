@@ -38,7 +38,7 @@ class GenerativeTrainer(UnsupervisedTrainer):
         return self.build_network(name, definition, z, reuse=reuse)
 
     def sample_noise(self, batch_size):
-        # generate random latent noise
+        # generate random latent noise  (spherical gaussian)
         return np.random.normal(size=(batch_size, self.latent_size))
 
     def build_trainer(self):
