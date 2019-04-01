@@ -89,7 +89,7 @@ class LSTMLayer(NetworkLayer):
 
         return y
 
-    def build_loss(self, outputs):
+    def build_loss(self, targets):
         # get variables
         batch_size = self.context.config.batch_size
         timesteps = self.context.config.get("timesteps", 1)
@@ -101,13 +101,13 @@ class LSTMLayer(NetworkLayer):
         logits_shape = [batch_size, timesteps, vocabulary_size]
         logits = tf.reshape(logits, logits_shape)
         weights = tf.ones([batch_size, timesteps])
-        sequence_loss = tf.contrib.seq2seq.sequence_loss(logits, outputs, weights,
+        sequence_loss = tf.contrib.seq2seq.sequence_loss(logits, targets, weights,
                                                          average_across_timesteps=False,
                                                          average_across_batch=True)
         loss = tf.reduce_sum(sequence_loss)
 
         # calculate accuracy
-        correct_prediction = tf.equal(tf.reshape(predict, [-1]), tf.reshape(outputs, [-1]))
+        correct_prediction = tf.equal(tf.reshape(predict, [-1]), tf.reshape(targets, [-1]))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         metrics = {"accuracy": accuracy}
 

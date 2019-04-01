@@ -10,10 +10,6 @@ class DistributionLayer(NetworkLayer):
     def logits(self):
         return self.distribution.logits
 
-    @property
-    def probs(self):
-        return self.distribution.probs
-
     def covariance(self, **kwargs):
         return self.distribution.covariance(**kwargs)
 

@@ -82,12 +82,12 @@ class NormalDistributionLayer(DistributionLayer):
 
         return y
 
-    def build_loss(self, outputs):
-        # evaluate discrete loss
-        loss = tf.reduce_mean(self.neg_log_prob(outputs))
+    def build_loss(self, targets):
+        # evaluate continuous loss  (FIXME?)
+        loss = tf.reduce_mean(self.neg_log_prob(targets))
 
         # evaluate accuracy
-        correct = tf.exp(-tf.abs(self.outputs - outputs))
+        correct = tf.exp(-tf.abs(self.outputs - targets))
         accuracy = tf.reduce_mean(correct)
         metrics = {"accuracy": accuracy}
 

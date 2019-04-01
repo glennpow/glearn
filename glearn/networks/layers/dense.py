@@ -44,9 +44,9 @@ class DenseLayer(NetworkLayer):
 
         return y
 
-    def build_loss(self, outputs):
-        # evaluate continuous loss
-        loss = tf.reduce_mean(tf.square(outputs - self.outputs))
+    def build_loss(self, targets):
+        # evaluate continuous loss (MSE)
+        loss = tf.reduce_mean(tf.square(targets - self.outputs))
 
         # evaluate accuracy
         accuracy = tf.exp(-loss)
