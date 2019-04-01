@@ -28,40 +28,40 @@ class CategoricalDistributionLayer(DistributionLayer):
 
         return y
 
-    def build_loss(self, outputs):
+    def reshaped_targets(self, targets):
+        return tf.squeeze(targets, axis=-1, name="reshape_targets")
+
+    @property
+    def probs(self):
+        return self.distribution.probs
+
+    def prob(self, targets, name=None):
+        with tf.name_scope(name):
+            return super().prob(self.reshaped_targets(targets))
+
+    def log_prob(self, targets, name=None):
+        with tf.name_scope(name):
+            return super().log_prob(self.reshaped_targets(targets))
+
+    def neg_log_prob(self, targets, name=None):
+        with tf.name_scope(name):
+            return super().neg_log_prob(targets)
+
+        # FIXME? - slightly more efficient? (no double-negative)
+        # logits = self.references["logits"]
+        # labels = self.reshaped_targets(targets)
+        # neg_logp = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
+
+    def build_loss(self, targets):
         # evaluate discrete loss
-        logits = self.references["logits"]
-        labels = tf.squeeze(outputs)
-        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
-        loss = tf.reduce_mean(loss)
+        loss = tf.reduce_mean(self.neg_log_prob(targets))
 
         # evaluate accuracy
-        correct = tf.equal(self.references["category"], outputs)
+        correct = tf.equal(self.references["category"], targets)
         accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
         metrics = {"accuracy": accuracy}
 
         return loss, metrics
-
-    # def neg_log_prob(self, value, **kwargs):
-    #     nlp = super().neg_log_prob(value)
-    #     self.summary.add_scalar("nlp", tf.reduce_mean(nlp))
-
-    #     lp = super().log_prob(value)
-    #     self.summary.add_scalar("lp", tf.reduce_mean(lp))
-
-    #     p = super().prob(value)
-    #     self.summary.add_scalar("p", tf.reduce_mean(p))
-
-    #     l_p = tf.log(p)
-    #     self.summary.add_scalar("l_p", tf.reduce_mean(l_p))
-
-    #     with tf.name_scope("cross_entropy"):
-    #         logits = self.references["logits"]
-    #         labels = tf.squeeze(value)
-    #         ce = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
-    #     self.summary.add_scalar("cross_entropy", tf.reduce_mean(ce))
-
-    #     return nlp
 
     def prepare_default_feeds(self, queries, feed_map):
         feed_map["dropout"] = 1
@@ -122,13 +122,13 @@ class DiscretizedDistributionLayer(CategoricalDistributionLayer):
 
         return y
 
-    def neg_log_prob(self, value, **kwargs):
-        value = self.bijector._inverse(value)
-        return super().neg_log_prob(value, **kwargs)
-
     @property
     def probs(self):
         return self.distribution.distribution.probs
+
+    def neg_log_prob(self, value, **kwargs):
+        value = self.bijector._inverse(value)
+        return super().neg_log_prob(value, **kwargs)
 
 
 class DiscretizedBijector(tfd.bijectors.Bijector):

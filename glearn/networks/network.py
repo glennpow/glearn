@@ -128,11 +128,11 @@ class Network(Configurable):
             return tf.constant(0, dtype=tf.float32)
         return math_ops.add_n(losses, name="total_loss")
 
-    def build_loss(self, outputs):
+    def build_loss(self, targets):
         # build prediction loss
         predict_metrics = {}
         with tf.name_scope(f"{self.name}_loss"):
-            predict_loss, metrics = self.get_output_layer().build_loss(outputs)
+            predict_loss, metrics = self.get_output_layer().build_loss(targets)
             self.add_loss(predict_loss)
             predict_metrics.update(metrics)
 

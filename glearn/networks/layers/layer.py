@@ -105,7 +105,7 @@ class NetworkLayer(object):
         # override
         return y
 
-    def build_loss(self, outputs):
+    def build_loss(self, targets):
         # override
         return tf.constant(0, dtype=tf.float32), tf.constant(0, dtype=tf.float32)
 

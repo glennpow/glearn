@@ -34,13 +34,13 @@ class NetworkPolicy(Policy):
                 self.network.outputs = predict
 
         self.inputs = inputs
-        self.predict = predict
+        self.outputs = predict
         self.add_fetch("predict", predict, ["predict", "evaluate"])
 
-    def build_loss(self, outputs):
+    def build_loss(self, targets):
         # build policy network loss
-        self.outputs = outputs
-        return self.network.build_loss(outputs)
+        self.targets = targets
+        return self.network.build_loss(targets)
 
     def optimize_loss(self, loss, name=None):
         return self.network.optimize_loss(loss, name=name)
