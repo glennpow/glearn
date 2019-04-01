@@ -2,7 +2,7 @@
   import: _base
 
   env: MountainCarContinuous-v0
-  batch_size: 10
+  batch_size: 24  # 256
 
   policy:
     name: glearn.policies:NetworkPolicy
@@ -12,19 +12,20 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [400, 300]
+              hidden_sizes: [400]
+              activation: tensorflow.nn:tanh
           # - name: glearn.networks:DenseLayer
           #   args:
           #     hidden_sizes: [0]
           #     activation: tensorflow.nn:sigmoid
-          # - name: glearn.networks:NormalDistributionLayer
-          #   # args:
-          #   #   squash: true
-          - name: glearn.networks:DiscretizedDistributionLayer
-            args:
-              divs: 5
+          - name: glearn.networks:NormalDistributionLayer
+            # args:
+            #   squash: true
+          # - name: glearn.networks:DiscretizedDistributionLayer
+          #   args:
+          #     divs: 5
         optimizer: adam
-        learning_rate: 3.0e-4
+        learning_rate: 1.0e-4
         max_grad_norm: 5
 
   trainer:

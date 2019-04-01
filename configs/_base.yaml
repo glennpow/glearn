@@ -10,15 +10,15 @@
   ## pause after each step
   # debug_evaluate_pause: true
 
+  ## log session run calls
+  # debug_runs: true
+  # debug_runs_ignored: [predict]
+
   ## write activation summaries to tensorboard
   # debug_activations: true
 
   ## write gradient summaries to tensorboard
   # debug_gradients: true
-
-  ## log session run calls
-  # debug_runs: true
-  # debug_runs_ignored: [predict]
 
   ## session run tracing
   # debug_trace: true

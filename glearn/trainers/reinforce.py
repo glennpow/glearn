@@ -13,31 +13,42 @@ class ReinforceTrainer(ReinforcementTrainer):
         super().__init__(config, **kwargs)
 
     def on_policy(self):
-        return True  # False  # TODO - could be either?
+        return True  # False  # TODO - could be either for REINFORCE?
 
     def build_trainer(self):
         query = "policy_optimize"
         with tf.name_scope(query):
             # build loss based on negative log prob of actions and discount rewards
             with tf.name_scope("loss"):
-                policy_distribution = self.policy.network.get_distribution_layer()
                 actions = self.get_feed("Y")
+                
+                policy_distribution = self.policy.network.get_distribution_layer()
+                neg_log_prob = policy_distribution.neg_log_prob(actions)
+                average_neg_log_prob = tf.reduce_mean(neg_log_prob)
 
-                # TODO - do I need to calc this at rollout time for off-policy?
-                neg_logp = policy_distribution.neg_log_prob(actions)
+                discount_rewards = self.create_feed("discount_rewards", query, (None,))
+                average_discount_rewards = tf.reduce_mean(discount_rewards)
 
-                # HACK
-                # self.add_metric("neg_logp", tf.reduce_mean(neg_logp), query=query)
-
-                discount_rewards = self.create_feed("discount_rewards", query, (None, 1))
-
-                # FIXME
-                # policy_loss = tf.reduce_mean(neg_logp * discount_rewards)
-                policy_loss = tf.reduce_mean(tf.reduce_sum(neg_logp * discount_rewards, -1))
+                # policy_loss = tf.reduce_mean(average_neg_log_prob * average_discount_rewards)
+                policy_loss = tf.reduce_mean(neg_log_prob * discount_rewards)
             self.add_metric("policy_loss", policy_loss, query=query)
 
             # minimize policy loss
             self.policy.optimize_loss(policy_loss, name=query)
+
+            # DEBUG ====================
+            self.summary.add_scalar("neg_log_prob", average_neg_log_prob, query=query)
+
+            if self.output.discrete:
+                probs = policy_distribution.probs
+                probs = tf.transpose(probs)
+                for i in range(probs.shape[0]):
+                    self.summary.add_histogram(f"prob_{i}", probs[i], query=query)
+
+            confidence = policy_distribution.prob(actions)
+            self.summary.add_histogram("confidence", confidence, query=query)
+            self.summary.add_scalar("discount_rewards", average_discount_rewards, query=query)
+            # ==========================
 
     def calculate_discount_rewards(self, rewards):
         # gather discounted rewards
@@ -54,7 +65,6 @@ class ReinforceTrainer(ReinforcementTrainer):
         std = np.std(discount_rewards)
         if std > 0:
             discount_rewards /= std
-        discount_rewards = np.expand_dims(discount_rewards, -1)
         return discount_rewards
 
     def reset(self, mode="train", **kwargs):
@@ -66,6 +76,7 @@ class ReinforceTrainer(ReinforcementTrainer):
     def process_episode(self, episode):
         # compute discounted rewards
         discount_rewards = self.calculate_discount_rewards(episode["reward"])
+        episode["discount_rewards"] = discount_rewards
 
         # ignore zero-reward episodes
         if np.count_nonzero(discount_rewards) == 0:
@@ -75,18 +86,17 @@ class ReinforceTrainer(ReinforcementTrainer):
             return False
 
         # track average discounted episode reward
-        self._discount_episode_rewards.append(discount_rewards[0][0])
+        # self._discount_episode_rewards.append(discount_rewards[0])
 
-        episode["discount_rewards"] = discount_rewards
         return True
 
     def optimize(self, batch):
         feed_map = batch.prepare_feeds()
 
         # summary of discounted episode rewards
-        average_episode_reward = np.mean(self._discount_episode_rewards)
-        self._discount_episode_rewards = []
-        self.summary.add_simple_value("discount_episode_reward", average_episode_reward)
+        # average_episode_reward = np.mean(self._discount_episode_rewards)
+        # self._discount_episode_rewards = []
+        # self.summary.add_simple_value("discount_episode_reward", average_episode_reward)
 
         # feed discounted rewards
         feed_map["discount_rewards"] = batch["discount_rewards"]

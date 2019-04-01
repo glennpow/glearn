@@ -128,8 +128,31 @@ class Config(object):
         self.current_evaluation = 0
         self.current_sweep = None
 
-        # combine sweeps into evaluations
+        # get evaluation generation params
         sweeps = self.properties.pop("sweeps", None)
+        seeds = self.properties.pop("seeds", None)
+
+        # allow multiple evaluations with different seeds
+        if seeds:
+            try:
+                if sweeps is None:
+                    # default to be overridden
+                    self.properties["seed"] = 1
+
+                    if isinstance(seeds, list):
+                        self.evaluations = [[["seed", seed]] for seed in seeds]
+                    else:
+                        seeds = int(seeds)
+
+                        M = 0xffffffff
+                        self.evaluations = [[["seed", np.random.randint(M)]] for _ in range(seeds)]
+                        self.properties["seed"] = 1
+                else:
+                    log_warning("Currently 'seeds' is ignored when 'sweeps' config is set")
+            except ValueError:
+                log_warning(f"The config parameter 'seeds' must be int or list. (Found: {seeds})")
+
+        # combine sweeps into evaluations
         if sweeps:
             def _build_combinations(d):
                 params = list(d.keys())
@@ -142,21 +165,6 @@ class Config(object):
                 self.evaluations = [c for d in sweeps for c in _build_combinations(d)]
             elif isinstance(sweeps, dict):
                 self.evaluations = _build_combinations(sweeps)
-
-        # allow multiple evaluations with different seeds
-        seeds = self.properties.pop("seeds", None)
-        if seeds:
-            try:
-                seeds = int(seeds)
-
-                if self.evaluations is None:
-                    smax = 0xffffffff
-                    self.evaluations = [[["seed", np.random.randint(smax)]] for i in range(seeds)]
-                    self.properties["seed"] = 1
-                else:
-                    log_warning("Currently 'seeds' is ignored when 'sweeps' config is set")
-            except ValueError:
-                log_warning(f"The config parameter 'seeds' must be an int. (Found: {seeds})")
 
         self.num_evaluations = len(self.evaluations) if self.evaluations else 1
 
