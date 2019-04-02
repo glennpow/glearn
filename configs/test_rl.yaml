@@ -1,6 +1,6 @@
 --- # Test REINFORCE
   import: _base
-  batch_size: 1000
+  batch_size: 1024
 
   env:
     name: glearn.envs.reinforcement_test:ReinforcementTestEnv
@@ -22,7 +22,7 @@
               hidden_sizes: [64, 64]
           - name: glearn.networks:CategoricalDistributionLayer
         optimizer: adam
-        learning_rate: [5.0e-4, 0.5, 150]
+        learning_rate: 5.0e-3  # [5.0e-4, 0.5, 150]
 
   trainer:
     name: glearn.trainers:PolicyGradientTrainer

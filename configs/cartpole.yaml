@@ -2,7 +2,7 @@
   import: _base
 
   env: CartPole-v0
-  batch_size: 4096
+  batch_size: 0  # 4096
   # seeds: [3765698959, 1907813997]
 
   policy:
@@ -13,10 +13,11 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [128]
+              hidden_sizes: [10]  # [128]
+              activation: tensorflow.nn:tanh
           - name: glearn.networks:CategoricalDistributionLayer
         optimizer: adam
-        learning_rate: [4.0e-3, 0.5, 1000]
+        learning_rate: 0.02  # [4.0e-3, 0.5, 1000]
         # max_grad_norm: 0.1  # 5
 
   trainer:
@@ -30,8 +31,8 @@
       #   optimizer: adam
       #   learning_rate: [4.0e-3, 0.5, 1000]
       #   max_grad_norm: 0.1  # 5
-      gamma: 0.9
-      epochs: 600
+      gamma: 0.99  # 0.9
+      epochs: 1000
       # keep_prob: 0.8
       # epsilon: [1, 0.1, 400]
       evaluate_interval: 10

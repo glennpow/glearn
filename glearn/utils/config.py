@@ -56,7 +56,7 @@ class Config(object):
 
         self.sess = None
         self.summary = None
-        self.loading = version is not None
+        self.loading = not training or version is not None
         self._load_evaluations()
 
     def _load_properties(self, config_path, local=False):

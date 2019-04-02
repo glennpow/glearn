@@ -18,10 +18,14 @@ class EpisodeBuffer(TransitionBuffer):
 
         # configure buffer
         self.definition = config.get("episode_buffer", {})
-        size = self.definition.get("size", self.batch_size)
-        assert size >= self.batch_size, \
-            f"EpisodeBuffer not large enough for batches: {size} > {self.batch_size}"
-        self.whole_episodes = self.definition.get("whole_episodes", False)
+        if self.batch_size == 0:
+            size = None
+            self.whole_episodes = False
+        else:
+            size = self.definition.get("size", self.batch_size)
+            assert size >= self.batch_size, \
+                f"EpisodeBuffer not large enough for batches: {size} > {self.batch_size}"
+            self.whole_episodes = self.definition.get("whole_episodes", False)
         circular = not self.trainer.on_policy()
 
         super().__init__(size=size, circular=circular)
@@ -42,6 +46,8 @@ class EpisodeBuffer(TransitionBuffer):
         return self.total_samples()
 
     def is_ready(self):
+        if self.batch_size == 0:
+            return self.sample_count() > 0
         return self.sample_count() >= self.batch_size
 
     def add_episode(self, episode):
@@ -129,10 +135,12 @@ class EpisodeBuffer(TransitionBuffer):
         assert not self.empty()
 
         # collect batch of episodes
-        # if self.trainer.on_policy():
+        if self.batch_size == 0:
+            idxs = np.array(range(self.sample_count()))
+        # elif self.trainer.on_policy():
         #     idxs = np.array(list(range(self.batch_size)))
-        # else:
-        idxs = np.random.choice(self.sample_count(), self.batch_size, replace=False)
+        else:
+            idxs = np.random.choice(self.sample_count(), self.batch_size, replace=False)
 
         # slice out these batches
         batch_samples = {key: copy.deepcopy(values[idxs]) for key, values in self.samples.items()}

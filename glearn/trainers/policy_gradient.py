@@ -14,15 +14,16 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         return True  # False  # TODO - could be either for REINFORCE?
 
     def build_trainer(self):
+        state = self.get_feed("X")
+        actions = self.get_feed("Y")
+
+        # build optional baseline
+        if self.V_definition:
+            V_network = self.build_network("V", self.V_definition, state)
+
         query = "policy_optimize"
         with tf.name_scope(query):
-            state = self.get_feed("X")
-            actions = self.get_feed("Y")
-
-            if self.V_definition:
-                V_network = self.build_network("V", self.V_definition, state)
-
-            # build loss based on negative log prob of actions and discount rewards
+            # build loss: -log(P(y)) * (discount rewards - optional baseline)
             with tf.name_scope("loss"):
                 # build -log(P(y))
                 policy_distribution = self.policy.network.get_distribution_layer()
@@ -34,21 +35,19 @@ class PolicyGradientTrainer(ReinforcementTrainer):
                 if self.V_definition:
                     # subtract optional baseline (build advantage)
                     advantage = discount_rewards - V_network.outputs
-                    V_loss = tf.reduce_mean(tf.square(advantage))
+                    # V_loss = tf.reduce_mean(tf.square(advantage))
 
-                    V_network.optimize_loss(V_loss, name="V_optimize")
+                    # V_network.optimize_loss(V_loss, name="V_optimize")
                 else:
                     # don't use baseline
-                    # advantage = discount_rewards
+                    advantage = discount_rewards
 
                     # HACK - simple baseline
-                    baseline = tf.reduce_sum(state)
-                    advantage = discount_rewards - baseline
+                    # baseline = tf.reduce_sum(state)
+                    # advantage = discount_rewards - baseline
 
                 policy_loss = tf.reduce_mean(neg_log_prob * advantage)
             self.add_metric("policy_loss", policy_loss, query=query)
-            if self.V_definition:
-                self.add_metric("V_loss", V_loss, query="V_optimize")
 
             # minimize policy loss
             self.policy.optimize_loss(policy_loss, name=query)
@@ -71,6 +70,16 @@ class PolicyGradientTrainer(ReinforcementTrainer):
                 for i in range(probs.shape[0]):
                     self.summary.add_histogram(f"prob_{i}", probs[i], query=query)
             # ==========================
+
+        if self.V_definition:
+            query = "V_optimize"
+            with tf.name_scope(query):
+                # optimize optional baseline
+                V_loss = tf.reduce_mean(tf.square(advantage))
+
+                V_network.optimize_loss(V_loss, name=query)
+
+                self.add_metric("V_loss", V_loss, query=query)
 
     def calculate_discount_rewards(self, rewards):
         # gather discounted rewards

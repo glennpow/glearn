@@ -1,7 +1,3 @@
-X show seed in evaluation start
-X add metrics to ReplayBuffer
-# need to remove only tensorboard summaries (not saved models)
-
 # dropout  FIXME - implement this like batch_norm, and check all appropriate queries...
 # fix tensorboard staying alive on Ctrl-C?
 # from "trainer.py", extract "evaluator.py", "optimizer.py", etc.  (and could subclass dataset/env versions)
