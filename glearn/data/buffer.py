@@ -46,27 +46,27 @@ class Buffer(object):
             self.samples = None
         else:
             self._head = 0
+            if self.samples is not None:
+                for _, values in self.samples.items():
+                    values.fill(0)
 
     def clip(self, size):
         if self.size is None:
             self.samples = {k: v[:size] for k, v in self.samples.items()}
 
-    def _get_slice(self, count, whole=False):
+    def _get_slice(self, count):
         # get slice of count indexes
         if self.circular:
             idxs = np.array([(self._head + i) % self.size for i in range(count)])
             self._head = (idxs[-1] + 1) % self.size
         else:
             available = self.size - self.sample_count()
-            if whole and count > available:
-                idxs = None
-            else:
-                count = min(count, available)
-                idxs = np.array([self._head + i for i in range(count)])
-                self._head += count
+            count = min(count, available)
+            idxs = np.array([self._head + i for i in range(count)])
+            self._head += count
         return idxs
 
-    def _add_samples(self, samples, single=False, whole=False):
+    def _add_samples(self, samples, single=False):
         for key, values in samples.items():
             values = np.array(values)
             if single:
@@ -97,7 +97,7 @@ class Buffer(object):
 
         # get storage indexes for samples
         if self.size:
-            idxs = self._get_slice(samples_count, whole=whole)
+            idxs = self._get_slice(samples_count)
             if idxs is None or len(idxs) > 0:
                 samples_count = len(idxs)
             else:
@@ -122,11 +122,11 @@ class Buffer(object):
     def add_sample(self, sample):
         return self._add_samples(sample, single=True)
 
-    def add_samples(self, samples, whole=False):
-        return self._add_samples(samples, whole=whole)
+    def add_samples(self, samples):
+        return self._add_samples(samples)
 
-    def add_buffer(self, buffer, whole=False):
-        return self.add_samples(buffer.samples, whole=whole)
+    def add_buffer(self, buffer):
+        return self.add_samples(buffer.samples)
 
     def prepare_feeds(self):
         # override

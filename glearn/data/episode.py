@@ -18,14 +18,13 @@ class EpisodeBuffer(TransitionBuffer):
 
         # configure buffer
         self.definition = config.get("episode_buffer", {})
-        if self.batch_size == 0:
+        self.batch_episodes = self.definition.get("batch_episodes", False)
+        if self.batch_episodes:
             size = None
-            self.whole_episodes = False
         else:
             size = self.definition.get("size", self.batch_size)
             assert size >= self.batch_size, \
                 f"EpisodeBuffer not large enough for batches: {size} > {self.batch_size}"
-            self.whole_episodes = self.definition.get("whole_episodes", False)
         circular = not self.trainer.on_policy()
 
         super().__init__(size=size, circular=circular)
@@ -33,6 +32,7 @@ class EpisodeBuffer(TransitionBuffer):
         self._total_epochs = 0
         self._total_episodes = 0
         self._total_transitions = 0
+        self._current_episodes = 0
         self._start_time = None
 
     @property
@@ -45,17 +45,24 @@ class EpisodeBuffer(TransitionBuffer):
     def total_transitions(self):
         return self.total_samples()
 
+    def clear(self):
+        super().clear()
+
+        self._current_episodes = 0
+
     def is_ready(self):
-        if self.batch_size == 0:
-            return self.sample_count() > 0
-        return self.sample_count() >= self.batch_size
+        if self.batch_episodes:
+            return self._current_episodes >= self.batch_size
+        else:
+            return self.sample_count() >= self.batch_size
 
     def add_episode(self, episode):
         # append to and trim buffer
-        stored = self.add_buffer(episode, whole=self.whole_episodes)
+        stored = self.add_buffer(episode)
 
         if stored > 0:
             # update total episodes stored
+            self._current_episodes += 1
             self._total_episodes += 1
             self._total_transitions += stored
 
@@ -135,7 +142,7 @@ class EpisodeBuffer(TransitionBuffer):
         assert not self.empty()
 
         # collect batch of episodes
-        if self.batch_size == 0:
+        if self.batch_episodes:
             idxs = np.array(range(self.sample_count()))
         # elif self.trainer.on_policy():
         #     idxs = np.array(list(range(self.batch_size)))
