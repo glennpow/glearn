@@ -248,7 +248,8 @@ class NetworkContext(Configurable):
                                                             name="clip_by_global_norm")
 
                 # metrics to observe clipped gradient ratio and global norm
-                clipped_ratio = tf.maximum(global_norm - max_grad_norm, 0) / global_norm
+                div = global_norm + 1.0e-8
+                clipped_ratio = tf.maximum(global_norm - max_grad_norm, 0) / div
                 self.summary.add_scalar("global_norm", global_norm, query=name)
                 self.summary.add_scalar("clipped_ratio", clipped_ratio, query=name)
 

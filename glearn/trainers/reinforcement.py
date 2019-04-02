@@ -21,6 +21,8 @@ class ReinforcementTrainer(Trainer):
         self.episode = None
         self.replay_buffer = ReplayBuffer(config, self)
 
+        self._zero_reward_warning = False
+
     def get_info(self):
         info = super().get_info()
         info.update({
@@ -46,6 +48,8 @@ class ReinforcementTrainer(Trainer):
             # reset env and episode
             self.state = self.env.reset()
             self.episode = Episode(episode_count)
+        elif mode == "test":
+            self._zero_reward_warning = False
         return 1
 
     def action(self):
@@ -94,7 +98,12 @@ class ReinforcementTrainer(Trainer):
         pass
 
     def process_episode(self, episode):
-        # override
+        # ignore zero-reward episodes
+        if np.count_nonzero(episode["reward"]) == 0:
+            if not self._zero_reward_warning:
+                self.warning("Ignoring episode(s) with zero rewards!")
+                self._zero_reward_warning = True
+            return False
         return True
 
     def get_batch(self, mode="train"):
