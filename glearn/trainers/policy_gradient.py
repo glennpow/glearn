@@ -3,12 +3,10 @@ import tensorflow as tf
 from glearn.trainers.reinforcement import ReinforcementTrainer
 
 
-class ReinforceTrainer(ReinforcementTrainer):
-    def __init__(self, config, gamma=0.95, **kwargs):
+class PolicyGradientTrainer(ReinforcementTrainer):
+    def __init__(self, config, gamma=0.95, V=None, **kwargs):
         self.gamma = gamma
-
-        self._zero_reward_warning = False
-        self._discount_episode_rewards = []
+        self.V_definition = V
 
         super().__init__(config, **kwargs)
 
@@ -18,36 +16,60 @@ class ReinforceTrainer(ReinforcementTrainer):
     def build_trainer(self):
         query = "policy_optimize"
         with tf.name_scope(query):
+            state = self.get_feed("X")
+            actions = self.get_feed("Y")
+
+            if self.V_definition:
+                V_network = self.build_network("V", self.V_definition, state)
+
             # build loss based on negative log prob of actions and discount rewards
             with tf.name_scope("loss"):
-                actions = self.get_feed("Y")
-                
+                # build -log(P(y))
                 policy_distribution = self.policy.network.get_distribution_layer()
                 neg_log_prob = policy_distribution.neg_log_prob(actions)
-                average_neg_log_prob = tf.reduce_mean(neg_log_prob)
 
+                # feed for discount rewards
                 discount_rewards = self.create_feed("discount_rewards", query, (None,))
-                average_discount_rewards = tf.reduce_mean(discount_rewards)
 
-                # policy_loss = tf.reduce_mean(average_neg_log_prob * average_discount_rewards)
-                policy_loss = tf.reduce_mean(neg_log_prob * discount_rewards)
+                if self.V_definition:
+                    # subtract optional baseline (build advantage)
+                    advantage = discount_rewards - V_network.outputs
+                    V_loss = tf.reduce_mean(tf.square(advantage))
+
+                    V_network.optimize_loss(V_loss, name="V_optimize")
+                else:
+                    # don't use baseline
+                    # advantage = discount_rewards
+
+                    # HACK - simple baseline
+                    baseline = tf.reduce_sum(state)
+                    advantage = discount_rewards - baseline
+
+                policy_loss = tf.reduce_mean(neg_log_prob * advantage)
             self.add_metric("policy_loss", policy_loss, query=query)
+            if self.V_definition:
+                self.add_metric("V_loss", V_loss, query="V_optimize")
 
             # minimize policy loss
             self.policy.optimize_loss(policy_loss, name=query)
 
             # DEBUG ====================
+            average_neg_log_prob = tf.reduce_mean(neg_log_prob)
             self.summary.add_scalar("neg_log_prob", average_neg_log_prob, query=query)
+            entropy = policy_distribution.entropy()
+            average_entropy = tf.reduce_mean(entropy)
+            self.summary.add_scalar("entropy", average_entropy, query=query)
+            # self.summary.add_histogram("entropy", entropy, query=query)
+            confidence = policy_distribution.prob(actions)
+            self.summary.add_histogram("confidence", confidence, query=query)
+            average_discount_rewards = tf.reduce_mean(discount_rewards)
+            self.summary.add_scalar("discount_rewards", average_discount_rewards, query=query)
 
             if self.output.discrete:
                 probs = policy_distribution.probs
                 probs = tf.transpose(probs)
                 for i in range(probs.shape[0]):
                     self.summary.add_histogram(f"prob_{i}", probs[i], query=query)
-
-            confidence = policy_distribution.prob(actions)
-            self.summary.add_histogram("confidence", confidence, query=query)
-            self.summary.add_scalar("discount_rewards", average_discount_rewards, query=query)
             # ==========================
 
     def calculate_discount_rewards(self, rewards):
@@ -67,39 +89,26 @@ class ReinforceTrainer(ReinforcementTrainer):
             discount_rewards /= std
         return discount_rewards
 
-    def reset(self, mode="train", **kwargs):
-        if mode == "test":
-            self._zero_reward_warning = False
-
-        return super().reset(**kwargs)
-
     def process_episode(self, episode):
+        if not super().process_episode(episode):
+            return False
+
         # compute discounted rewards
         discount_rewards = self.calculate_discount_rewards(episode["reward"])
         episode["discount_rewards"] = discount_rewards
 
-        # ignore zero-reward episodes
-        if np.count_nonzero(discount_rewards) == 0:
-            if not self._zero_reward_warning:
-                self.warning("Ignoring episode(s) with zero rewards!")
-                self._zero_reward_warning = True
-            return False
-
-        # track average discounted episode reward
-        # self._discount_episode_rewards.append(discount_rewards[0])
-
         return True
 
     def optimize(self, batch):
+        fetches = ["policy_optimize"]
         feed_map = batch.prepare_feeds()
-
-        # summary of discounted episode rewards
-        # average_episode_reward = np.mean(self._discount_episode_rewards)
-        # self._discount_episode_rewards = []
-        # self.summary.add_simple_value("discount_episode_reward", average_episode_reward)
 
         # feed discounted rewards
         feed_map["discount_rewards"] = batch["discount_rewards"]
 
+        # optimize baseline
+        if self.V_definition:
+            fetches.append("V_optimize")
+
         # run desired queries
-        return self.run(["policy_optimize"], feed_map)
+        return self.run(fetches, feed_map)

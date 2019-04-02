@@ -2,8 +2,7 @@ import time
 import numpy as np
 from glearn.trainers import Trainer
 from glearn.data.transition import Transition
-from glearn.data.episode import Episode
-from glearn.data.replay_buffer import ReplayBuffer
+from glearn.data.episode import Episode, EpisodeBuffer
 from glearn.utils.printing import print_update
 
 
@@ -19,7 +18,7 @@ class ReinforcementTrainer(Trainer):
 
         self.state = None
         self.episode = None
-        self.replay_buffer = ReplayBuffer(config, self)
+        self.buffer = EpisodeBuffer(config, self)
 
         self._zero_reward_warning = False
 
@@ -108,17 +107,17 @@ class ReinforcementTrainer(Trainer):
 
     def get_batch(self, mode="train"):
         # get env experience replay batch of episodes
-        return self.replay_buffer.get_batch(mode=mode)
+        return self.buffer.get_batch(mode=mode)
 
     def should_optimize(self):
         if not super().should_optimize():
             return False
-        return self.replay_buffer.is_ready()
+        return self.buffer.is_ready()
 
     def should_evaluate(self):
         if not super().should_evaluate():
             return False
-        return self.replay_buffer.is_ready()
+        return self.buffer.is_ready()
 
     def extra_evaluate_stats(self):
         return {
@@ -192,7 +191,7 @@ class ReinforcementTrainer(Trainer):
                     if done:
                         # process and store episode
                         if self.process_episode(self.episode):
-                            self.replay_buffer.add_episode(self.episode)
+                            self.buffer.add_episode(self.episode)
 
                         # track max episode reward
                         if self.max_episode_reward is None \
@@ -231,7 +230,7 @@ class ReinforcementTrainer(Trainer):
                         reset_evaluate_stats()
 
                     # prepare buffer for next epoch
-                    self.replay_buffer.update()
+                    self.buffer.update()
 
                     if self.experiment_yield(True):
                         return

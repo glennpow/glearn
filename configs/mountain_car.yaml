@@ -29,7 +29,7 @@
         max_grad_norm: 5
 
   trainer:
-    name: glearn.trainers:ReinforceTrainer
+    name: glearn.trainers:PolicyGradientTrainer
     args:
       epochs: 500
       # keep_prob: 0.8
