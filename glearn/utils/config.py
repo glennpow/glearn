@@ -275,9 +275,6 @@ class Config(object):
         # start summary logging and tensorboard
         self._start_summaries()
 
-        # start checkpoint saving/loading
-        self._start_checkpoints()
-
     def has(self, key):
         return key in self.current_properties
 
@@ -335,8 +332,10 @@ class Config(object):
             self.global_step_update = tf.assign(self.global_step, self.global_step + 1)
 
     def start_session(self):
-        # initialize all global variables
-        self.sess.run(tf.global_variables_initializer())
+        # start checkpoint saving/loading
+        if not self._start_checkpoints():
+            # initialize all global variables, if not loaded
+            self.sess.run(tf.global_variables_initializer())
 
     def close_session(self):
         if self.sess:
@@ -382,13 +381,10 @@ class Config(object):
         # init saver
         if self.save_path is None and self.load_path is None:
             self.saver = None
-            return
-        else:
-            # TODO - Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2, ...)
-            self.saver = tf.train.Saver()
+            return False
 
-        # load any previously saved data for the current version
-        self.load()
+        # TODO - Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2, ...)
+        self.saver = tf.train.Saver()
 
         # prepare save directory
         if self.save_path is not None:
@@ -396,14 +392,19 @@ class Config(object):
             os.makedirs(save_dir, exist_ok=True)
             self.dirty_meta_graph = True
 
+        # load any previously saved data for the current version
+        return self.load()
+
     def save(self):
         if self.training and self.save_path is not None:
             t0 = time.time()
-            save_path = self.saver.save(self.sess, self.save_path, global_step=self.global_step,
-                                        write_meta_graph=self.dirty_meta_graph)
+            save_path = self.saver.save(self.sess, self.save_path, global_step=self.global_step)
+            # , write_meta_graph=self.dirty_meta_graph)  # TODO - not sure if I ever need this
             self.dirty_meta_graph = False
 
             log(f"Saved model: {save_path}  ({time.time() - t0:.2} secs)")
+            return True
+        return False
 
     def load(self):
         if self.load_path is not None:
@@ -412,10 +413,13 @@ class Config(object):
             if load_checkpoint:
                 try:
                     log(f"Loading model: {load_checkpoint}")
+                    # log(tf.train.list_variables(load_checkpoint))
 
                     self.saver.restore(self.sess, load_checkpoint)
+                    return True
                 except Exception as e:
                     log_error(f"Failed to load model: {e}")
+        return False
 
 
 class Configurable(Loggable):
