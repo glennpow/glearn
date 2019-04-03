@@ -144,6 +144,9 @@ class Trainer(NetworkContext):
 
         return network
 
+    def get_network(self, name):
+        return self.networks.get(name)
+
     def prepare_feeds(self, queries, feed_map):
         if self.policy:
             self.policy.prepare_default_feeds(queries, feed_map)

@@ -4,22 +4,23 @@ from glearn.trainers.reinforcement import ReinforcementTrainer
 
 
 class PolicyGradientTrainer(ReinforcementTrainer):
-    def __init__(self, config, gamma=0.95, V=None, **kwargs):
+    def __init__(self, config, gamma=0.95, V=None, simple_baseline=False, **kwargs):
         self.gamma = gamma
         self.V_definition = V
+        self.simple_baseline = simple_baseline
 
         super().__init__(config, **kwargs)
 
     def on_policy(self):
-        return True  # False  # TODO - could be either for REINFORCE?
+        return True  # False  # TODO - could be either?
 
     def build_trainer(self):
+        # get the goods
         state = self.get_feed("X")
         actions = self.get_feed("Y")
 
         # build optional baseline
-        if self.V_definition:
-            V_network = self.build_network("V", self.V_definition, state)
+        baseline = self.build_baseline(state)
 
         query = "policy_optimize"
         with tf.name_scope(query):
@@ -32,27 +33,20 @@ class PolicyGradientTrainer(ReinforcementTrainer):
                 # feed for discount rewards
                 discount_rewards = self.create_feed("discount_rewards", query, (None,))
 
-                if self.V_definition:
-                    # subtract optional baseline (build advantage)
-                    advantage = discount_rewards - V_network.outputs
-                    # V_loss = tf.reduce_mean(tf.square(advantage))
-
-                    # V_network.optimize_loss(V_loss, name="V_optimize")
+                # subtract optional baseline (build advantage)
+                if baseline:
+                    advantage = discount_rewards - baseline
                 else:
-                    # don't use baseline
                     advantage = discount_rewards
 
-                    # HACK - simple baseline
-                    # baseline = tf.reduce_sum(state)
-                    # advantage = discount_rewards - baseline
-
+                # build policy loss
                 policy_loss = tf.reduce_mean(neg_log_prob * advantage)
             self.add_metric("policy_loss", policy_loss, query=query)
 
             # minimize policy loss
             self.policy.optimize_loss(policy_loss, name=query)
 
-            # DEBUG ====================
+            # ==================== DEBUG ====================
             average_neg_log_prob = tf.reduce_mean(neg_log_prob)
             self.summary.add_scalar("neg_log_prob", average_neg_log_prob, query=query)
             entropy = policy_distribution.entropy()
@@ -69,17 +63,38 @@ class PolicyGradientTrainer(ReinforcementTrainer):
                 probs = tf.transpose(probs)
                 for i in range(probs.shape[0]):
                     self.summary.add_histogram(f"prob_{i}", probs[i], query=query)
-            # ==========================
+            # ===============================================
 
+        # optimize optional baseline
+        self.optimize_baseline(advantage)
+
+    def build_baseline(self, state):
+        # build optional baseline
+        has_baseline = self.V_definition or self.simple_baseline
+        if has_baseline:
+            with tf.name_scope("baseline"):
+                if self.V_definition:
+                    # V-network baseline
+                    V_network = self.build_network("V", self.V_definition, state)
+                    return V_network.outputs
+                elif self.simple_baseline:
+                    # Simple baseline  (FIXME - One of Woj's suggestions.  ask him.)
+                    return tf.reduce_sum(state)  # TODO - some function of non-params
+        return None
+
+    def optimize_baseline(self, advantage):
+        # optimize baseline V-network
         if self.V_definition:
-            query = "V_optimize"
-            with tf.name_scope(query):
-                # optimize optional baseline
-                V_loss = tf.reduce_mean(tf.square(advantage))
+            with tf.name_scope("baseline/"):
+                query = "V_optimize"
+                with tf.name_scope(query):
+                    # MSE V-loss
+                    with tf.name_scope("loss"):
+                        V_loss = tf.reduce_mean(tf.square(advantage))
+                    self.add_metric("V_loss", V_loss, query=query)
 
-                V_network.optimize_loss(V_loss, name=query)
-
-                self.add_metric("V_loss", V_loss, query=query)
+                    # minimize V-loss
+                    self.networks["X"].optimize_loss(V_loss, name=query)
 
     def calculate_discount_rewards(self, rewards):
         # gather discounted rewards
