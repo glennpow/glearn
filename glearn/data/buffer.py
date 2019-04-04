@@ -128,6 +128,6 @@ class Buffer(object):
     def add_buffer(self, buffer):
         return self.add_samples(buffer.samples)
 
-    def prepare_feeds(self):
+    def get_feeds(self):
         # override
         raise NotImplementedError()

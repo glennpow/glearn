@@ -95,6 +95,11 @@ class ReinforcementTrainer(Trainer):
         V_network = self.build_network(name, definition, state)
         return V_network
 
+    def fetch_V(self, state, name="V"):
+        # fetch single value estimate for state
+        feed_map = {"X": [state]}
+        return self.fetch(name, feed_map, squeeze=True)
+
     def optimize_V(self, name="V"):
         query = f"{name}_optimize"
         with tf.name_scope(query):

@@ -122,7 +122,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             self.build_summary_images("generated", generated)
 
     def optimize(self, batch):
-        feed_map = batch.prepare_feeds()
+        feed_map = batch.get_feeds()
 
         # optimize discriminator-network
         for i in range(self.discriminator_steps):

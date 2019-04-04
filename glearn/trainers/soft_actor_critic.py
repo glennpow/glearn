@@ -182,7 +182,7 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
         return self.fetch(query, feed_map, squeeze=squeeze)
 
     def optimize(self, batch):
-        feed_map = batch.prepare_feeds()
+        feed_map = batch.get_feeds()
 
         # get next actions
         sampled_actions = self.fetch("predict", {"X": feed_map["X"]})
@@ -217,6 +217,8 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
         return {**Q_results, **V_results, **policy_results}
 
     def prepare_feeds(self, queries, feed_map):
+        super().prepare_feeds(queries, feed_map)
+
         if "evaluate" in queries:
             # get V-target
             target_V = self.fetch_V("target_V", self.batch["next_state"], squeeze=True)
@@ -225,5 +227,3 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
             feed_map["target_V"] = target_V
             feed_map["reward"] = self.batch["reward"]
             feed_map["done"] = self.batch["done"]
-
-        return super().prepare_feeds(queries, feed_map)

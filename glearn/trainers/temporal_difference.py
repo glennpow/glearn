@@ -3,6 +3,9 @@ from glearn.trainers.reinforcement import ReinforcementTrainer
 from glearn.utils.collections import intersects
 
 
+# TODO - deprecate
+
+
 class TemporalDifferenceTrainer(ReinforcementTrainer):
     def __init__(self, config, gamma=0.95, **kwargs):
         self.gamma = gamma
@@ -24,6 +27,8 @@ class TemporalDifferenceTrainer(ReinforcementTrainer):
         return self.fetch(self.current_value_name(), feed_map)
 
     def prepare_feeds(self, queries, feed_map):
+        super().prepare_feeds(queries, feed_map)
+
         if intersects(["policy_optimize", "V_optimize", "evaluate"], queries):
             # build value feed map with rewards
             if self.batch is not None:
@@ -35,5 +40,3 @@ class TemporalDifferenceTrainer(ReinforcementTrainer):
             else:
                 shape = np.shape(feed_map["X"])[:-1] + (1,)
                 feed_map["td_target"] = np.zeros(shape)
-
-        return super().prepare_feeds(queries, feed_map)

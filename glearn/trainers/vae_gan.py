@@ -65,7 +65,7 @@ class VAEGANTrainer(VariationalAutoencoderTrainer, GenerativeAdversarialNetworkT
             self.build_summary_images("generated", x_p)
 
     def optimize(self, batch):
-        feed_map = batch.prepare_feeds()
+        feed_map = batch.get_feeds()
 
         # optimize encoder-network
         encoder_results = self.run("encoder_optimize", feed_map)

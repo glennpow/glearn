@@ -50,7 +50,7 @@ class TransitionBuffer(Buffer):
     def transition_count(self):
         return self.sample_count()
 
-    def prepare_feeds(self):
+    def get_feeds(self):
         return {
             "X": self.samples["state"],
             "Y": self.samples["action"],

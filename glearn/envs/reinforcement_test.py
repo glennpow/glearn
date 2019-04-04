@@ -1,6 +1,5 @@
 import numpy as np
 import gym
-import copy
 from gym import spaces
 
 
@@ -35,7 +34,7 @@ class ReinforcementTestEnv(gym.Env):
         self.desired_index = 0
         self.state = np.zeros(self.obs_shape, self.obs_dtype)
         self.state[0] = self.desired[self.desired_index]
-        return copy.deepcopy(self.state)
+        return np.copy(self.state)
 
     def step(self, action):
         reward = 0
@@ -89,7 +88,7 @@ class ReinforcementTestEnv(gym.Env):
             self.state[0] += action
             reward = -np.abs(self.desired - self.state[0])
 
-        return copy.deepcopy(self.state), reward, done, {}
+        return np.copy(self.state), reward, done, {}
 
     def render(self, **kwargs):
         pass

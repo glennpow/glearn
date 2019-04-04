@@ -12,7 +12,7 @@ class DatasetBatch(Buffer):
 
         self.dataset = dataset
 
-    def prepare_feeds(self):
+    def get_feeds(self):
         return {
             "X": self.samples["X"],
             "Y": self.samples["Y"],

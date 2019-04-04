@@ -157,8 +157,6 @@ class Trainer(NetworkContext):
         else:
             feed_map["dropout"] = 1
 
-        return feed_map
-
     def run(self, queries, feed_map={}, render=True):
         if not isinstance(queries, list):
             queries = [queries]
@@ -169,7 +167,7 @@ class Trainer(NetworkContext):
                 queries.append("check_numerics")
 
         # run policy for queries with feeds
-        feed_map = self.prepare_feeds(queries, feed_map)
+        self.prepare_feeds(queries, feed_map)
         results = super().run(queries, feed_map)
 
         # view results
@@ -212,10 +210,14 @@ class Trainer(NetworkContext):
     def should_optimize(self):
         return self.training
 
+    def get_optimize_query(self, batch):
+        return "policy_optimize"
+
     def optimize(self, batch):
         # run default policy optimize query
-        feed_map = batch.prepare_feeds()
-        return self.run("policy_optimize", feed_map)
+        feed_map = batch.get_feeds()
+        query = self.get_optimize_query(batch)
+        return self.run(query, feed_map)
 
     def optimize_and_report(self, batch):
         results = self.optimize(batch)
@@ -253,7 +255,7 @@ class Trainer(NetworkContext):
 
             reporting = step == report_step
             self.batch = self.get_batch(mode="test")
-            feed_map = self.batch.prepare_feeds()
+            feed_map = self.batch.get_feeds()
 
             # run evaluate query
             results = self.run(query, feed_map, render=reporting)

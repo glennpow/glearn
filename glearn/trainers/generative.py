@@ -71,6 +71,8 @@ class GenerativeTrainer(UnsupervisedTrainer):
         super().evaluate()
 
     def prepare_feeds(self, queries, feed_map):
+        super().prepare_feeds(queries, feed_map)
+
         # set latent feed, if expected
         if self.has_feed("Z", queries):
             if self.fixed_evaluate_latent and "evaluate" in queries:
@@ -81,5 +83,3 @@ class GenerativeTrainer(UnsupervisedTrainer):
                 # every run uses random latent noise
                 latent = self.sample_noise(self.batch_size)
             feed_map["Z"] = latent
-
-        return super().prepare_feeds(queries, feed_map)

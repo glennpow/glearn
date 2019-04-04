@@ -92,7 +92,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
     def build_target(self, state, action, query=None):
         # feed for discount rewards
-        return self.create_feed("discount_rewards", shape=(None,), queries=query)
+        return self.create_feed("target", shape=(None,), queries=query)
 
     def build_baseline(self, state):
         # build optional baseline
@@ -117,14 +117,30 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
                 self.policy_network.add_loss(V_loss * self.V_coef)
 
-    def calculate_discount_rewards(self, rewards):
+    def calculate_discount_rewards(self, episode):
         # gather discounted rewards
+        rewards = episode["reward"]
+        dones = episode["done"]
         trajectory_length = len(rewards)
-        reward = 0
+        discount_reward = 0
+
+        # bootstrap incomplete episodes with estimated value
+        # bootstrapped = False
+        if self.V_definition:
+            if dones[-1] == 0:
+                last_value = self.fetch_V(episode["state"][-1])
+                discount_reward = last_value
+                # rewards = np.copy(rewards)
+                # dones = np.copy(dones)
+                # rewards.append(last_value)
+                # dones.append(0)
+                # bootstrapped = True
+
+        # discount reward for all transitions
         discount_rewards = np.zeros(trajectory_length, dtype=np.float32)
         for i in reversed(range(trajectory_length)):
-            reward = rewards[i] + self.gamma * reward
-            discount_rewards[i] = reward
+            discount_reward = rewards[i] + self.gamma * discount_reward * (1 - dones[i])
+            discount_rewards[i] = discount_reward
 
         # normalize
         mean = np.mean(discount_rewards)
@@ -132,6 +148,10 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         std = np.std(discount_rewards)
         if std > 0:
             discount_rewards /= std
+
+        # trim bootstrapped value
+        # if bootstrapped:
+        #     discount_rewards = discount_rewards[:-1]
         return discount_rewards
 
     def process_episode(self, episode):
@@ -139,20 +159,33 @@ class PolicyGradientTrainer(ReinforcementTrainer):
             return False
 
         # compute discounted rewards
-        episode["discount_rewards"] = self.calculate_discount_rewards(episode["reward"])
+        episode["target"] = self.calculate_discount_rewards(episode)
 
         return True
 
-    def optimize(self, batch):
-        fetches = ["policy_optimize"]
-        feed_map = batch.prepare_feeds()
+    def prepare_feeds(self, queries, feed_map):
+        super().prepare_feeds(queries, feed_map)
 
-        # feed discounted rewards
-        feed_map["discount_rewards"] = batch["discount_rewards"]
+        if self.is_optimize(queries):
+            # feed discounted rewards
+            feed_map["target"] = self.batch["target"]
+
+    def get_optimize_query(self, batch):
+        query = ["policy_optimize"]
 
         # optimize baseline
         if self.V_definition:
-            fetches.append("V_optimize")
+            query.append("V_optimize")
 
-        # run desired queries
-        return self.run(fetches, feed_map)
+        return query
+
+    # def optimize(self, batch):
+    #     fetches = ["policy_optimize"]
+    #     feed_map = batch.prepare_feeds()
+
+    #     # optimize baseline
+    #     if self.V_definition:
+    #         fetches.append("V_optimize")
+
+    #     # run desired queries
+    #     return self.run(fetches, feed_map)

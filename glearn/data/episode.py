@@ -1,5 +1,4 @@
 import time
-import copy
 import numpy as np
 from .transition import TransitionBuffer
 
@@ -159,7 +158,7 @@ class EpisodeBuffer(TransitionBuffer):
             idxs = np.random.choice(self.sample_count(), self.batch_size, replace=False)
 
         # slice out these batches
-        batch_samples = {key: copy.deepcopy(values[idxs]) for key, values in self.samples.items()}
+        batch_samples = {key: np.copy(values[idxs]) for key, values in self.samples.items()}
 
         # merge episode transitions
         return TransitionBuffer(mode=mode, samples=batch_samples)
