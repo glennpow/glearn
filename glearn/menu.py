@@ -1,6 +1,9 @@
 from glearn.utils.printing import print_tabular
 
 
+# TODO - menu of experiments to train/evaluate/etc.
+
+
 def menu():
     options = {}  # TODO - train/eval, debug/-, verbose/-, profile/-, random/-, ...version?
     option_count = 0

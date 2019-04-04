@@ -39,17 +39,18 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
 
         return kl_divergence
 
-    def build_vae_loss(self, x, decoded, loss_name="VAE_loss"):
+    def optimize_vae(self, x, decoded, loss_name="VAE_loss"):
         with tf.variable_scope("VAE_optimize"):
-            # losses
-            y = decoded
-            y = tf.clip_by_value(y, self.EPSILON, 1 - self.EPSILON)
-            x = tf.reshape(x, [-1, np.prod(x.shape[1:])])
-            marginal_likelihood = tf.reduce_sum(x * tf.log(y) + (1 - x) * tf.log(1 - y), 1)
-            marginal_likelihood = tf.reduce_mean(marginal_likelihood)
-            kl_divergence = self.build_kl_divergence()
-            elbo = marginal_likelihood - kl_divergence
-            loss = -elbo
+            with tf.name_scope("loss"):
+                # losses
+                y = decoded
+                y = tf.clip_by_value(y, self.EPSILON, 1 - self.EPSILON)
+                x = tf.reshape(x, [-1, np.prod(x.shape[1:])])
+                marginal_likelihood = tf.reduce_sum(x * tf.log(y) + (1 - x) * tf.log(1 - y), 1)
+                marginal_likelihood = tf.reduce_mean(marginal_likelihood)
+                kl_divergence = self.build_kl_divergence()
+                elbo = marginal_likelihood - kl_divergence
+                loss = -elbo
 
             # summaries
             self.add_metric("marginal_likelihood", marginal_likelihood)
@@ -77,7 +78,7 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
             decoded = self.build_decoder(encoded)
 
             # build VAE loss
-            self.build_vae_loss(x, decoded)
+            self.optimize_vae(x, decoded)
 
             # generated image summaries
             self.build_summary_images("decoded", decoded, labels=y)

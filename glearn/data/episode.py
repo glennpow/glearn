@@ -27,6 +27,7 @@ class EpisodeBuffer(TransitionBuffer):
                 f"EpisodeBuffer not large enough for batches: {size} > {self.batch_size}"
         circular = not self.trainer.on_policy()
 
+        # initialize as transition buffer
         super().__init__(size=size, circular=circular)
 
         self._total_epochs = 0
@@ -34,6 +35,14 @@ class EpisodeBuffer(TransitionBuffer):
         self._total_transitions = 0
         self._current_episodes = 0
         self._start_time = None
+
+    def get_info(self):
+        if self.batch_episodes:
+            return (f"(Episodes: {self._current_episodes} / {self.batch_size}, "
+                    f"Transitions: {self.transition_count()})")
+        else:
+            return (f"(Episodes: {self._current_episodes}, "
+                    f"Transitions: {self.transition_count()} / {self.batch_size})")
 
     @property
     def batch_size(self):
@@ -144,7 +153,7 @@ class EpisodeBuffer(TransitionBuffer):
         # collect batch of episodes
         if self.batch_episodes:
             idxs = np.array(range(self.sample_count()))
-        # elif self.trainer.on_policy():
+        # elif self.trainer.on_policy():  # FIXME - No?
         #     idxs = np.array(list(range(self.batch_size)))
         else:
             idxs = np.random.choice(self.sample_count(), self.batch_size, replace=False)
@@ -162,4 +171,5 @@ class EpisodeBuffer(TransitionBuffer):
 
         if self.trainer.on_policy():
             self.clear()
-        # TODO - could evict based on age here for off-policy
+
+        # TODO - could also evict based on age/etc. here for off-policy

@@ -37,7 +37,7 @@ class VAEGANTrainer(VariationalAutoencoderTrainer, GenerativeAdversarialNetworkT
             self.build_discriminator(x_p, False)
 
             # optimize discriminator with loss
-            gan_loss = self.build_discriminator_loss()
+            gan_loss = self.optimize_discriminator()
 
             # calculate reconstruction VAE loss
             with tf.name_scope("VAE_optimize"):

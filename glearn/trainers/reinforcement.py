@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import tensorflow as tf
 from glearn.trainers import Trainer
 from glearn.data.transition import Transition
 from glearn.data.episode import Episode, EpisodeBuffer
@@ -50,6 +51,92 @@ class ReinforcementTrainer(Trainer):
         elif mode == "test":
             self._zero_reward_warning = False
         return 1
+
+    def build_Q(self, state=None, action=None, count=1, name="Q", definition=None):
+        # prepare inputs
+        if state is None:
+            state = self.get_feed("X")
+        if action is None:
+            action = self.get_feed("Y")
+        Q_inputs = tf.concat([state, action], 1)
+        if definition is None:
+            definition = self.Q_definition
+
+        # build Q-networks
+        Q_networks = []
+        for i in range(count):
+            Q_name = f"{name}_{i + 1}" if count > 1 else name
+            Q_network = self.build_network(Q_name, definition, Q_inputs)
+            Q_networks.append(Q_network)
+        if count > 1:
+            return Q_networks
+        else:
+            return Q_networks[0]
+
+    def optimize_Q(self, td_error, name="Q"):
+        query = f"{name}_optimize"
+        with tf.name_scope(query):
+            Q_network = self.networks[name]
+
+            with tf.name_scope("loss"):
+                Q_loss = -td_error * deriv(Q(s, a))  # TODO
+
+            # minimize Q-loss
+            Q_network.optimize_loss(Q_loss)
+
+    def build_V(self, state=None, name="V", definition=None):
+        # prepare inputs
+        if state is None:
+            state = self.get_feed("X")
+        if definition is None:
+            definition = self.V_definition
+
+        # build V-network
+        V_network = self.build_network(name, definition, state)
+        return V_network
+
+    def optimize_V(self, name="V"):
+        query = f"{name}_optimize"
+        with tf.name_scope(query):
+            with tf.name_scope("loss"):
+                # advantage = self.get_advantage(target)
+                advantage = self.get_fetch("advantage")
+
+                # value loss minimizes squared advantage
+                # TODO - I think the constant could/should be represented as V_coef=0.5
+                V_loss = 0.5 * tf.reduce_mean(tf.square(advantage))
+
+                # averages
+                # V_value = tf.reduce_mean(value)
+                # V_target = tf.reduce_mean(target)
+                # V_advantage = tf.reduce_mean(advantage)
+
+            # summaries
+            # self.add_metric("value", V_value, query=query)
+            # self.add_metric("target", V_target, query=query)
+            # self.add_metric("advantage", V_advantage, query=query)
+            self.add_metric(f"{name}_loss", V_loss, query=query)
+
+            # minimize V-loss
+            self.networks[name].optimize_loss(V_loss, name=query)
+
+        return V_loss
+
+    def build_advantage(self, target, baseline, normalize=True, query=None):
+        # calculate advantage estimate (td_error), using td_target
+        advantage = target - baseline
+
+        # aborghi normalization
+        if normalize:
+            advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
+
+        # fetch
+        self.add_fetch("advantage", advantage)
+
+        # summary
+        self.add_metric("advantage", tf.reduce_mean(advantage), query=query)
+
+        return advantage
 
     def action(self):
         # decaying epsilon-greedy
@@ -207,9 +294,9 @@ class ReinforcementTrainer(Trainer):
                         # stats update
                         print_update(f"Simulating | Global Step: {self.current_global_step} "
                                      f"| Episode: {self.episode_count} "
-                                     f"| Time: {episode_time:.02} "
-                                     f"| Reward: {self.episode.reward} "
-                                     f"| Transitions: {self.episode.transition_count()}")
+                                     f"| Last Time: {episode_time:.02} "
+                                     f"| Last Reward: {self.episode.reward} "
+                                     f"| Buffer: {self.buffer.get_info()}")
 
                         break
 
