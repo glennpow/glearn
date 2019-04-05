@@ -46,7 +46,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
                 # build entropy loss
                 if self.ent_coef:
-                    entropy = policy_distribution.entropy()
+                    entropy = tf.reduce_mean(policy_distribution.entropy())
                     self.policy_network.add_loss(self.ent_coef * entropy)
             self.add_metric("policy_loss", policy_loss, query=query)
 
@@ -58,7 +58,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
             average_neg_log_prob = tf.reduce_mean(neg_log_prob)
             self.summary.add_scalar("neg_log_prob", average_neg_log_prob, query=query)
             if self.ent_coef:
-                self.summary.add_scalar("entropy", tf.reduce_mean(entropy), query=query)
+                self.summary.add_scalar("entropy", entropy, query=query)
                 # self.summary.add_histogram("entropy", entropy, query=query)
             confidence = policy_distribution.prob(action)
             self.summary.add_histogram("confidence", confidence, query=query)
@@ -79,7 +79,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         # subtract optional baseline
         baseline = self.build_baseline(state)
 
-        if baseline:
+        if baseline is not None:
             advantage = self.build_advantage(target, baseline, normalize=self.normalize_advantage,
                                              query=query)
 
@@ -112,10 +112,13 @@ class PolicyGradientTrainer(ReinforcementTrainer):
     def optimize_baseline(self):
         # optimize baseline V-network
         if self.V_definition:
-            with tf.name_scope("baseline/"):
+            with tf.name_scope("policy_optimize/baseline/"):
                 V_loss = self.optimize_V()
 
-                self.policy_network.add_loss(V_loss * self.V_coef)
+                if self.V_coef is not None:
+                    V_loss *= self.V_coef
+
+                self.policy_network.add_loss(V_loss)
 
     def calculate_discount_rewards(self, episode):
         # gather discounted rewards

@@ -28,29 +28,9 @@ class CategoricalDistributionLayer(DistributionLayer):
 
         return y
 
-    def reshaped_targets(self, targets):
-        return tf.squeeze(targets, axis=-1, name="reshape_targets")
-
     @property
     def probs(self):
         return self.distribution.probs
-
-    def prob(self, targets, name=None):
-        with tf.name_scope(name):
-            return super().prob(self.reshaped_targets(targets))
-
-    def log_prob(self, targets, name=None):
-        with tf.name_scope(name):
-            return super().log_prob(self.reshaped_targets(targets))
-
-    def neg_log_prob(self, targets, name=None):
-        with tf.name_scope(name):
-            return super().neg_log_prob(targets)
-
-        # FIXME? - slightly more efficient? (no double-negative)
-        # logits = self.references["logits"]
-        # labels = self.reshaped_targets(targets)
-        # neg_logp = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
 
     def build_loss(self, targets):
         # evaluate discrete loss

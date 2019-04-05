@@ -133,7 +133,8 @@ class ReinforcementTrainer(Trainer):
 
         # aborghi normalization
         if normalize:
-            advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
+            mean, std = tf.nn.moments(advantage, axes=[1])
+            advantage = (advantage - mean) / (std + 1e-8)
 
         # fetch
         self.add_fetch("advantage", advantage)
