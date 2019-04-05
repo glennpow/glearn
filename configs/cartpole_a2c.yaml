@@ -22,11 +22,12 @@
   trainer:
     name: glearn.trainers:AdvantageActorCriticTrainer
     args:
+      epochs: 1000
+      evaluate_interval: 10
+      gamma: 0.99
+      # V_coef: 0.5
       V:
         layers:
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [128, 1]
-      gamma: 0.99
-      epochs: 1000
-      evaluate_interval: 10

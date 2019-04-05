@@ -1,7 +1,7 @@
 --- # Mountain Car
   import: _base
 
-  env: MountainCar-v0
+  env: MountainCarContinuous-v0
 
   batch_size: 5
   episode_buffer:
@@ -15,7 +15,12 @@
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [64, 64]
-          - name: glearn.networks:CategoricalDistributionLayer
+          - name: glearn.networks:NormalDistributionLayer
+            # args:
+            #   squash: true
+          # - name: glearn.networks:DiscretizedDistributionLayer
+          #   args:
+          #     divs: 5
         optimizer: adam
         learning_rate: 2.0e-4  # 7.0e-4 (baselines)
         max_grad_norm: 0.5
@@ -24,9 +29,8 @@
     name: glearn.trainers:AdvantageActorCriticTrainer
     args:
       epochs: 500
+      evaluate_interval: 10
       gamma: 0.99
-      # keep_prob: 0.8
-      evaluate_interval: 1
       ent_coef: 0.01
       # V_coef: 0.5
       V:
@@ -35,5 +39,5 @@
             args:
               hidden_sizes: [64, 64, 1]
         optimizer: adam
-        learning_rate: 1.0e-4  # 7.0e-4 (baselines)
+        learning_rate: 1.0e-4  # 7.0e-4 (baselines
         max_grad_norm: 0.5

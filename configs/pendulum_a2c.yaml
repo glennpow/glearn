@@ -20,11 +20,16 @@
         max_grad_norm: 5
 
   trainer:
-    name: glearn.trainers:ReinforcementTrainer
+    name: glearn.trainers:AdvantageActorCriticTrainer
     args:
-      epochs: 500
-      keep_prob: 0.8
-      # epsilon: [1, 0.1, 10]
-      evaluate_interval: 1
+      epochs: 1000
+      evaluate_interval: 10
+      gamma: 0.99
+      # V_coef: 0.5
+      V:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [128, 1]
 
       

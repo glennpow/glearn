@@ -76,25 +76,19 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         # feed for discount rewards
         target = self.build_target(state, action, query=query)
 
-        # subtract optional baseline
-        baseline = self.build_baseline(state)
+        # build with optional subtracted baseline
+        expected_return = self.build_baseline_expected_return(state, target, query=query)
 
-        if baseline is not None:
-            advantage = self.build_advantage(target, baseline, normalize=self.normalize_advantage,
-                                             query=query)
+        if expected_return is None:
+            expected_return = target
 
-            # optimize optional baseline
-            self.optimize_baseline()
-
-            return advantage
-        else:
-            return target
+        return expected_return
 
     def build_target(self, state, action, query=None):
         # feed for discount rewards
         return self.create_feed("target", shape=(None,), queries=query)
 
-    def build_baseline(self, state):
+    def build_baseline_expected_return(self, state, target, query=None):
         # build optional baseline
         has_baseline = self.V_definition or self.simple_baseline
         if has_baseline:
@@ -102,23 +96,26 @@ class PolicyGradientTrainer(ReinforcementTrainer):
                 if self.V_definition:
                     # V-network baseline
                     V_network = self.build_V(state)
-                    # self.add_metric("V", V_network.outputs)
-                    return V_network.outputs
+                    baseline = V_network.outputs
                 elif self.simple_baseline:
                     # Simple baseline  (FIXME - One of Woj's suggestions.  ask him.)
-                    return tf.reduce_sum(state)  # TODO - some function of non-params
+                    baseline = tf.reduce_sum(state)  # TODO - some function of non-params
+
+                # build advantage by subtracting baseline from target
+                advantage = self.build_advantage(target, baseline,
+                                                 normalize=self.normalize_advantage, query=query)
+
+                # optimize baseline V-network
+                if self.V_definition:
+                    V_loss = self.optimize_V()
+
+                    if self.V_coef is not None:
+                        V_loss *= self.V_coef
+
+                    self.policy_network.add_loss(V_loss)
+
+            return advantage
         return None
-
-    def optimize_baseline(self):
-        # optimize baseline V-network
-        if self.V_definition:
-            with tf.name_scope("policy_optimize/baseline/"):
-                V_loss = self.optimize_V()
-
-                if self.V_coef is not None:
-                    V_loss *= self.V_coef
-
-                self.policy_network.add_loss(V_loss)
 
     def calculate_discount_rewards(self, episode):
         # gather discounted rewards
@@ -128,16 +125,10 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         discount_reward = 0
 
         # bootstrap incomplete episodes with estimated value
-        # bootstrapped = False
         if self.V_definition:
             if dones[-1] == 0:
                 last_value = self.fetch_V(episode["state"][-1])
                 discount_reward = last_value
-                # rewards = np.copy(rewards)
-                # dones = np.copy(dones)
-                # rewards.append(last_value)
-                # dones.append(0)
-                # bootstrapped = True
 
         # discount reward for all transitions
         discount_rewards = np.zeros(trajectory_length, dtype=np.float32)
@@ -151,10 +142,6 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         std = np.std(discount_rewards)
         if std > 0:
             discount_rewards /= std
-
-        # trim bootstrapped value
-        # if bootstrapped:
-        #     discount_rewards = discount_rewards[:-1]
         return discount_rewards
 
     def process_episode(self, episode):
@@ -181,14 +168,3 @@ class PolicyGradientTrainer(ReinforcementTrainer):
             query.append("V_optimize")
 
         return query
-
-    # def optimize(self, batch):
-    #     fetches = ["policy_optimize"]
-    #     feed_map = batch.prepare_feeds()
-
-    #     # optimize baseline
-    #     if self.V_definition:
-    #         fetches.append("V_optimize")
-
-    #     # run desired queries
-    #     return self.run(fetches, feed_map)
