@@ -6,4 +6,4 @@ class UnsupervisedTrainer(SupervisedTrainer):
         super().__init__(config, **kwargs)
 
     def learning_type(self):
-        return "supervised"
+        return "unsupervised"

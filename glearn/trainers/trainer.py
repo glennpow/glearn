@@ -213,7 +213,7 @@ class Trainer(NetworkContext):
         return self.training
 
     def get_optimize_query(self, batch):
-        return "policy_optimize"
+        return ["policy_optimize"]
 
     def optimize(self, batch):
         # run default policy optimize query

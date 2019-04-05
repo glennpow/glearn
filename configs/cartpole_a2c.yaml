@@ -31,7 +31,11 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [128, 1]
+              hidden_sizes: [128]
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1]
+              activation: null
         optimizer: adam
         learning_rate: [2.0e-2, 0.5, 60]
         max_grad_norm: 0.2

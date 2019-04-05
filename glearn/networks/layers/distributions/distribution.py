@@ -15,12 +15,16 @@ class DistributionLayer(NetworkLayer):
         return self.distribution.covariance(**kwargs)
 
     def cross_entropy(self, other, **kwargs):
+        if isinstance(other, DistributionLayer):
+            other = other.distribution
         return self.distribution.cross_entropy(other, **kwargs)
 
     def entropy(self, **kwargs):
         return self.distribution.entropy(**kwargs)
 
     def kl_divergence(self, other, **kwargs):
+        if isinstance(other, DistributionLayer):
+            other = other.distribution
         return self.distribution.kl_divergence(other, **kwargs)
 
     def reshaped_targets(self, targets):

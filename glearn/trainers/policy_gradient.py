@@ -135,12 +135,14 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         # bootstrap incomplete episodes with estimated value
         if self.V_definition:
             if dones[-1] == 0:
-                last_value = self.fetch_V(episode["state"][-1])
-                discount_reward = last_value
+                # TODO - could try to keep last_V around from rollouts
+                last_V = self.fetch_V(episode["state"][-1])
+                discount_reward = last_V
 
         # discount reward for all transitions
         discount_rewards = np.zeros(trajectory_length, dtype=np.float32)
         for i in reversed(range(trajectory_length)):
+            # FIXME - I don't think I need the (1 - dones[i]) term...
             discount_reward = rewards[i] + self.gamma * discount_reward * (1 - dones[i])
             discount_rewards[i] = discount_reward
 
@@ -169,7 +171,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
             feed_map["target"] = self.batch["target"]
 
     def get_optimize_query(self, batch):
-        query = ["policy_optimize"]
+        query = super().get_optimize_query(batch)
 
         # optimize baseline
         if self.V_definition:

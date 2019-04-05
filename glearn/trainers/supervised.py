@@ -1,5 +1,5 @@
 import time
-from glearn.trainers import Trainer
+from glearn.trainers.trainer import Trainer
 
 
 class SupervisedTrainer(Trainer):

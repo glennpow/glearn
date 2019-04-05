@@ -21,7 +21,7 @@
           - name: glearn.networks:NormalDistributionLayer
 
   trainer:
-    name: glearn.trainers:PPOTrainer
+    name: glearn.trainers:ProximalPolicyOptimizationTrainer
     args:
       critic:
         optimizer: adam
