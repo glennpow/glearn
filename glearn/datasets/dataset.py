@@ -82,17 +82,19 @@ class Dataset(object):
         self.heads[mode] = 0
         return self.get_epoch_size(mode=mode)
 
-    def get_inputs(self, mode="train"):
+    def get_inputs(self, context, mode="train"):
         if self.producer:
             return self.data[mode][0]
         else:
-            return tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
+            return context.create_feed("X", shape=(None,) + self.input.shape,
+                                       dtype=self.input.dtype)
 
-    def get_outputs(self, mode="train"):
+    def get_outputs(self, context, mode="train"):
         if self.producer:
             return self.data[mode][1]
         else:
-            return tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
+            return context.create_feed("Y", shape=(None,) + self.output.shape,
+                                       dtype=self.output.dtype)
 
     def get_epoch_size(self, mode="train"):
         if mode in self.epoch_size:

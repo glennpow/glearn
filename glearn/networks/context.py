@@ -72,16 +72,17 @@ class NetworkContext(Configurable):
 
     def create_feed(self, name, queries=None, shape=(), dtype=tf.float32):
         # create placeholder and set as feed
-        ph = tf.placeholder(dtype, shape, name=name)
-        self.set_feed(name, ph, queries)
-        return ph
+        with tf.variable_scope("feeds/"):
+            feed = tf.placeholder(dtype, shape, name=name)
+            self.set_feed(name, feed, queries)
+        return feed
 
     def get_or_create_feed(self, name, queries=None, shape=(), dtype=tf.float32):
         # get feed or create if none found
-        ph = self.get_feed(name, queries=queries)
-        if ph is None:
+        feed = self.get_feed(name, queries=queries)
+        if feed is None:
             return self.create_feed(name, queries, shape, dtype)
-        return ph
+        return feed
 
     def has_feed(self, name, queries=None):
         # does this feed already exist for queries

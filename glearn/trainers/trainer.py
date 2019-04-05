@@ -97,11 +97,13 @@ class Trainer(NetworkContext):
     def build_inputs(self):
         with tf.name_scope('feeds'):
             if self.has_dataset:
-                inputs = self.dataset.get_inputs()
-                outputs = self.dataset.get_outputs()
+                inputs = self.dataset.get_inputs(self)
+                outputs = self.dataset.get_outputs(self)
             else:
-                inputs = tf.placeholder(self.input.dtype, (None,) + self.input.shape, name="X")
-                outputs = tf.placeholder(self.output.dtype, (None,) + self.output.shape, name="Y")
+                inputs = self.create_feed("X", shape=(None,) + self.input.shape,
+                                          dtype=self.input.dtype)
+                outputs = self.create_feed("Y", shape=(None,) + self.output.shape,
+                                           dtype=self.output.dtype)
 
             # add reference to interfaces
             inputs.interface = self.input

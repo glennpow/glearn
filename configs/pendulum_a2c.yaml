@@ -13,8 +13,9 @@
             args:
               hidden_sizes: [128, 128]
           - name: glearn.networks:NormalDistributionLayer
-            # args:
-            #   squash: true
+            args:
+              mu_scale: 2
+              # squash: true
         optimizer: adam
         learning_rate: 2.0e-4
         max_grad_norm: 5
