@@ -32,7 +32,7 @@
       evaluate_interval: 10
       gamma: 0.99
       ent_coef: 0.01
-      # V_coef: 0.5
+      V_coef: 0.5
       V:
         layers:
           - name: glearn.networks:DenseLayer

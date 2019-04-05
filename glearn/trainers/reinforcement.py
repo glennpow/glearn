@@ -93,6 +93,7 @@ class ReinforcementTrainer(Trainer):
 
         # build V-network
         V_network = self.build_network(name, definition, state)
+
         return V_network
 
     def fetch_V(self, state, name="V"):
@@ -105,18 +106,9 @@ class ReinforcementTrainer(Trainer):
         with tf.name_scope(query):
             with tf.name_scope("loss"):
                 # value loss minimizes squared advantage
-                # TODO - I think the constant could/should be represented as V_coef=0.5
-                V_loss = 0.5 * tf.reduce_mean(tf.square(advantage))
-
-                # averages
-                # V_value = tf.reduce_mean(value)
-                # V_target = tf.reduce_mean(target)
-                # V_advantage = tf.reduce_mean(advantage)
+                V_loss = tf.reduce_mean(tf.square(advantage))
 
             # summaries
-            # self.add_metric("value", V_value, query=query)
-            # self.add_metric("target", V_target, query=query)
-            # self.add_metric("advantage", V_advantage, query=query)
             self.add_metric(f"{name}_loss", V_loss, query=query)
 
             # minimize V-loss

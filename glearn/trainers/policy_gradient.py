@@ -100,9 +100,15 @@ class PolicyGradientTrainer(ReinforcementTrainer):
                     # V-network baseline
                     V_network = self.build_V(state)
                     baseline = V_network.outputs
+
+                    # summary
+                    self.add_metric("V", tf.reduce_mean(baseline), query=query)
                 elif self.simple_baseline:
                     # Simple baseline  (FIXME - One of Woj's suggestions.  ask him.)
                     baseline = tf.reduce_sum(state)  # TODO - some function of non-params
+
+                    # summary
+                    self.add_metric("baseline", tf.reduce_mean(baseline), query=query)
 
                 # build advantage by subtracting baseline from target
                 advantage = self.build_advantage(target, baseline,

@@ -18,6 +18,7 @@
           - name: glearn.networks:CategoricalDistributionLayer
         optimizer: adam
         learning_rate: 0.02
+        max_grad_norm: 0.5
 
   trainer:
     name: glearn.trainers:AdvantageActorCriticTrainer
@@ -25,9 +26,12 @@
       epochs: 1000
       evaluate_interval: 10
       gamma: 0.99
-      # V_coef: 0.5
+      V_coef: 0.5
       V:
         layers:
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [128, 1]
+        optimizer: adam
+        learning_rate: [2.0e-2, 0.5, 60]
+        max_grad_norm: 0.2
