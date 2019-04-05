@@ -79,7 +79,7 @@ class ReinforcementTrainer(Trainer):
             Q_network = self.networks[name]
 
             with tf.name_scope("loss"):
-                Q_loss = -td_error * deriv(Q(s, a))  # TODO
+                Q_loss = -td_error * deriv(Q(s, a))  # TODO?
 
             # minimize Q-loss
             Q_network.optimize_loss(Q_loss)
@@ -100,13 +100,10 @@ class ReinforcementTrainer(Trainer):
         feed_map = {"X": [state]}
         return self.fetch(name, feed_map, squeeze=True)
 
-    def optimize_V(self, name="V"):
+    def optimize_V(self, advantage, name="V"):
         query = f"{name}_optimize"
         with tf.name_scope(query):
             with tf.name_scope("loss"):
-                # advantage = self.get_advantage(target)
-                advantage = self.get_fetch("advantage")
-
                 # value loss minimizes squared advantage
                 # TODO - I think the constant could/should be represented as V_coef=0.5
                 V_loss = 0.5 * tf.reduce_mean(tf.square(advantage))
@@ -128,18 +125,19 @@ class ReinforcementTrainer(Trainer):
         return V_loss
 
     def build_advantage(self, target, baseline, normalize=True, query=None):
-        # calculate advantage estimate (td_error), using td_target
-        advantage = target - baseline
+        with tf.name_scope("baseline_advantage"):
+            # calculate advantage estimate (td_error), using td_target
+            advantage = target - baseline
 
-        # aborghi normalization
-        if normalize:
-            mean, std = tf.nn.moments(advantage, axes=[1])
-            advantage = (advantage - mean) / (std + 1e-8)
+            # aborghi normalization
+            if normalize:
+                mean, std = tf.nn.moments(advantage, axes=[1])
+                advantage = (advantage - mean) / (std + 1e-8)
 
         # fetch
         self.add_fetch("advantage", advantage)
 
-        # summary
+        # summary  TODO - name conflict
         self.add_metric("advantage", tf.reduce_mean(advantage), query=query)
 
         return advantage

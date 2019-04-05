@@ -6,3 +6,6 @@ class AdvantageActorCriticTrainer(PolicyGradientTrainer):
         super().__init__(config, **kwargs)
 
         assert self.V_definition is not None
+
+    def get_baseline_scope(self):
+        return "critic"

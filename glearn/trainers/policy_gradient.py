@@ -28,12 +28,12 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
     def optimize_policy(self, state, action):
         self.policy_network = self.policy.network
-
         query = "policy_optimize"
-        with tf.name_scope(query):
-            # build expected return
-            expected_return = self.build_expected_return(state, action, query=query)
 
+        # build expected return
+        expected_return = self.build_expected_return(state, action, query=query)
+
+        with tf.variable_scope(query):
             # build loss: -log(P(y)) * (discount rewards - optional baseline)
             with tf.name_scope("loss"):
                 # build -log(P(y))
@@ -88,11 +88,14 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         # feed for discount rewards
         return self.create_feed("target", shape=(None,), queries=query)
 
+    def get_baseline_scope(self):
+        return "baseline"
+
     def build_baseline_expected_return(self, state, target, query=None):
         # build optional baseline
         has_baseline = self.V_definition or self.simple_baseline
         if has_baseline:
-            with tf.name_scope("baseline"):
+            with tf.variable_scope(self.get_baseline_scope()):
                 if self.V_definition:
                     # V-network baseline
                     V_network = self.build_V(state)
@@ -107,7 +110,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
                 # optimize baseline V-network
                 if self.V_definition:
-                    V_loss = self.optimize_V()
+                    V_loss = self.optimize_V(advantage)
 
                     if self.V_coef is not None:
                         V_loss *= self.V_coef
