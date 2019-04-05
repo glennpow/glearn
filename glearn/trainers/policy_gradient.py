@@ -47,7 +47,8 @@ class PolicyGradientTrainer(ReinforcementTrainer):
                 # build entropy loss
                 if self.ent_coef:
                     entropy = tf.reduce_mean(policy_distribution.entropy())
-                    self.policy_network.add_loss(self.ent_coef * entropy)
+                    entropy_loss = self.ent_coef * -entropy
+                    self.policy_network.add_loss(entropy_loss)
             self.add_metric("policy_loss", policy_loss, query=query)
 
             # minimize total policy loss
@@ -59,11 +60,9 @@ class PolicyGradientTrainer(ReinforcementTrainer):
             self.summary.add_scalar("neg_log_prob", average_neg_log_prob, query=query)
             if self.ent_coef:
                 self.summary.add_scalar("entropy", entropy, query=query)
-                # self.summary.add_histogram("entropy", entropy, query=query)
+                self.summary.add_scalar("entropy_loss", entropy_loss, query=query)
             confidence = policy_distribution.prob(action)
             self.summary.add_histogram("confidence", confidence, query=query)
-            # average_discount_rewards = tf.reduce_mean(discount_rewards)
-            # self.summary.add_scalar("discount_rewards", average_discount_rewards, query=query)
 
             if self.output.discrete:
                 probs = policy_distribution.probs

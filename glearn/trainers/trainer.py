@@ -229,7 +229,7 @@ class Trainer(NetworkContext):
         self.current_global_step = global_step
 
         # print log
-        print_update(f"Optimizing | Epoch: {self.epoch} | Global Step: {global_step}")
+        print_update(["Optimizing", f"Epoch: {self.epoch}", f"Global Step: {global_step}"])
         return results
 
     def should_evaluate(self):
@@ -253,7 +253,7 @@ class Trainer(NetworkContext):
         report_results = None
         report_feed_map = None
         for step in range(evaluate_steps):
-            print_update(f"Evaluating | Progress: {step}/{evaluate_steps}")
+            print_update(["Evaluating", f"Progress: {step} / {evaluate_steps}"])
 
             reporting = step == report_step
             self.batch = self.get_batch(mode="test")

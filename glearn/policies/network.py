@@ -6,7 +6,7 @@ from glearn.networks import load_network
 class NetworkPolicy(Policy):
     def __init__(self, config, context, network, scale_output=False, **kwargs):
         self.network_definition = network
-        self.scale_output = scale_output
+        self.scale_output = scale_output  # HACK - figure out way to avoid this
 
         super().__init__(config, context, **kwargs)
 

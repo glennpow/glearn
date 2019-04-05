@@ -18,7 +18,7 @@ def ensure_download(url, download_dir, extract=False):
 
         def report(count, block_size, total_size):
             pct_complete = min(1, float(count * block_size) / total_size)
-            print_update(f"Downloading | Progress: {pct_complete:.1%}")
+            print_update(["Downloading", f"Progress: {pct_complete:.1%}"])
 
         # download the file from the internet
         file_path, _ = urllib.request.urlretrieve(url=url, filename=file_path, reporthook=report)

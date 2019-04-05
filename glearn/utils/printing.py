@@ -61,6 +61,16 @@ def colorize(string, color, bold=False, highlight=False):
 
 
 def print_update(message, color=None, bold=False, highlight=False):
+    # format update info
+    if isinstance(message, list):
+        status = message[0]
+        info = message[1:]
+        status_border = "█"
+        info_border = "  ░  "
+        info_message = info_border.join(info)
+        message = f"{status_border}  {status}  {status_border}  {info_message}"
+
+    # print message and return to start of line
     if color is not None or bold or highlight:
         message = colorize(message, color, bold=bold, highlight=highlight)
     print(message, end="\r", flush=True)
@@ -98,8 +108,8 @@ def print_tabular(values, grouped=False, color=None, bold=False, show_type=True,
             header_widths[header] = header_width
             table_width = max(header_width, table_width)
 
-    # Write out the data ▓▒░
-    top = "┌" + ('▒' * table_width) + "┐"
+    # Write out the data █▓▒░
+    top = "┌" + ("▒" * table_width) + "┐"
     bottom = "└" + ('─' * table_width) + "┘"
     header_top = "├" + ('░' * table_width) + "┤"
     header_bottom = "├" + ('╶' * table_width) + "┤"
