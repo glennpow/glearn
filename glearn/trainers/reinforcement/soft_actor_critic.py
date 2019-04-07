@@ -1,6 +1,9 @@
 import tensorflow as tf
-from glearn.trainers.reinforcement import ReinforcementTrainer
+from .reinforcement import ReinforcementTrainer
 from glearn.networks import load_network
+
+
+# TODO - broken, FIXME
 
 
 class SoftActorCriticTrainer(ReinforcementTrainer):

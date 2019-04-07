@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from glearn.trainers.reinforcement import ReinforcementTrainer
+from .reinforcement import ReinforcementTrainer
 
 
 class PolicyGradientTrainer(ReinforcementTrainer):

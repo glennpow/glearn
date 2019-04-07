@@ -1,4 +1,4 @@
-from glearn.trainers.policy_gradient import PolicyGradientTrainer
+from .policy_gradient import PolicyGradientTrainer
 
 
 class AdvantageActorCriticTrainer(PolicyGradientTrainer):

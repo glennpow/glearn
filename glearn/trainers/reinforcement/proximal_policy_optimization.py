@@ -1,5 +1,5 @@
 import tensorflow as tf
-from glearn.trainers.advantage_actor_critic import AdvantageActorCriticTrainer
+from .advantage_actor_critic import AdvantageActorCriticTrainer
 
 
 class ProximalPolicyOptimizationTrainer(AdvantageActorCriticTrainer):

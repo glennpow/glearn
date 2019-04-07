@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from glearn.trainers.unsupervised import UnsupervisedTrainer
+from .unsupervised import UnsupervisedTrainer
 from glearn.datasets.labeled import LabeledDataset
 
 

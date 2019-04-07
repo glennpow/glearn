@@ -1,4 +1,4 @@
-from glearn.trainers.supervised import SupervisedTrainer
+from glearn.trainers.supervised.supervised import SupervisedTrainer
 
 
 class UnsupervisedTrainer(SupervisedTrainer):
