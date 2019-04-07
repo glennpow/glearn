@@ -134,11 +134,11 @@ class Trainer(NetworkContext):
                 # minimize policy loss
                 self.policy.optimize_loss(loss, name=query)
 
-    def build_network(self, name, definition, inputs, reuse=False):
+    def build_network(self, name, definition, inputs, queries=None, reuse=False):
         # build network output and add fetch
         network = load_network(name, self, definition)
         y = network.build_predict(inputs, reuse=reuse)
-        self.add_fetch(name, y)
+        self.add_fetch(name, y, queries=queries)
 
         # keep track of all networks
         if not reuse:
@@ -191,10 +191,8 @@ class Trainer(NetworkContext):
         # input as feed map
         feed_map = {"X": [inputs]}
 
-        # evaluate and extract single prediction
-        query = "predict"
-        results = self.run(query, feed_map)
-        return results[query][0]
+        # evaluate single inference
+        return self.run("predict", feed_map)
 
     def get_batch(self, mode="train"):
         # override

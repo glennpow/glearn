@@ -5,8 +5,9 @@ from glearn.trainers.reinforcement import ReinforcementTrainer
 
 class PolicyGradientTrainer(ReinforcementTrainer):
     def __init__(self, config, gamma=0.95, V=None, V_coef=None, normalize_advantage=True,
-                 ent_coef=None, simple_baseline=False, **kwargs):
+                 ent_coef=None, gae_lambda=None, simple_baseline=False, **kwargs):
         self.gamma = gamma
+        self.gae_lambda = gae_lambda
         self.V_definition = V
         self.V_coef = V_coef
         self.ent_coef = ent_coef
@@ -30,18 +31,22 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         self.policy_network = self.policy.network
         query = "policy_optimize"
 
-        # build expected return
-        expected_return = self.build_expected_return(state, action, query=query)
+        # feeds for targets
+        advantage = self.create_feed("advantage", shape=(None,), queries=query)
+
+        # build optional baseline
+        self.build_baseline(state)
 
         with tf.variable_scope(query):
-            # build loss: -log(P(y)) * (discount rewards - optional baseline)
+            # build loss: -log(P(y)) * (discount rewards or advantage)
             with tf.name_scope("loss"):
-                # build -log(P(y))
+                # # build -log(P(y))
                 policy_distribution = self.policy.network.get_distribution_layer()
-                neg_log_prob = policy_distribution.neg_log_prob(action)
+                # neg_log_prob = policy_distribution.neg_log_prob(action)
 
-                # build policy loss
-                policy_loss = tf.reduce_mean(neg_log_prob * expected_return)
+                # # build policy loss
+                # policy_loss = tf.reduce_mean(neg_log_prob * advantage)
+                policy_loss = self.build_policy_loss(action, advantage, query=query)
                 self.policy_network.add_loss(policy_loss)
 
                 # build entropy loss
@@ -53,52 +58,57 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
             # minimize total policy loss
             total_policy_loss = self.policy_network.build_total_loss()
-            self.policy.optimize_loss(total_policy_loss, name=query)
+            optimize = self.policy.optimize_loss(total_policy_loss, name=query)
 
-            # ==================== DEBUG ====================
-            average_neg_log_prob = tf.reduce_mean(neg_log_prob)
-            self.summary.add_scalar("neg_log_prob", average_neg_log_prob, query=query)
+            # summaries
+            self.summary.add_scalar("advantage", tf.reduce_mean(advantage), query=query)
             if self.ent_coef:
                 self.summary.add_scalar("entropy", entropy, query=query)
                 self.summary.add_scalar("entropy_loss", entropy_loss, query=query)
-            confidence = policy_distribution.prob(action)
-            self.summary.add_histogram("confidence", confidence, query=query)
+            self.summary.add_histogram("confidence", policy_distribution.prob(action), query=query)
 
             if self.output.discrete:
                 probs = policy_distribution.probs
                 probs = tf.transpose(probs)
                 for i in range(probs.shape[0]):
                     self.summary.add_histogram(f"prob_{i}", probs[i], query=query)
-            # ===============================================
 
-    def build_expected_return(self, state, action, query=None):
-        # feed for discount rewards
-        target = self.build_target(state, action, query=query)
+        return optimize
 
-        # build with optional subtracted baseline
-        expected_return = self.build_baseline_expected_return(state, target, query=query)
+    def build_policy_loss(self, action, advantage, query=None):
+        # build -log(P(y))
+        policy_distribution = self.policy.network.get_distribution_layer()
+        neg_log_prob = policy_distribution.neg_log_prob(action)
 
-        if expected_return is None:
-            expected_return = target
+        # summary
+        self.summary.add_scalar("neg_log_prob", tf.reduce_mean(neg_log_prob), query=query)
 
-        return expected_return
-
-    def build_target(self, state, action, query=None):
-        # feed for discount rewards
-        return self.create_feed("target", shape=(None,), queries=query)
+        # build policy loss
+        return tf.reduce_mean(neg_log_prob * advantage)
 
     def get_baseline_scope(self):
         return "baseline"
 
-    def build_baseline_expected_return(self, state, target, query=None):
+    def build_baseline(self, state):
         # build optional baseline
         has_baseline = self.V_definition or self.simple_baseline
         if has_baseline:
+            query = "predict"
             with tf.variable_scope(self.get_baseline_scope()):
                 if self.V_definition:
-                    # V-network baseline
-                    V_network = self.build_V(state)
+                    # build V-network baseline
+                    V_network = self.build_V(state, queries=query)
                     baseline = V_network.outputs
+
+                    # optimize V-network
+                    V_target = self.create_feed("V_target", shape=(None,), queries=query)
+                    V_loss = self.optimize_V(V_target)
+
+                    if self.V_coef is not None:
+                        V_loss *= self.V_coef
+
+                    # add V-loss to policy
+                    self.policy_network.add_loss(V_loss)
 
                     # summary
                     self.add_metric("V", tf.reduce_mean(baseline), query=query)
@@ -107,59 +117,68 @@ class PolicyGradientTrainer(ReinforcementTrainer):
                     baseline = tf.reduce_sum(state)  # TODO - some function of non-params
 
                     # summary
-                    self.add_metric("baseline", tf.reduce_mean(baseline), query=query)
+                    self.add_metric("V", tf.reduce_mean(baseline), query=query)
 
-                # build advantage by subtracting baseline from target
-                advantage = self.build_advantage(target, baseline,
-                                                 normalize=self.normalize_advantage, query=query)
-
-                # optimize baseline V-network
-                if self.V_definition:
-                    V_loss = self.optimize_V(advantage)
-
-                    if self.V_coef is not None:
-                        V_loss *= self.V_coef
-
-                    self.policy_network.add_loss(V_loss)
-
-            return advantage
-        return None
-
-    def calculate_discount_rewards(self, episode):
-        # gather discounted rewards
+    def calculate_targets(self, episode):
+        # gather rollout data
         rewards = episode["reward"]
         dones = episode["done"]
+        notdone = (1 - dones[-1])
         trajectory_length = len(rewards)
-        discount_reward = 0
+        future_reward = 0
 
         # bootstrap incomplete episodes with estimated value
-        if self.V_definition:
-            if dones[-1] == 0:
-                # TODO - could try to keep last_V around from rollouts
-                last_V = self.fetch_V(episode["state"][-1])
-                discount_reward = last_V
+        if "V" in episode:
+            V = episode["V"]
+            if notdone:
+                # TODO - implement look-ahead flow used by openai/baselines
+                last_V = self.fetch_V(episode["next_state"][-1])
+                future_reward = last_V
+        else:
+            V = np.zeros(trajectory_length, dtype=np.float32)
 
-        # discount reward for all transitions
-        discount_rewards = np.zeros(trajectory_length, dtype=np.float32)
+        # discount reward advantage for all transitions
+        advantage = np.zeros(trajectory_length, dtype=np.float32)
+        last_advantage = 0
         for i in reversed(range(trajectory_length)):
-            # FIXME - I don't think I need the (1 - dones[i]) term...
-            discount_reward = rewards[i] + self.gamma * discount_reward * (1 - dones[i])
-            discount_rewards[i] = discount_reward
+            if self.gae_lambda is not None:
+                # Generalized Advantage Estimate w/ Lambda
+                delta = rewards[i] + self.gamma * future_reward * notdone - V[i]
+                last_advantage = delta + self.gamma * self.gae_lambda * notdone * last_advantage
 
-        # normalize
-        mean = np.mean(discount_rewards)
-        discount_rewards = discount_rewards - mean
-        std = np.std(discount_rewards)
+                notdone = (1 - dones[i])
+                future_reward = V[i]
+            else:
+                # HACK - I don't think I need the (1 - dones[i]) term here...
+                last_advantage = rewards[i] + self.gamma * last_advantage * (1 - dones[i])
+                future_reward = last_advantage
+            advantage[i] = last_advantage
+
+        # calculate V-target (TD-target)
+        # TODO - I think this can be cleaner...  (can V be subtracted above in both cases?)
+        if self.gae_lambda is None:
+            V_target = advantage
+            advantage -= V
+        else:
+            V_target = advantage + V
+
+        # normalize advantage
+        mean = np.mean(advantage)
+        advantage = advantage - mean
+        std = np.std(advantage)
         if std > 0:
-            discount_rewards /= std
-        return discount_rewards
+            advantage /= std
+
+        # calculate advantage
+        episode["advantage"] = advantage
+        episode["V_target"] = V_target
 
     def process_episode(self, episode):
         if not super().process_episode(episode):
             return False
 
-        # compute discounted rewards
-        episode["target"] = self.calculate_discount_rewards(episode)
+        # compute discounted rewards / advantages
+        self.calculate_targets(episode)
 
         return True
 
@@ -168,7 +187,8 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
         if self.is_optimize(queries):
             # feed discounted rewards
-            feed_map["target"] = self.batch["target"]
+            feed_map["advantage"] = self.batch["advantage"]
+            feed_map["V_target"] = self.batch["V_target"]
 
     def get_optimize_query(self, batch):
         query = super().get_optimize_query(batch)

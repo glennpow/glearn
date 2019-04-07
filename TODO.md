@@ -1,5 +1,6 @@
 # Split trainers into supervised and reinforcement subfolders!
 # rename all 'queries' to 'query' for simplicity
+# avoid needing to store both 'state' and 'next_state' in rollouts.
 
 # dropout  FIXME - implement this like batch_norm, and check all appropriate queries...
 # fix tensorboard staying alive on Ctrl-C?

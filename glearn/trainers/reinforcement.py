@@ -54,7 +54,7 @@ class ReinforcementTrainer(Trainer):
             self._zero_reward_warning = False
         return 1
 
-    def build_Q(self, state=None, action=None, count=1, name="Q", definition=None):
+    def build_Q(self, state=None, action=None, count=1, name="Q", definition=None, queries=None):
         # prepare inputs
         if state is None:
             state = self.get_feed("X")
@@ -68,7 +68,7 @@ class ReinforcementTrainer(Trainer):
         Q_networks = []
         for i in range(count):
             Q_name = f"{name}_{i + 1}" if count > 1 else name
-            Q_network = self.build_network(Q_name, definition, Q_inputs)
+            Q_network = self.build_network(Q_name, definition, Q_inputs, queries=queries)
             Q_networks.append(Q_network)
         if count > 1:
             return Q_networks
@@ -86,7 +86,7 @@ class ReinforcementTrainer(Trainer):
             # minimize Q-loss
             Q_network.optimize_loss(Q_loss)
 
-    def build_V(self, state=None, name="V", definition=None):
+    def build_V(self, state=None, name="V", definition=None, queries=None):
         # prepare inputs
         if state is None:
             state = self.get_feed("X")
@@ -94,7 +94,7 @@ class ReinforcementTrainer(Trainer):
             definition = self.V_definition
 
         # build V-network
-        V_network = self.build_network(name, definition, state)
+        V_network = self.build_network(name, definition, state, queries=queries)
 
         return V_network
 
@@ -103,38 +103,22 @@ class ReinforcementTrainer(Trainer):
         feed_map = {"X": [state]}
         return self.fetch(name, feed_map, squeeze=True)
 
-    def optimize_V(self, advantage, name="V"):
+    def optimize_V(self, V_target, name="V"):
         query = f"{name}_optimize"
         with tf.name_scope(query):
             with tf.name_scope("loss"):
-                # value loss minimizes squared advantage
-                V_loss = tf.reduce_mean(tf.square(advantage))
+                # value loss minimizes squared td_error
+                V = self.get_fetch(name)
+                V_loss = tf.reduce_mean(tf.squared_difference(V, V_target))
 
             # summaries
             self.add_metric(f"{name}_loss", V_loss, query=query)
+            self.summary.add_scalar(f"{name}_target", tf.reduce_mean(V_target), query=query)
 
             # minimize V-loss
             self.networks[name].optimize_loss(V_loss, name=query)
 
         return V_loss
-
-    def build_advantage(self, target, baseline, normalize=True, query=None):
-        with tf.name_scope("baseline_advantage"):
-            # calculate advantage estimate (td_error), using td_target
-            advantage = target - baseline
-
-            # aborghi normalization
-            if normalize:
-                mean, std = tf.nn.moments(advantage, axes=[1])
-                advantage = (advantage - mean) / (std + 1e-8)
-
-        # fetch
-        self.add_fetch("advantage", advantage)
-
-        # summary  TODO - name conflict
-        self.add_metric("advantage", tf.reduce_mean(advantage), query=query)
-
-        return advantage
 
     def action(self):
         # decaying epsilon-greedy
@@ -147,14 +131,18 @@ class ReinforcementTrainer(Trainer):
         # get action
         if epsilon > 0 and np.random.random() < epsilon:
             # choose epsilon-greedy random action
-            return [self.output.sample()]
+            action = [self.output.sample()]
+            predict_info = {}
         else:
             # choose optimal policy action
-            return self.predict(self.state)
+            results = self.predict(self.state)
+            action = results.pop("predict")[0]
+            predict_info = results
+        return action, predict_info
 
     def rollout(self):
         # get action
-        action = self.action()
+        action, predict_info = self.action()
 
         # perform action
         step = self.episode_step
@@ -164,7 +152,11 @@ class ReinforcementTrainer(Trainer):
         env_action = action
         if self.output.discrete:
             env_action = env_action[0]  # HACK? - is this the case for all discrete envs?
-        next_state, reward, done, info = self.env.step(env_action)
+        next_state, reward, done, step_info = self.env.step(env_action)
+
+        # combine info
+        info = predict_info
+        info.update(step_info)
 
         # build and process transition
         transition = Transition(step, timestamp, state, action, reward, next_state, done, info)
