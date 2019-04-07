@@ -219,10 +219,10 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
 
         return {**Q_results, **V_results, **policy_results}
 
-    def prepare_feeds(self, queries, feed_map):
-        super().prepare_feeds(queries, feed_map)
+    def prepare_feeds(self, query, feed_map):
+        super().prepare_feeds(query, feed_map)
 
-        if "evaluate" in queries:
+        if "evaluate" in query:
             # get V-target
             target_V = self.fetch_V("target_V", self.batch["next_state"], squeeze=True)
 

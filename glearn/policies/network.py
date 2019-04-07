@@ -45,8 +45,8 @@ class NetworkPolicy(Policy):
     def optimize_loss(self, loss, name=None):
         return self.network.optimize_loss(loss, name=name)
 
-    def prepare_default_feeds(self, queries, feed_map):
-        feed_map = super().prepare_default_feeds(queries, feed_map)
+    def prepare_default_feeds(self, query, feed_map):
+        feed_map = super().prepare_default_feeds(query, feed_map)
 
         # add default feed values
-        return self.network.prepare_default_feeds(queries, feed_map)
+        return self.network.prepare_default_feeds(query, feed_map)

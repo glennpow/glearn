@@ -109,7 +109,7 @@ class NetworkLayer(object):
         # override
         return tf.constant(0, dtype=tf.float32), tf.constant(0, dtype=tf.float32)
 
-    def prepare_default_feeds(self, queries, feed_map):
+    def prepare_default_feeds(self, query, feed_map):
         # override
         return feed_map
 

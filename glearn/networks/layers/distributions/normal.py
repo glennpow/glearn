@@ -93,7 +93,7 @@ class NormalDistributionLayer(DistributionLayer):
 
         return loss, metrics
 
-    def prepare_default_feeds(self, queries, feed_map):
+    def prepare_default_feeds(self, query, feed_map):
         feed_map["dropout"] = 1
         return feed_map
 

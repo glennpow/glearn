@@ -32,7 +32,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         query = "policy_optimize"
 
         # feeds for targets
-        advantage = self.create_feed("advantage", shape=(None,), queries=query)
+        advantage = self.create_feed("advantage", shape=(None,), query=query)
 
         # build optional baseline
         self.build_baseline(state)
@@ -97,11 +97,11 @@ class PolicyGradientTrainer(ReinforcementTrainer):
             with tf.variable_scope(self.get_baseline_scope()):
                 if self.V_definition:
                     # build V-network baseline
-                    V_network = self.build_V(state, queries=query)
+                    V_network = self.build_V(state, query=query)
                     baseline = V_network.outputs
 
                     # optimize V-network
-                    V_target = self.create_feed("V_target", shape=(None,), queries=query)
+                    V_target = self.create_feed("V_target", shape=(None,), query=query)
                     V_loss = self.optimize_V(V_target)
 
                     if self.V_coef is not None:
@@ -182,10 +182,10 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
         return True
 
-    def prepare_feeds(self, queries, feed_map):
-        super().prepare_feeds(queries, feed_map)
+    def prepare_feeds(self, query, feed_map):
+        super().prepare_feeds(query, feed_map)
 
-        if self.is_optimize(queries):
+        if self.is_optimize(query):
             # feed discounted rewards
             feed_map["advantage"] = self.batch["advantage"]
             feed_map["V_target"] = self.batch["V_target"]

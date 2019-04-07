@@ -54,7 +54,7 @@ class ReinforcementTrainer(Trainer):
             self._zero_reward_warning = False
         return 1
 
-    def build_Q(self, state=None, action=None, count=1, name="Q", definition=None, queries=None):
+    def build_Q(self, state=None, action=None, count=1, name="Q", definition=None, query=None):
         # prepare inputs
         if state is None:
             state = self.get_feed("X")
@@ -68,7 +68,7 @@ class ReinforcementTrainer(Trainer):
         Q_networks = []
         for i in range(count):
             Q_name = f"{name}_{i + 1}" if count > 1 else name
-            Q_network = self.build_network(Q_name, definition, Q_inputs, queries=queries)
+            Q_network = self.build_network(Q_name, definition, Q_inputs, query=query)
             Q_networks.append(Q_network)
         if count > 1:
             return Q_networks
@@ -86,7 +86,7 @@ class ReinforcementTrainer(Trainer):
             # minimize Q-loss
             Q_network.optimize_loss(Q_loss)
 
-    def build_V(self, state=None, name="V", definition=None, queries=None):
+    def build_V(self, state=None, name="V", definition=None, query=None):
         # prepare inputs
         if state is None:
             state = self.get_feed("X")
@@ -94,7 +94,7 @@ class ReinforcementTrainer(Trainer):
             definition = self.V_definition
 
         # build V-network
-        V_network = self.build_network(name, definition, state, queries=queries)
+        V_network = self.build_network(name, definition, state, query=query)
 
         return V_network
 

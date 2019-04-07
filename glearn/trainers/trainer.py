@@ -134,11 +134,11 @@ class Trainer(NetworkContext):
                 # minimize policy loss
                 self.policy.optimize_loss(loss, name=query)
 
-    def build_network(self, name, definition, inputs, queries=None, reuse=False):
+    def build_network(self, name, definition, inputs, query=None, reuse=False):
         # build network output and add fetch
         network = load_network(name, self, definition)
         y = network.build_predict(inputs, reuse=reuse)
-        self.add_fetch(name, y, queries=queries)
+        self.add_fetch(name, y, query=query)
 
         # keep track of all networks
         if not reuse:
@@ -149,32 +149,32 @@ class Trainer(NetworkContext):
     def get_network(self, name):
         return self.networks.get(name)
 
-    def prepare_feeds(self, queries, feed_map):
+    def prepare_feeds(self, query, feed_map):
         if self.policy:
-            self.policy.prepare_default_feeds(queries, feed_map)
+            self.policy.prepare_default_feeds(query, feed_map)
 
         # dropout  FIXME - implement this like batch_norm
-        if self.is_optimize(queries):
+        if self.is_optimize(query):
             feed_map["dropout"] = self.keep_prob
         else:
             feed_map["dropout"] = 1
 
-    def run(self, queries, feed_map={}, render=True):
-        if not isinstance(queries, list):
-            queries = [queries]
+    def run(self, query, feed_map={}, render=True):
+        if not isinstance(query, list):
+            query = [query]
 
         # check numerics
         if self.debug_numerics:
-            if self.is_optimize(queries):
-                queries.append("check_numerics")
+            if self.is_optimize(query):
+                query.append("check_numerics")
 
-        # run policy for queries with feeds
-        self.prepare_feeds(queries, feed_map)
-        results = super().run(queries, feed_map)
+        # run policy for query with feeds
+        self.prepare_feeds(query, feed_map)
+        results = super().run(query, feed_map)
 
         # view results
         if render:
-            self.viewer.view_results(queries, feed_map, results)
+            self.viewer.view_results(query, feed_map, results)
 
         return results
 
@@ -198,8 +198,8 @@ class Trainer(NetworkContext):
         # override
         return None
 
-    def is_optimize(self, queries):
-        return np.any(["optimize" in query for query in queries])
+    def is_optimize(self, query):
+        return np.any(["optimize" in query_name for query_name in query])
 
     def pre_optimize(self, feed_map):
         pass
@@ -244,7 +244,7 @@ class Trainer(NetworkContext):
         # prepare dataset partition
         evaluate_steps = self.reset(mode="test")
 
-        # get batch data and desired queries
+        # get batch data and desired query
         eval_start_time = time.time()
         averaged_results = {}
         report_step = random.randrange(evaluate_steps)

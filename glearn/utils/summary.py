@@ -201,13 +201,13 @@ class SummaryWriter(object):
             return SUMMARY_KEY_PREFIX
         return f"{SUMMARY_KEY_PREFIX}{query}"
 
-    def prepare_fetches(self, fetches, queries=None):
-        if not isinstance(queries, list):
-            queries = [queries]
-        for query in queries:
-            fetch = self.get_fetch(query)
+    def prepare_fetches(self, fetches, query=None):
+        if not isinstance(query, list):
+            query = [query]
+        for query_name in query:
+            fetch = self.get_fetch(query_name)
             if fetch is not None:
-                fetches[self.get_query_key(query)] = fetch
+                fetches[self.get_query_key(query_name)] = fetch
 
     def process_results(self, results):
         results_keys = list(results.keys())
@@ -226,24 +226,24 @@ class SummaryWriter(object):
         return f"{query}/{name}"
 
     def flush(self, global_step=None):
-        # collect all relevant queries
-        queries = set(list(self.summary_results.keys()) + list(self.run_metadatas.keys()))
+        # collect all relevant query
+        query = set(list(self.summary_results.keys()) + list(self.run_metadatas.keys()))
 
         # flush summary data
-        for query in queries:
+        for query_name in query:
             # get writer
             path = os.path.abspath(self.summary_path)
-            if query is None:
-                query = DEFAULT_EVALUATE_QUERY
-            path = os.path.join(path, query)
-            if query in self.writers:
-                writer = self.writers[query]
+            if query_name is None:
+                query_name = DEFAULT_EVALUATE_QUERY
+            path = os.path.join(path, query_name)
+            if query_name in self.writers:
+                writer = self.writers[query_name]
             else:
                 writer = tf.summary.FileWriter(path, **self.kwargs)
-                self.writers[query] = writer
+                self.writers[query_name] = writer
 
             # write any summary results for query
-            summary_results = self.summary_results.pop(query, None)
+            summary_results = self.summary_results.pop(query_name, None)
             if summary_results is not None:
                 # write results
                 if len(summary_results.results) > 0:
@@ -256,10 +256,10 @@ class SummaryWriter(object):
                 writer.add_summary(simple_summary, global_step=global_step)
 
             # write any metadata results for query
-            run_metadata = self.run_metadatas.pop(query, None)
+            run_metadata = self.run_metadatas.pop(query_name, None)
             if run_metadata is not None:
-                if query is not None:
-                    tag = f"{query}/step{global_step}"
+                if query_name is not None:
+                    tag = f"{query_name}/step{global_step}"
                 else:
                     tag = f"step{global_step}"
                 writer.add_run_metadata(run_metadata, tag, global_step)

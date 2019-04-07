@@ -70,12 +70,12 @@ class GenerativeTrainer(UnsupervisedTrainer):
 
         super().evaluate()
 
-    def prepare_feeds(self, queries, feed_map):
-        super().prepare_feeds(queries, feed_map)
+    def prepare_feeds(self, query, feed_map):
+        super().prepare_feeds(query, feed_map)
 
         # set latent feed, if expected
-        if self.has_feed("Z", queries):
-            if self.fixed_evaluate_latent and "evaluate" in queries:
+        if self.has_feed("Z", query):
+            if self.fixed_evaluate_latent and "evaluate" in query:
                 # evaluate uses fixed latent noise
                 latent = self.evaluate_latents[self.evaluate_index]
                 self.evaluate_index += 1

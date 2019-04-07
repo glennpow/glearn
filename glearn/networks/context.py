@@ -53,61 +53,61 @@ class NetworkContext(Configurable):
         self.debug_runs = self.is_debugging("debug_runs")
         self.debug_runs_ignored = self.config.get("debug_runs_ignored", None)
 
-    def set_feed(self, name, value, queries=None):
+    def set_feed(self, name, value, query=None):
         # set feed node, for query or global (None)
-        if queries is None:
+        if query is None:
             # global query feed
-            queries = [GLOBAL_FEED_FAMILY]
+            query = [GLOBAL_FEED_FAMILY]
 
-        # apply to specified queries
-        if not isinstance(queries, list):
-            queries = [queries]
-        for query in queries:
-            if query in self.feeds:
-                query_feeds = self.feeds[query]
+        # apply to specified query
+        if not isinstance(query, list):
+            query = [query]
+        for query_name in query:
+            if query_name in self.feeds:
+                query_feeds = self.feeds[query_name]
             else:
                 query_feeds = {}
-                self.feeds[query] = query_feeds
+                self.feeds[query_name] = query_feeds
             query_feeds[name] = value
 
-    def create_feed(self, name, queries=None, shape=(), dtype=tf.float32):
+    def create_feed(self, name, query=None, shape=(), dtype=tf.float32):
         # create placeholder and set as feed
         with tf.variable_scope("feeds/"):
             feed = tf.placeholder(dtype, shape, name=name)
-            self.set_feed(name, feed, queries)
+            self.set_feed(name, feed, query)
         return feed
 
-    def get_or_create_feed(self, name, queries=None, shape=(), dtype=tf.float32):
+    def get_or_create_feed(self, name, query=None, shape=(), dtype=tf.float32):
         # get feed or create if none found
-        feed = self.get_feed(name, queries=queries)
+        feed = self.get_feed(name, query=query)
         if feed is None:
-            return self.create_feed(name, queries, shape, dtype)
+            return self.create_feed(name, query, shape, dtype)
         return feed
 
-    def has_feed(self, name, queries=None):
-        # does this feed already exist for queries
-        return self.get_feed(name, queries=queries) is not None
+    def has_feed(self, name, query=None):
+        # does this feed already exist for query
+        return self.get_feed(name, query=query) is not None
 
-    def get_feed(self, name, queries=None):
+    def get_feed(self, name, query=None):
         # find feed node for query name
-        query_feeds = self.get_feeds(queries=queries)
+        query_feeds = self.get_feeds(query=query)
         if name in query_feeds:
             return query_feeds[name]
         return None
 
-    def get_feeds(self, queries=None):
+    def get_feeds(self, query=None):
         # get all global feeds
         feeds = self.feeds.get(GLOBAL_FEED_FAMILY, {})
-        if queries is not None:
+        if query is not None:
             # merge with desired query feeds
-            if not isinstance(queries, list):
-                queries = [queries]
-            for query in queries:
-                feeds.update(self.feeds.get(query, {}))
+            if not isinstance(query, list):
+                query = [query]
+            for query_name in query:
+                feeds.update(self.feeds.get(query_name, {}))
         return feeds
 
-    def build_feed_dict(self, mapping, queries=None):
-        feeds = self.get_feeds(queries)
+    def build_feed_dict(self, mapping, query=None):
+        feeds = self.get_feeds(query)
         feed_dict = {}
         for key, value in mapping.items():
             if isinstance(key, str):
@@ -115,51 +115,51 @@ class NetworkContext(Configurable):
                     feed = feeds[key]
                     feed_dict[feed] = value
                 else:
-                    query_name = GLOBAL_FEED_FAMILY if queries is None else ", ".join(queries)
+                    query_name = GLOBAL_FEED_FAMILY if query is None else ", ".join(query)
                     self.error(f"Failed to find feed '{key}' for query: {query_name}")
             else:
                 feed_dict[key] = value
         return feed_dict
 
-    def add_fetch(self, name, value, queries=None):
-        # set fetch for queries (defaults to name)
-        if queries is None:
-            queries = [name]
-        elif not isinstance(queries, list):
-            queries = [queries]
+    def add_fetch(self, name, value, query=None):
+        # set fetch for query (defaults to name)
+        if query is None:
+            query = [name]
+        elif not isinstance(query, list):
+            query = [query]
 
-        # apply to specified queries
-        for query in queries:
-            if query in self.fetches:
-                query_fetches = self.fetches[query]
+        # apply to specified query
+        for query_name in query:
+            if query_name in self.fetches:
+                query_fetches = self.fetches[query_name]
             else:
                 query_fetches = {}
-                self.fetches[query] = query_fetches
+                self.fetches[query_name] = query_fetches
             query_fetches[name] = value
 
-    def is_fetch(self, name, queries=None):
-        return self.get_fetch(name, queries=queries) is not None
+    def is_fetch(self, name, query=None):
+        return self.get_fetch(name, query=query) is not None
 
-    def get_fetch(self, name, queries=None):
+    def get_fetch(self, name, query=None):
         # find feed node for query (defaults to name)
-        if queries is not None and not isinstance(queries, list):
-            queries = [queries]
-        for query, query_fetches in self.fetches.items():
-            if (queries is None or query in queries) and name in query_fetches:
+        if query is not None and not isinstance(query, list):
+            query = [query]
+        for query_name, query_fetches in self.fetches.items():
+            if (query is None or query_name in query) and name in query_fetches:
                 # return if found
                 return query_fetches[name]
         return None
 
-    def get_fetches(self, queries):
-        # get all fetches for specified queries
-        if not isinstance(queries, list):
-            queries = [queries]
+    def get_fetches(self, query):
+        # get all fetches for specified query
+        if not isinstance(query, list):
+            query = [query]
         fetches = {}
-        for query in queries:
-            fetches.update(self.fetches.get(query, {}))
+        for query_name in query:
+            fetches.update(self.fetches.get(query_name, {}))
 
         # also fetch summaries
-        self.summary.prepare_fetches(fetches, queries)
+        self.summary.prepare_fetches(fetches, query)
 
         return fetches
 
@@ -167,21 +167,21 @@ class NetworkContext(Configurable):
         # add a metric to log to console and summary
         if query is None:
             query = "evaluate"
-        self.add_fetch(name, value, queries=query)
+        self.add_fetch(name, value, query=query)
         self.summary.add_scalar(name, value, query=query)
 
-    def run(self, queries, feed_map):
+    def run(self, query, feed_map):
         # get configured fetches
-        fetches = self.get_fetches(queries)
+        fetches = self.get_fetches(query)
 
         if len(fetches) > 0:
             if self.debug_runs:
-                if not self.debug_runs_ignored or subtraction(queries, self.debug_runs_ignored):
-                    queries_s = ', '.join(queries)
+                if not self.debug_runs_ignored or subtraction(query, self.debug_runs_ignored):
+                    query_s = ', '.join(query)
                     fetches_s = ', '.join(list(fetches.keys()))
                     info = {
                         "Run": {
-                            "Queries": queries_s,
+                            "Queries": query_s,
                             "Fetches": fetches_s,
                         },
                         "Feeds": feed_map,
@@ -190,14 +190,14 @@ class NetworkContext(Configurable):
                     print_tabular(info, grouped=True, show_type=True, color="cyan", bold=True)
 
             # build final feed_dict
-            feed_dict = self.build_feed_dict(feed_map, queries=queries)
+            feed_dict = self.build_feed_dict(feed_map, query=query)
 
             # run query
             results = self.sess.run(fetches, feed_dict)
 
             return results
 
-        self.warning(f"No fetches found for queries: {queries}", once=True)
+        self.warning(f"No fetches found for query: {query}", once=True)
         return {}
 
     def optimize_loss(self, loss, networks=None, var_list=None, definition=None, name=None):
@@ -279,38 +279,38 @@ class NetworkContextProxy(Configurable):
 
         self.context = context
 
-    def set_feed(self, name, value, queries=None):
-        return self.context.set_feed(name, value, queries=queries)
+    def set_feed(self, name, value, query=None):
+        return self.context.set_feed(name, value, query=query)
 
-    def create_feed(self, name, queries=None, shape=(), dtype=tf.float32):
-        return self.context.create_feed(name, queries=queries, shape=shape, dtype=dtype)
+    def create_feed(self, name, query=None, shape=(), dtype=tf.float32):
+        return self.context.create_feed(name, query=query, shape=shape, dtype=dtype)
 
-    def get_or_create_feed(self, name, queries=None, shape=(), dtype=tf.float32):
-        return self.context.get_or_create_feed(name, queries=queries, shape=shape, dtype=dtype)
+    def get_or_create_feed(self, name, query=None, shape=(), dtype=tf.float32):
+        return self.context.get_or_create_feed(name, query=query, shape=shape, dtype=dtype)
 
     def get_feed(self, name, query=None):
         return self.context.get_feed(name, query=query)
 
-    def get_feeds(self, queries=None):
-        return self.context.get_feeds(queries=queries)
+    def get_feeds(self, query=None):
+        return self.context.get_feeds(query=query)
 
-    def build_feed_dict(self, mapping, queries=None):
-        return self.context.build_feed_dict(mapping=mapping, queries=queries)
+    def build_feed_dict(self, mapping, query=None):
+        return self.context.build_feed_dict(mapping=mapping, query=query)
 
-    def add_fetch(self, name, value, queries=None):
-        return self.context.add_fetch(name, value, queries=queries)
+    def add_fetch(self, name, value, query=None):
+        return self.context.add_fetch(name, value, query=query)
 
-    def is_fetch(self, name, queries=None):
-        return self.context.is_fetch(name, queries=queries)
+    def is_fetch(self, name, query=None):
+        return self.context.is_fetch(name, query=query)
 
-    def get_fetch(self, name, queries=None):
-        return self.context.get_fetch(name, queries=queries)
+    def get_fetch(self, name, query=None):
+        return self.context.get_fetch(name, query=query)
 
-    def get_fetches(self, queries):
-        return self.context.get_fetches(queries)
+    def get_fetches(self, query):
+        return self.context.get_fetches(query)
 
     def add_metric(self, name, value, query=None):
         self.context.add_metric(name, value, query=query)
 
-    def run(self, queries, feed_map):
-        return self.context.run(queries, feed_map=feed_map)
+    def run(self, query, feed_map):
+        return self.context.run(query, feed_map=feed_map)

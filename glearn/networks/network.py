@@ -148,10 +148,10 @@ class Network(Configurable):
     def optimize_loss(self, loss, name=None):
         return self.context.optimize_loss(loss, networks=[self], name=name)
 
-    def prepare_default_feeds(self, queries, feed_map):
+    def prepare_default_feeds(self, query, feed_map):
         # add default feed values
         for layer in self.layers:
-            feed_map = layer.prepare_default_feeds(queries, feed_map)
+            feed_map = layer.prepare_default_feeds(query, feed_map)
         return feed_map
 
     def clone(self, name, inputs=None, trainable=False):
