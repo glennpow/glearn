@@ -23,7 +23,7 @@ def get_function(identifier, **default_kwargs):
     else:
         # get entry point, and if necessary wrap with args
         entry_point = pkg_resources.EntryPoint.parse('x={}'.format(name))
-        result = entry_point.load(False)
+        result = entry_point.resolve()
 
     # default arguments wrapper
     if len(default_kwargs) > 0:
