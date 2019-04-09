@@ -5,6 +5,7 @@ import tensorflow as tf
 from subprocess import Popen
 from glearn.utils.log import log, log_warning
 from glearn.utils.path import remove_empty_dirs
+from glearn.utils import tf_utils
 
 
 SUMMARY_KEY_PREFIX = "_summary_"
@@ -22,6 +23,9 @@ class SummaryWriter(object):
     def __init__(self, config):
         self.config = config
         self.server = None
+
+        # TODO - measure the performance impact of all these sanitizations
+        self.debug_numerics = self.config.is_debugging("debug_numerics")
 
     @property
     def sess(self):
@@ -96,10 +100,15 @@ class SummaryWriter(object):
         tag = self.summary_scope(name, query)
 
         if not allow_overwrite and tag in summary_results.simple_summaries:
-            log_warning(f"Overwriting simple summary value: {tag}")
+            log_warning(f"Overwriting simple summary value: {tag}  "
+                        "(Use set_simple_value to avoid warning.)")
+
         summary_results.simple_summaries[tag] = tf.Summary.Value(tag=tag, **kwargs)
 
     def add_simple_value(self, name, value, query=None, allow_overwrite=False):
+        if self.debug_numerics:
+            value = np.nan_to_num(value)
+
         self.add_simple_summary(name, simple_value=value, query=query,
                                 allow_overwrite=allow_overwrite)
 
@@ -117,10 +126,16 @@ class SummaryWriter(object):
         return summary
 
     def add_scalar(self, name, tensor, query=None):
+        if self.debug_numerics:
+            tensor = tf_utils.nan_to_num(tensor)
+
         summary = tf.summary.scalar(name, tensor)
         return self.add_summary_value(name, summary, query=query)
 
     def add_histogram(self, name, values, query=None):
+        if self.debug_numerics:
+            values = tf_utils.nan_to_num(values)
+
         summary = tf.summary.histogram(name, values)
         return self.add_summary_value(name, summary, query=query)
 
@@ -144,6 +159,9 @@ class SummaryWriter(object):
             self.add_histogram(f"{name}/gradient", grad, query=query)
 
     def add_images(self, name, images, max_outputs=3, query=None):
+        if self.debug_numerics:
+            images = tf_utils.nan_to_num(images)
+
         summary = tf.summary.image(name, images, max_outputs=max_outputs)
         return self.add_summary_value(name, summary, query=query)
 
@@ -162,6 +180,9 @@ class SummaryWriter(object):
         # convert image to 3-channel
         if images.shape[-1] == 1:
             images = np.stack((np.squeeze(images, axis=-1),) * 3, axis=-1)
+
+        if self.debug_numerics:
+            images = np.nan_to_num(images)
 
         for i, image in enumerate(images):
             im_bytes = io.BytesIO()

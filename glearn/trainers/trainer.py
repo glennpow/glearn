@@ -24,7 +24,7 @@ class Trainer(NetworkContext):
 
         self.debug_evaluate_pause = self.is_debugging("debug_evaluate_pause")
         self.debug_memory = self.is_debugging("debug_memory")
-        self.debug_numerics = self.is_debugging("debug_numerics")
+        self.debug_raise_numerics = self.is_debugging("debug_raise_numerics")
 
         self.evaluate_interval = evaluate_interval
         self.keep_prob = keep_prob  # TODO - refactor
@@ -164,7 +164,7 @@ class Trainer(NetworkContext):
             query = [query]
 
         # check numerics
-        if self.debug_numerics:
+        if self.debug_raise_numerics:
             if self.is_optimize(query):
                 query.append("check_numerics")
 
@@ -380,7 +380,7 @@ class Trainer(NetworkContext):
             self.build_models(random=random)
 
             # check for invalid values in the current graph
-            if self.debug_numerics:
+            if self.debug_raise_numerics:
                 self.add_fetch("check_numerics", tf.add_check_numerics_ops())
 
             # start session

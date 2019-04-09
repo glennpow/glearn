@@ -26,8 +26,9 @@
   ## print periodic memory information
   # debug_memory: true
 
-  ## add numerics checks (NaNs, etc.)
+  ## add numerics sanitizers or exceptions (for NaNs, infs, etc.)
   # debug_numerics: true
+  # debug_raise_numerics: true
 
 
   ### Session Config

@@ -25,6 +25,8 @@ class ReinforcementTrainer(Trainer):
 
         self._zero_reward_warning = False
 
+        self.debug_numerics = self.config.is_debugging("debug_numerics")
+
     def get_info(self):
         info = super().get_info()
         info.update({
@@ -140,18 +142,30 @@ class ReinforcementTrainer(Trainer):
             predict_info = results
         return action, predict_info
 
+    def sanitize_action(self, action):
+        if self.debug_numerics:
+            # scrub non-numbers
+            if not np.any(np.isfinite(action)):
+                self.warning(f"Detected invalid action values: {action}", once=True)
+            action = np.nan_to_num(action)
+        if self.output.discrete:
+            # HACK? - this is probably not the case for multi-var envs?
+            action = action[0]
+        return action
+
     def rollout(self):
-        # get action
+        # choose action
         action, predict_info = self.action()
 
-        # perform action
+        # prepare to perform action
+        state = self.state
         step = self.episode_step
         timestamp = time.time()
 
-        state = self.state
-        env_action = action
-        if self.output.discrete:
-            env_action = env_action[0]  # HACK? - is this the case for all discrete envs?
+        # sanitize environment action
+        env_action = self.sanitize_action(action)
+
+        # step the environment and get results
         next_state, reward, done, step_info = self.env.step(env_action)
 
         # combine info
