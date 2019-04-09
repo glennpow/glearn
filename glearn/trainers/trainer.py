@@ -318,7 +318,7 @@ class Trainer(NetworkContext):
                 print_gpu_memory()
 
         # save model
-        self.config.save()
+        self.save()
 
         print()
 
@@ -379,14 +379,14 @@ class Trainer(NetworkContext):
             # build models
             self.build_models(random=random)
 
+            # check for invalid values in the current graph
+            if self.debug_numerics:
+                self.add_fetch("check_numerics", tf.add_check_numerics_ops())
+
             # start session
             self.config.start_session()
             if self.policy:
                 self.policy.start_session()
-
-            # check for invalid values in the current graph
-            if self.debug_numerics:
-                self.add_fetch("check_numerics", tf.add_check_numerics_ops())
 
             # prepare viewer
             self.viewer.prepare(self)

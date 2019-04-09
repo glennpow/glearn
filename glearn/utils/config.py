@@ -256,7 +256,7 @@ class Config(object):
         self.log_dir = f"{self.root_log_dir}/{self.current_evaluation + 1}"
         self.summary_path = f"{self.tensorboard_path}/{self.current_evaluation + 1}"
         self.save_path = f"{self.log_dir}/checkpoints/model.ckpt"
-        self.load_path = self.save_path if self.loading else None
+        self.load_path = self.save_path
 
         # create render viewer controller
         self.viewer = load_view_controller(self, render=self.rendering)
@@ -378,13 +378,40 @@ class Config(object):
             self.summary.stop()
 
     def _start_checkpoints(self):
-        # init saver
-        if self.save_path is None and self.load_path is None:
-            self.saver = None
-            return False
+        # check if there is a checkpoint
+        var_list = None
+        load_dir = os.path.dirname(self.load_path)
+        load_checkpoint = tf.train.latest_checkpoint(load_dir)
+
+        # check compatibility
+        if self.debugging and load_checkpoint:
+            model_variables = tf.get_collection_ref(tf.GraphKeys.GLOBAL_VARIABLES)
+            checkpoint_variables = tf.train.list_variables(load_checkpoint)
+            model_var_names = set()
+            var_list = set()
+            compatible_var_names = set()
+            for model_variable in model_variables:
+                model_var_name = model_variable.name.split(":")[0]
+                model_var_names.add(model_var_name)
+                model_var_shape = model_variable.shape
+                for checkpoint_var_name, checkpoint_var_shape in checkpoint_variables:
+                    if model_var_name == checkpoint_var_name:
+                        if model_var_shape == checkpoint_var_shape:
+                            var_list.add(model_variable)
+                            compatible_var_names.add(model_var_name)
+                            break
+            missing_var_names = model_var_names.difference(compatible_var_names)
+            checkpoint_var_names = set([name for name, _ in checkpoint_variables])
+            unused_variables = checkpoint_var_names.difference(compatible_var_names)
+            if len(missing_var_names) > 0:
+                var_str = "\n * ".join(missing_var_names)
+                log_warning(f"\nMissing model variables from checkpoint:\n * {var_str}")
+            if len(unused_variables) > 0:
+                var_str = "\n * ".join(unused_variables)
+                log_warning(f"\nUnused checkpoint variables by model:\n * {var_str}")
 
         # TODO - Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2, ...)
-        self.saver = tf.train.Saver()
+        self.saver = tf.train.Saver(var_list=var_list)
 
         # prepare save directory
         if self.save_path is not None:
@@ -393,7 +420,7 @@ class Config(object):
             self.dirty_meta_graph = True
 
         # load any previously saved data for the current version
-        return self.load()
+        return self.load(load_checkpoint)
 
     def save(self):
         if self.training and self.save_path is not None:
@@ -406,19 +433,15 @@ class Config(object):
             return True
         return False
 
-    def load(self):
-        if self.load_path is not None:
-            load_dir = os.path.dirname(self.load_path)
-            load_checkpoint = tf.train.latest_checkpoint(load_dir)
-            if load_checkpoint:
-                try:
-                    log(f"Loading model: {load_checkpoint}")
-                    # log(tf.train.list_variables(load_checkpoint))
+    def load(self, load_checkpoint):
+        if self.loading and load_checkpoint:
+            try:
+                log(f"Loading model: {load_checkpoint}")
 
-                    self.saver.restore(self.sess, load_checkpoint)
-                    return True
-                except Exception as e:
-                    log_error(f"Failed to load model: {e}")
+                self.saver.restore(self.sess, load_checkpoint)
+                return True
+            except Exception as e:
+                log_error(f"Failed to load model: {e}")
         return False
 
 
@@ -492,6 +515,9 @@ class Configurable(Loggable):
     @property
     def rendering(self):
         return self.config.rendering
+
+    def save(self):
+        self.config.save()
 
 
 def load_config(identifier, search_defaults=True, **kwargs):
