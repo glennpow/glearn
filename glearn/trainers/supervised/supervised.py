@@ -37,7 +37,7 @@ class SupervisedTrainer(Trainer):
 
             if self.training:
                 # current epoch summary
-                epoch_steps = self.reset(mode="train" if self.training else "test")
+                epoch_steps = self.reset()
                 global_epoch = self.current_global_step / epoch_steps
                 self.summary.add_simple_value("global_epoch", global_epoch)
 
