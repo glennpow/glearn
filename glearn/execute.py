@@ -34,5 +34,4 @@ def execute(config_path, training, version=None, render=False, debug=False, prof
     # allow local runs to keep tensorboard alive
     if config.local and not error:
         log("Experiment complete.  Press any key to terminate...")
-        time.sleep(0.1)
         getch()

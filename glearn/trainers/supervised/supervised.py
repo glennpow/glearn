@@ -29,38 +29,45 @@ class SupervisedTrainer(Trainer):
         # supervised training loop
         self.epoch = 0
 
-        while not self.training or self.epochs is None or self.epoch < self.epochs:
+        while self.running and (not self.training or not self.epochs or self.epoch < self.epochs):
             # start current epoch
             self.epoch += 1
             self.epoch_step = 0
             self.epoch_start_time = time.time()
 
+            # perform epoch
             if self.training:
-                # current epoch summary
-                epoch_steps = self.reset()
-                global_epoch = self.current_global_step / epoch_steps
-                self.summary.add_simple_value("global_epoch", global_epoch)
-
-                for step in range(epoch_steps):
-                    # epoch step
-                    self.epoch_step = step + 1
-
-                    # optimize batch
-                    self.batch = self.get_batch()
-                    self.optimize_and_report(self.batch)
-
-                    # evaluate if time to do so
-                    if self.should_evaluate():
-                        self.evaluate_and_report()
-
-                    if self.experiment_yield(True):
-                        return
+                self.train_epoch()
             else:
-                # current epoch summary
-                self.summary.add_simple_value("epoch", self.epoch)
+                self.evaluate_epoch()
 
-                # evaluate single epoch
+    def train_epoch(self):
+        # current epoch summary
+        epoch_steps = self.reset()
+        global_epoch = self.current_global_step / epoch_steps
+        self.summary.add_simple_value("global_epoch", global_epoch)
+
+        for step in range(epoch_steps):
+            # epoch step
+            self.epoch_step = step + 1
+
+            # optimize batch
+            self.batch = self.get_batch()
+            self.optimize_and_report(self.batch)
+
+            # evaluate if time to do so
+            if self.should_evaluate():
                 self.evaluate_and_report()
 
-                if self.experiment_yield(True):
-                    return
+            if self.experiment_yield(True):
+                return
+
+    def evaluate_epoch(self):
+        # current epoch summary
+        self.epoch_step = 1
+        self.summary.add_simple_value("epoch", self.epoch)
+
+        # evaluate single epoch
+        self.evaluate_and_report()
+
+        self.experiment_yield(True)
