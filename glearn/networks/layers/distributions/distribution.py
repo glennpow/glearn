@@ -1,4 +1,3 @@
-import tensorflow as tf
 from glearn.networks.layers.layer import NetworkLayer
 
 
@@ -27,20 +26,14 @@ class DistributionLayer(NetworkLayer):
             other = other.distribution
         return self.distribution.kl_divergence(other, **kwargs)
 
-    def reshaped_targets(self, targets):
-        return tf.squeeze(targets, axis=-1, name="reshape_targets")
+    def prob(self, value, **kwargs):
+        return self.distribution.prob(value, **kwargs)
 
-    def prob(self, targets, name="FIXME", **kwargs):
-        with tf.name_scope(name):  # FIXME - some sort of NOOP context if name=None
-            return self.distribution.prob(self.reshaped_targets(targets), **kwargs)
+    def log_prob(self, value, **kwargs):
+        return self.distribution.log_prob(value, **kwargs)
 
-    def log_prob(self, targets, name="FIXME", **kwargs):
-        with tf.name_scope(name):  # FIXME - some sort of NOOP context if name=None
-            return self.distribution.log_prob(self.reshaped_targets(targets), **kwargs)
-
-    def neg_log_prob(self, targets, name="FIXME", **kwargs):
-        with tf.name_scope(name):  # FIXME - some sort of NOOP context if name=None
-            return -self.distribution.log_prob(self.reshaped_targets(targets), **kwargs)
+    def neg_log_prob(self, value, **kwargs):
+        return -self.distribution.log_prob(value, **kwargs)
 
     def mean(self, **kwargs):
         return self.distribution.mean(**kwargs)

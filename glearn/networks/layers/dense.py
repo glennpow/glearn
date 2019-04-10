@@ -18,12 +18,6 @@ class DenseLayer(NetworkLayer):
         # get variables
         self.dropout = self.context.get_or_create_feed("dropout")
 
-        # initializers
-        weights_initializer = self.load_initializer(self.weights_initializer)
-        self.references["weights_initializer"] = weights_initializer
-        biases_initializer = self.load_initializer(self.biases_initializer)
-        self.references["weights_initializer"] = biases_initializer
-
         # prepare input
         input_size = np.prod(inputs.shape[1:])
         y = tf.reshape(tf.cast(inputs, tf.float32), (-1, input_size))
@@ -36,8 +30,8 @@ class DenseLayer(NetworkLayer):
                 hidden_size = self.context.output.size
 
             y = self.dense(y, hidden_size, self.dropout, self.activation,
-                           weights_initializer=weights_initializer,
-                           biases_initializer=biases_initializer,
+                           weights_initializer=self.weights_initializer,
+                           biases_initializer=self.biases_initializer,
                            weight_decay=self.weight_decay)
             layers.append(y)
         self.references["layers"] = layers

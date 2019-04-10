@@ -11,40 +11,36 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [400]
-          # - name: glearn.networks:DiscretizedDistributionLayer
-          #   args:
-          #     divs: 3
-          #     low: -2
-          #     high: 2
-          #     ent_coef: 1.0e-4
+              hidden_sizes: [64, 64]
           - name: glearn.networks:NormalDistributionLayer
+        optimizer: adam
+        learning_rate: 2.0e-4  # 7.0e-4
+        max_grad_norm: 0.5
 
   trainer:
     name: glearn.trainers:ProximalPolicyOptimizationTrainer
     args:
-      critic:
-        optimizer: adam
-        learning_rate: 0.00046415888336127773
-        max_grad_norm: 5
+      epochs: 1000
+      evaluate_interval: 10
+      gamma: 0.999
+      ent_coef: 2.782559402207126e-05
+      # keep_prob: 0.8
+
+      V_coef: 0.5
+      V:
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [100]
+              hidden_sizes: [64, 64]
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [1]
               activation: null
-      optimizer: adam
-      learning_rate: 1.0e-4
-      max_grad_norm: 5
-      gamma: 0.999
-      epochs: 100
-      ent_coef: 2.782559402207126e-05
-      # keep_prob: 0.8
-      evaluate_interval: 10
+        optimizer: adam
+        learning_rate: 0.00046415888336127773
+        max_grad_norm: 5
 
-  sweeps:
-    learning_rate: [1.0e-2, 1.0e-3, 1.0e-4]
+  # sweeps:
+  #   learning_rate: [1.0e-2, 1.0e-3, 1.0e-4]
     # "trainer.args.learning_rate": [1.0e-2, 1.0e-3, 1.0e-4]
     # "critic.learning_rate": [4.6e-1, 4.6e-2, 4.6e-4]

@@ -27,23 +27,22 @@ class SupervisedTrainer(Trainer):
 
     def experiment_loop(self):
         # supervised training loop
-        if self.training:
-            # train desired epochs
-            self.epoch = 0
+        self.epoch = 0
 
-            while self.epochs is None or self.epoch < self.epochs:
-                # start current epoch
-                self.epoch += 1
-                self.epoch_step = 0
-                self.epoch_start_time = time.time()
-                epoch_steps = self.reset()
+        while not self.training or self.epochs is None or self.epoch < self.epochs:
+            # start current epoch
+            self.epoch += 1
+            self.epoch_step = 0
+            self.epoch_start_time = time.time()
 
-                # epoch summary
+            if self.training:
+                # current epoch summary
+                epoch_steps = self.reset(mode="train" if self.training else "test")
                 global_epoch = self.current_global_step / epoch_steps
-                self.summary.add_simple_value("epoch", global_epoch)
+                self.summary.add_simple_value("global_epoch", global_epoch)
 
                 for step in range(epoch_steps):
-                    # epoch time
+                    # epoch step
                     self.epoch_step = step + 1
 
                     # optimize batch
@@ -56,8 +55,12 @@ class SupervisedTrainer(Trainer):
 
                     if self.experiment_yield(True):
                         return
-        else:
-            # evaluate single epoch
-            self.epoch = 1
-            self.epoch_start_time = time.time()
-            self.evaluate_and_report()
+            else:
+                # current epoch summary
+                self.summary.add_simple_value("epoch", self.epoch)
+
+                # evaluate single epoch
+                self.evaluate_and_report()
+
+                if self.experiment_yield(True):
+                    return

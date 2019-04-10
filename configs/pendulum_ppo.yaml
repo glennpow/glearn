@@ -30,6 +30,7 @@
       gamma: 0.95
       gae_lambda: 0.95
       ent_coef: 0.01
+
       V_coef: 0.5
       V:
         layers:

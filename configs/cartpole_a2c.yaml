@@ -26,6 +26,7 @@
       epochs: 1000
       evaluate_interval: 10
       gamma: 0.99
+
       V_coef: 0.5
       V:
         layers:

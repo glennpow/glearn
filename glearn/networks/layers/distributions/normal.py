@@ -28,22 +28,20 @@ class NormalDistributionLayer(DistributionLayer):
         # get variables
         dropout = self.context.get_or_create_feed("dropout")
 
-        # initializer
-        weights_initializer = self.load_initializer(self.weights_initializer,
-                                                    default=tf.contrib.layers.xavier_initializer())
-        biases_initializer = self.load_initializer(self.biases_initializer,
-                                                   default=tf.contrib.layers.xavier_initializer())
-
         # create dense layer for mu
         input_size = np.prod(inputs.shape[1:])
         x = tf.reshape(inputs, (-1, input_size))
         self.mu = self.dense(x, self.size, dropout, self.mu_activation,
-                             weights_initializer=weights_initializer,
-                             biases_initializer=biases_initializer)
+                             weights_initializer=self.weights_initializer,
+                             biases_initializer=self.biases_initializer)
         if self.mu_scale != 1:
             self.mu *= self.mu_scale
         self.references["mu"] = self.mu
-        self.summary.add_histogram("mu", self.mu)
+        if self.size == 1:
+            self.summary.add_histogram("mu", self.mu)
+        else:
+            for i in range(self.size):
+                self.summary.add_histogram(f"mu_{i}", self.mu[:, i])
 
         # mean L2 preactivation loss  (HACK?  this only works when |mu| should be = 0?)
         if self.l2_loss_coef is not None and self.l2_loss_coef > 0:
@@ -54,19 +52,23 @@ class NormalDistributionLayer(DistributionLayer):
 
         # create dense layer for sigma with scaling
         self.sigma = self.dense(x, self.size, dropout, self.sigma_activation,
-                                weights_initializer=weights_initializer,
-                                biases_initializer=biases_initializer)
+                                weights_initializer=self.weights_initializer,
+                                biases_initializer=self.biases_initializer)
         if self.sigma_scale != 1:
             self.sigma *= self.sigma_scale
         self.sigma += 1e-6
         self.references["sigma"] = self.sigma
-        self.summary.add_histogram("sigma", self.sigma)
+        if self.size == 1:
+            self.summary.add_histogram("sigma", self.sigma)
+        else:
+            for i in range(self.size):
+                self.summary.add_histogram(f"sigma_{i}", self.sigma[:, i])
 
         # normal distribution
         distribution = tf.distributions.Normal(loc=self.mu, scale=self.sigma)
         self.references["distribution"] = distribution
 
-        # tanh squashing (FIXME - see below)
+        # tanh squashing (FIXME - this didn't work)
         # if self.squash:
         #     self.bijector = TanhBijector()
         #     distribution = tfd.TransformedDistribution(distribution=distribution,
@@ -97,7 +99,14 @@ class NormalDistributionLayer(DistributionLayer):
         feed_map["dropout"] = 1
         return feed_map
 
-    # FIXME - these functions below are required only since the TanhBijector didn't work.
+    # FIXME - these functions below are required until tensorflow upgrade :-/
+
+    def prob(self, value, **kwargs):
+        if self.squash:
+            value = tf.atanh(value)
+        prob = super().prob(value, **kwargs)
+        prob = tf.reduce_prod(prob, axis=-1)
+        return prob
 
     def log_prob(self, value, **kwargs):
         if self.squash:
@@ -105,9 +114,11 @@ class NormalDistributionLayer(DistributionLayer):
             u = tf.atanh(value)
             correction = tf.reduce_sum(tf.log(1 - value ** 2 + EPSILON), axis=1)
             # correction = tf.reduce_sum(tf.log1p(-tf.square(value) + EPSILON), axis=1)
-            return super().log_prob(u, **kwargs) - correction
+            log_prob = super().log_prob(u, **kwargs) - correction
         else:
-            return super().log_prob(value, **kwargs)
+            log_prob = super().log_prob(value, **kwargs)
+        log_prob = tf.reduce_sum(log_prob, axis=-1)
+        return log_prob
 
     def mean(self, **kwargs):
         y = super().mean(**kwargs)
@@ -120,11 +131,6 @@ class NormalDistributionLayer(DistributionLayer):
         if self.squash:
             y = tf.tanh(y)
         return y
-
-    def prob(self, value, **kwargs):
-        if self.squash:
-            value = tf.atanh(value)
-        return super().prob(value, **kwargs)
 
     def sample(self, **kwargs):
         y = super().sample(**kwargs)

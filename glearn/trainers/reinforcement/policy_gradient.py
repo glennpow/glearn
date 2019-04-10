@@ -14,6 +14,8 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         self.normalize_advantage = normalize_advantage
         self.simple_baseline = simple_baseline
 
+        self.V_bootstrap = False
+
         super().__init__(config, **kwargs)
 
         # policy gradient only works for RL
@@ -38,14 +40,11 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         self.build_baseline(state)
 
         with tf.variable_scope(query):
-            # build loss: -log(P(y)) * (discount rewards or advantage)
+            # build policy loss
             with tf.name_scope("loss"):
-                # # build -log(P(y))
                 policy_distribution = self.policy.network.get_distribution_layer()
-                # neg_log_prob = policy_distribution.neg_log_prob(action)
 
                 # # build policy loss
-                # policy_loss = tf.reduce_mean(neg_log_prob * advantage)
                 policy_loss = self.build_policy_loss(action, advantage, query=query)
                 self.policy_network.add_loss(policy_loss)
 
@@ -127,40 +126,44 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         trajectory_length = len(rewards)
         future_reward = 0
 
-        # bootstrap incomplete episodes with estimated value
-        if "V" in episode:
+        # get available V
+        has_V = "V" in episode
+        if has_V:
             V = episode["V"]
-            if notdone:
-                # TODO - implement look-ahead flow used by openai/baselines
+
+            # bootstrap incomplete episodes with estimated value
+            if self.V_bootstrap and notdone:
+                # TODO - implement last_V look-ahead paradigm used by openai/baselines
                 last_V = self.fetch_V(episode["next_state"][-1])
                 future_reward = last_V
-        else:
-            V = np.zeros(trajectory_length, dtype=np.float32)
 
-        # discount reward advantage for all transitions
-        advantage = np.zeros(trajectory_length, dtype=np.float32)
-        last_advantage = 0
+        # calculate discount rewards & advantage for each step
+        targets = np.zeros(trajectory_length, dtype=np.float32)
+        last_target = 0
         for i in reversed(range(trajectory_length)):
             if self.gae_lambda is not None:
                 # Generalized Advantage Estimate w/ Lambda
                 delta = rewards[i] + self.gamma * future_reward * notdone - V[i]
-                last_advantage = delta + self.gamma * self.gae_lambda * notdone * last_advantage
+                last_target = delta + self.gamma * self.gae_lambda * notdone * last_target
 
                 notdone = (1 - dones[i])
                 future_reward = V[i]
             else:
-                # HACK - I don't think I need the (1 - dones[i]) term here...
-                last_advantage = rewards[i] + self.gamma * last_advantage * (1 - dones[i])
-                future_reward = last_advantage
-            advantage[i] = last_advantage
+                # Monte Carlo discount rewards
+                # FIXME - I don't think I *need* the (1 - dones[i]) term here...
+                last_target = rewards[i] + self.gamma * future_reward * (1 - dones[i])
+                future_reward = last_target
 
-        # calculate V-target (TD-target)
-        # TODO - I think this can be cleaner...  (can V be subtracted above in both cases?)
-        if self.gae_lambda is None:
-            V_target = advantage
-            advantage -= V
-        else:
-            V_target = advantage + V
+            targets[i] = last_target
+
+        # calculate V-target (TD-target) and advantage (TD-error)
+        if has_V:
+            if self.gae_lambda is None:
+                V_target = targets
+                advantage = targets - V
+            else:
+                advantage = targets
+                V_target = advantage + V
 
         # normalize advantage
         mean = np.mean(advantage)

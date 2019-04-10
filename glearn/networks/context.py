@@ -236,39 +236,43 @@ class NetworkContext(Configurable):
         grads_tvars = optimizer.compute_gradients(loss, var_list=var_list)
         grads_tvars = [(g, v) for (g, v) in grads_tvars if g is not None]
 
-        # check if we require unzipping grad/vars
-        max_grad_norm = definition.get("max_grad_norm", None)
-        require_unzip = debug_gradients or max_grad_norm is not None
-        if require_unzip:
-            grads, tvars = zip(*grads_tvars)
+        if len(grads_tvars) > 0:
+            # check if we require unzipping grad/vars
+            max_grad_norm = definition.get("max_grad_norm", None)
+            require_unzip = debug_gradients or max_grad_norm is not None
+            if require_unzip:
+                grads, tvars = zip(*grads_tvars)
 
-        # apply gradient clipping
-        if max_grad_norm is not None:
-            with tf.name_scope("clipped_gradients"):
-                grads, global_norm = tf.clip_by_global_norm(grads, max_grad_norm,
-                                                            name="clip_by_global_norm")
+            # apply gradient clipping
+            if max_grad_norm is not None:
+                with tf.name_scope("clipped_gradients"):
+                    grads, global_norm = tf.clip_by_global_norm(grads, max_grad_norm,
+                                                                name="clip_by_global_norm")
 
-                # metrics to observe clipped gradient ratio and global norm
-                div = global_norm + 1.0e-8
-                clipped_ratio = tf.maximum(global_norm - max_grad_norm, 0) / div
-                self.summary.add_scalar("global_norm", global_norm, query=name)
-                self.summary.add_scalar("clipped_ratio", clipped_ratio, query=name)
+                    # metrics to observe clipped gradient ratio and global norm
+                    div = global_norm + 1.0e-8
+                    clipped_ratio = tf.maximum(global_norm - max_grad_norm, 0) / div
+                    self.summary.add_scalar("global_norm", global_norm, query=name)
+                    self.summary.add_scalar("clipped_ratio", clipped_ratio, query=name)
 
-        if require_unzip:
-            grads_tvars = zip(grads, tvars)
+            if require_unzip:
+                grads_tvars = zip(grads, tvars)
 
-        # apply gradients
-        optimize = optimizer.apply_gradients(grads_tvars)
+            # apply gradients
+            optimize = optimizer.apply_gradients(grads_tvars)
 
-        # add learning rate and gradient summaries
-        self.summary.add_scalar("learning_rate", learning_rate, query=name)
-        if debug_gradients:
-            self.summary.add_variables(tvars, query=name)
-            self.summary.add_gradients(zip(grads, tvars), query=name)
+            # add learning rate and gradient summaries
+            self.summary.add_scalar("learning_rate", learning_rate, query=name)
+            if debug_gradients:
+                self.summary.add_variables(tvars, query=name)
+                self.summary.add_gradients(zip(grads, tvars), query=name)
 
-        # fetch
-        if name is not None:
-            self.add_fetch(name, optimize)
+            # fetch
+            if name is not None:
+                self.add_fetch(name, optimize)
+        else:
+            self.warning(f"No gradients found for optimization: {optimize_name}")
+            optimize = tf.no_op()
 
         return optimize
 

@@ -77,10 +77,6 @@ class Trainer(NetworkContext):
         return 1
 
     def build_models(self, random=False):
-        # initialize render viewer
-        if self.rendering:
-            self.init_viewer()
-
         # build input feeds
         self.build_inputs()
 
@@ -376,6 +372,10 @@ class Trainer(NetworkContext):
             self.paused = False
             self.start_time = time.time()
 
+            # initialize render viewer
+            if self.rendering:
+                self.init_viewer()
+
             # build models
             self.build_models(random=random)
 
@@ -420,9 +420,16 @@ class Trainer(NetworkContext):
                 self.policy.stop_session()
             self.config.close_session()
 
+            # cleanup render viewer
+            if self.rendering:
+                self.close_viewer()
+
     def init_viewer(self):
         # register for events from viewer
         self.viewer.add_listener(self)
+
+    def close_viewer(self):
+        self.viewer.close()
 
     def render(self, mode="human"):
         self.viewer.render()
@@ -472,7 +479,6 @@ class Trainer(NetworkContext):
         # feature visualization keys
         if key == pyglet.window.key.ESCAPE:
             self.warning("Experiment cancelled by user")
-            # self.viewer.close()
             self.running = False
         elif key == pyglet.window.key.SPACE:
             self.warning(f"Experiment {'unpaused' if self.paused else 'paused'} by user")

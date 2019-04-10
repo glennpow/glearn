@@ -32,6 +32,21 @@ class CategoricalDistributionLayer(DistributionLayer):
     def probs(self):
         return self.distribution.probs
 
+    def reshaped_targets(self, targets):
+        return tf.squeeze(targets, axis=-1, name="reshape_targets")
+
+    def prob(self, targets, name="FIXME", **kwargs):
+        with tf.name_scope(name):  # FIXME - some sort of NOOP context if name=None
+            return self.distribution.prob(self.reshaped_targets(targets), **kwargs)
+
+    def log_prob(self, targets, name="FIXME", **kwargs):
+        with tf.name_scope(name):  # FIXME - some sort of NOOP context if name=None
+            return self.distribution.log_prob(self.reshaped_targets(targets), **kwargs)
+
+    def neg_log_prob(self, targets, name="FIXME", **kwargs):
+        with tf.name_scope(name):  # FIXME - some sort of NOOP context if name=None
+            return -self.distribution.log_prob(self.reshaped_targets(targets), **kwargs)
+
     def build_loss(self, targets):
         # evaluate discrete loss
         loss = tf.reduce_mean(self.neg_log_prob(targets))
