@@ -1,0 +1,48 @@
+--- # Pendulum
+  import: _base
+
+  env: Pendulum-v0
+
+  batch_size: 10
+  episode_buffer:
+    batch_episodes: true
+
+  policy:
+    name: glearn.policies:NetworkPolicy
+    args:
+      network:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [64, 64]
+          - name: glearn.networks:NormalDistributionLayer
+            args:
+              mu_scale: 2
+        optimizer: adam
+        learning_rate: 3.0e-4
+        max_grad_norm: 5
+
+  trainer:
+    name: glearn.trainers:AdvantageActorCriticTrainer
+    args:
+      epochs: 1000
+      evaluate_interval: 10
+      gamma: 0.95
+      gae_lambda: 0.95
+      ent_coef: 0.01
+
+      V_coef: 0.5
+      V:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [64, 64]
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1]
+              activation: null
+        optimizer: adam
+        learning_rate: 1.0e-4
+        max_grad_norm: 5
+
+      

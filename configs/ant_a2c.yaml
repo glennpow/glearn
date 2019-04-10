@@ -1,0 +1,49 @@
+--- # CartPole
+  import: _base
+
+  env: glearn.envs.ant:AntEnv
+
+  batch_size: 20
+  episode_buffer:
+    batch_episodes: true
+
+  policy:
+    name: glearn.policies:NetworkPolicy
+    args:
+      network:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              # [10 x obs, sqrt(h0*h3), 10 x act]
+              hidden_sizes: [1110, 297, 80]
+          - name: glearn.networks:NormalDistributionLayer
+        optimizer: adam
+        # lr: 9e-4 / sqrt(h2)
+        learning_rate: 5.2e-5
+        max_grad_norm: 0.5
+
+  trainer:
+    name: glearn.trainers:AdvantageActorCriticTrainer
+    args:
+      epochs: 1000
+      evaluate_interval: 1
+      keep_prob: 0.8
+      gamma: 0.995
+      gae_lambda: 0.98
+      ent_coef: 0.01
+
+      V_coef: 0.5
+      V:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              # [10 x obs, sqrt(h0*h3), 5]
+              hidden_sizes: [1110, 74, 5]
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [1]
+              activation: null
+        optimizer: adam
+        # lr: 1e-2 / sqrt(h2)
+        learning_rate: 1.2e-3
+        max_grad_norm: 0.5

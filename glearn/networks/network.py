@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops import math_ops
 from glearn.utils.config import Configurable
@@ -164,18 +165,19 @@ class Network(Configurable):
         network.build_predict(inputs)
         return network
 
-    def update(self, network, tau=0, name=None):
+    def update(self, network, tau=None, name=None, query=None):
         if name is None:
             name = f"{self.name}_update"
         with tf.name_scope(name):
-            # build target policy update
+            # build target network update
             source_vars = network.global_variables()
             target_vars = self.global_variables()
-            if tau <= 0:
-                updates = [tp.assign(p) for p, tp in zip(source_vars, target_vars)]
+            var_map = zip(source_vars, target_vars)
+            if tau is None:
+                updates = [tp.assign(p) for p, tp in var_map]
             else:
-                updates = [tp.assign(tp * (1.0 - tau) + p * tau)
-                           for p, tp in zip(source_vars, target_vars)]
+                tau = np.clip(tau, 0, 1)
+                updates = [tp.assign(tp * (1.0 - tau) + p * tau) for p, tp in var_map]
             network_update = tf.group(*updates, name="update_parameters")
-            self.context.add_fetch(name, network_update)
+            self.context.add_fetch(name, network_update, query=query)
             return network_update

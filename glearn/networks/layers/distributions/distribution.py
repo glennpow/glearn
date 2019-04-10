@@ -33,7 +33,7 @@ class DistributionLayer(NetworkLayer):
         return self.distribution.log_prob(value, **kwargs)
 
     def neg_log_prob(self, value, **kwargs):
-        return -self.distribution.log_prob(value, **kwargs)
+        return -self.log_prob(value, **kwargs)
 
     def mean(self, **kwargs):
         return self.distribution.mean(**kwargs)

@@ -62,6 +62,7 @@ class ReinforcementTrainer(Trainer):
             state = self.get_feed("X")
         if action is None:
             action = self.get_feed("Y")
+        # FIXME - would be better to inject actions deeper in Q-network
         Q_inputs = tf.concat([state, action], 1)
         if definition is None:
             definition = self.Q_definition
