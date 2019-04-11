@@ -1,5 +1,6 @@
 import os
 import atexit
+import signal
 import numpy as np
 import tensorflow as tf
 from subprocess import Popen
@@ -65,10 +66,13 @@ class SummaryWriter(object):
 
     def start_server(self):
         if self.server is None:
+            def ignore_interrupt():
+                signal.signal(signal.SIGINT, signal.SIG_IGN)
+
             # start tensorboard server
             path = self.config.tensorboard_path
             port = 6006
-            self.server = Popen(["tensorboard", "--logdir", path])
+            self.server = Popen(["tensorboard", "--logdir", path], preexec_fn=ignore_interrupt)
             atexit.register(self.stop_server)
 
             log(f"Started tensorboard server: http://{self.config.ip}:{port}  ({path})")

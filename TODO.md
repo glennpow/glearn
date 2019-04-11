@@ -3,7 +3,6 @@
 # avoid needing to store both 'state' and 'next_state' in rollouts.
 
 # dropout  FIXME - implement this like batch_norm, and check all appropriate query...
-# fix tensorboard staying alive on Ctrl-C?
 # from "trainer.py", extract "evaluator.py", "optimizer.py", etc.  (and could subclass dataset/env versions)
 ? prepare_feeds should just look at fetches, not query (requires callback from policy.run to trainer)
 ? Load datasets using definitions paradigm?
