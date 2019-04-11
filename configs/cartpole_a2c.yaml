@@ -26,6 +26,7 @@
       epochs: 1000
       evaluate_interval: 10
       gamma: 0.99
+      gae_lambda: 0.95
 
       V_coef: 0.5
       V:
@@ -38,5 +39,5 @@
               hidden_sizes: [1]
               activation: null
         optimizer: adam
-        learning_rate: [2.0e-2, 0.5, 60]
-        max_grad_norm: 0.2
+        learning_rate: 0.2
+        max_grad_norm: 50

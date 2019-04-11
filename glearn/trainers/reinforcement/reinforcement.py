@@ -110,13 +110,14 @@ class ReinforcementTrainer(Trainer):
         query = f"{name}_optimize"
         with tf.name_scope(query):
             with tf.name_scope("loss"):
-                # value loss minimizes squared td_error
+                # V-loss is mean squared error
                 V = self.get_fetch(name)
-                V_loss = tf.reduce_mean(tf.squared_difference(V, V_target))
+                V_sqr_error = tf.squared_difference(V, V_target)
+                V_loss = tf.reduce_mean(V_sqr_error)
 
             # summaries
+            self.add_metric(f"{name}_target", tf.reduce_mean(V_target), query=query)
             self.add_metric(f"{name}_loss", V_loss, query=query)
-            self.summary.add_scalar(f"{name}_target", tf.reduce_mean(V_target), query=query)
 
             # minimize V-loss
             self.networks[name].optimize_loss(V_loss, name=query)

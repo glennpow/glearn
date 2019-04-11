@@ -147,6 +147,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         for i in reversed(range(trajectory_length)):
             if self.gae_lambda is None:
                 # Method 1 (simple): Monte Carlo
+                # :param gamma: Discount Factor
                 last_target = rewards[i] + self.gamma * future_reward
                 future_reward = last_target
             else:
