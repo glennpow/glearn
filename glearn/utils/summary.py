@@ -66,6 +66,7 @@ class SummaryWriter(object):
 
     def start_server(self):
         if self.server is None:
+            # tensorboard should ignore Ctrl-C interrupts, and only be terminated explicitly
             def ignore_interrupt():
                 signal.signal(signal.SIGINT, signal.SIG_IGN)
 
