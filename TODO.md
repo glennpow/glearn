@@ -1,4 +1,5 @@
-# Fix the goddamn name_scope/variable_scope nonsense (only use var?)
+# Fix the name_scope/variable_scope nonsense (only use var?)
+# generalize notion of target networks, so any network can really have a target version.
 # avoid needing to store both 'state' and 'next_state' in rollouts.
 
 # dropout  FIXME - implement this like batch_norm, and check all appropriate query...

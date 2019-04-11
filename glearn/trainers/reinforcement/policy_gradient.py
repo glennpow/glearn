@@ -124,6 +124,8 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         dones = episode["done"]
         notdone = (1 - dones[-1])
         trajectory_length = len(rewards)
+
+        # NOTE `notdone` isn't needed below, since future_reward will be set accordingly.
         future_reward = 0
 
         # get available V
@@ -137,26 +139,28 @@ class PolicyGradientTrainer(ReinforcementTrainer):
                 last_V = self.fetch_V(episode["next_state"][-1])
                 future_reward = last_V
 
-        # calculate discount rewards & advantage for each step
+        # calculate advantage from discounted rewards (TD-target) for each step
         targets = np.zeros(trajectory_length, dtype=np.float32)
+        if self.gae_lambda is not None:
+            gae_gamma_lambda = self.gamma * self.gae_lambda
         last_target = 0
         for i in reversed(range(trajectory_length)):
-            if self.gae_lambda is not None:
-                # Generalized Advantage Estimate w/ Lambda
-                delta = rewards[i] + self.gamma * future_reward * notdone - V[i]
-                last_target = delta + self.gamma * self.gae_lambda * notdone * last_target
-
-                notdone = (1 - dones[i])
-                future_reward = V[i]
-            else:
-                # Monte Carlo discount rewards
-                # FIXME - I don't think I *need* the (1 - dones[i]) term here...
-                last_target = rewards[i] + self.gamma * future_reward * (1 - dones[i])
+            if self.gae_lambda is None:
+                # Method 1 (simple): Monte Carlo
+                last_target = rewards[i] + self.gamma * future_reward
                 future_reward = last_target
+            else:
+                # Method 2 (improved): Generalized Advantage Estimate w/ Lambda
+                # :param gamma: Discount Factor
+                # :param lamda: Factor between [0, 1]  (0: TD w/ 1-step lookahead, 1: Monte Carlo)
+                # :local delta: TD-Residual (δ)
+                delta = rewards[i] + self.gamma * future_reward - V[i]
+                last_target = delta + gae_gamma_lambda * last_target
+                future_reward = V[i]
 
             targets[i] = last_target
 
-        # calculate V-target (TD-target) and advantage (TD-error)
+        # calculate advantage (TD-error)
         if has_V:
             if self.gae_lambda is None:
                 V_target = targets
