@@ -40,7 +40,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
         self.generator_network = self.build_generator_network("generator", definition)
         return self.generator_network.outputs
 
-    def optimize_discriminator(self, loss_name="discriminator_loss"):
+    def build_discriminator_optimize(self, loss_name="discriminator_loss"):
         with tf.variable_scope("discriminator_optimize"):
             # sum losses from all discriminator networks
             loss = 0
@@ -66,7 +66,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             self.discriminator_networks[0].optimize_loss(loss, name="discriminator_optimize")
         return loss
 
-    def optimize_generator(self, loss_name="generator_loss"):
+    def build_generator_optimize(self, loss_name="generator_loss"):
         with tf.variable_scope("generator_optimize"):
             # sum losses from all fake discriminator networks
             loss = 0
@@ -104,7 +104,7 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             generated = self.build_generator()
 
             # normalize real input
-            with tf.name_scope("normalize_images"):
+            with tf.variable_scope("normalize_images"):
                 x = self.get_feed("X")
                 x = x * 2 - 1  # normalize (-1, 1)
 
@@ -113,10 +113,10 @@ class GenerativeAdversarialNetworkTrainer(GenerativeTrainer):
             self.build_discriminator(generated, False)
 
             # optimize discriminator loss
-            self.optimize_discriminator()
+            self.build_discriminator_optimize()
 
             # optimize generator loss
-            self.optimize_generator()
+            self.build_generator_optimize()
 
             # summary images
             self.build_summary_images("generated", generated)

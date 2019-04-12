@@ -53,7 +53,7 @@ class NetworkContext(Configurable):
         self.debug_runs = self.is_debugging("debug_runs")
         self.debug_runs_ignored = self.config.get("debug_runs_ignored", None)
 
-    def set_feed(self, name, value, query=None):
+    def add_feed(self, name, value, query=None):
         # set feed node, for query or global (None)
         if query is None:
             # global query feed
@@ -70,18 +70,18 @@ class NetworkContext(Configurable):
                 self.feeds[query_name] = query_feeds
             query_feeds[name] = value
 
-    def create_feed(self, name, query=None, shape=(), dtype=tf.float32):
+    def create_feed(self, name, shape=(), dtype=tf.float32, query=None):
         # create placeholder and set as feed
         with tf.variable_scope("feeds/"):
             feed = tf.placeholder(dtype, shape, name=name)
-            self.set_feed(name, feed, query)
+            self.add_feed(name, feed, query)
         return feed
 
-    def get_or_create_feed(self, name, query=None, shape=(), dtype=tf.float32):
+    def get_or_create_feed(self, name, shape=(), dtype=tf.float32, query=None):
         # get feed or create if none found
         feed = self.get_feed(name, query=query)
         if feed is None:
-            return self.create_feed(name, query, shape, dtype)
+            return self.create_feed(name, shape, dtype, query)
         return feed
 
     def has_feed(self, name, query=None):
@@ -245,7 +245,7 @@ class NetworkContext(Configurable):
 
             # apply gradient clipping
             if max_grad_norm is not None:
-                with tf.name_scope("clipped_gradients"):
+                with tf.variable_scope("clipped_gradients"):
                     grads, global_norm = tf.clip_by_global_norm(grads, max_grad_norm,
                                                                 name="clip_by_global_norm")
 
@@ -283,14 +283,14 @@ class NetworkContextProxy(Configurable):
 
         self.context = context
 
-    def set_feed(self, name, value, query=None):
-        return self.context.set_feed(name, value, query=query)
+    def add_feed(self, name, value, query=None):
+        return self.context.add_feed(name, value, query=query)
 
-    def create_feed(self, name, query=None, shape=(), dtype=tf.float32):
-        return self.context.create_feed(name, query=query, shape=shape, dtype=dtype)
+    def create_feed(self, name, shape=(), dtype=tf.float32, query=None):
+        return self.context.create_feed(name, shape=shape, dtype=dtype, query=query)
 
-    def get_or_create_feed(self, name, query=None, shape=(), dtype=tf.float32):
-        return self.context.get_or_create_feed(name, query=query, shape=shape, dtype=dtype)
+    def get_or_create_feed(self, name, shape=(), dtype=tf.float32, query=None):
+        return self.context.get_or_create_feed(name, shape=shape, dtype=dtype, query=query)
 
     def get_feed(self, name, query=None):
         return self.context.get_feed(name, query=query)

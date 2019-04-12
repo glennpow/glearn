@@ -18,18 +18,15 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
         super().__init__(config, **kwargs)
 
-        # policy gradient only works for RL
-        assert self.has_env
-
     def build_trainer(self):
         # get the inputs
         state = self.get_feed("X")
         action = self.get_feed("Y")
 
         # optimize policy
-        self.optimize_policy(state, action)
+        self.build_policy_optimize(state, action)
 
-    def optimize_policy(self, state, action):
+    def build_policy_optimize(self, state, action):
         self.policy_network = self.policy.network
         query = "policy_optimize"
 
@@ -41,7 +38,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
         with tf.variable_scope(query):
             # build policy loss
-            with tf.name_scope("loss"):
+            with tf.variable_scope("loss"):
                 policy_distribution = self.policy.network.get_distribution_layer()
 
                 # # build policy loss
@@ -101,7 +98,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
                     # optimize V-network
                     V_target = self.create_feed("V_target", shape=(None,), query=query)
-                    V_loss = self.optimize_V(V_target)
+                    _, V_loss = V_network.optimize_mse(V_target)
 
                     if self.V_coef is not None:
                         V_loss *= self.V_coef

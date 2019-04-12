@@ -368,7 +368,7 @@ class Config(object):
     def write_sweep_summary(self):
         # write any sweep info to tensorboard
         if self.current_sweep is not None:
-            with tf.name_scope("sweep"):
+            with tf.variable_scope("sweep"):
                 tensor = tf.stack([tf.convert_to_tensor([k, str(v)])
                                    for k, v in self.current_sweep.items()])
                 self.summary.write_text("hyperparameters", tensor)

@@ -40,19 +40,18 @@ class Conv2dLayer(NetworkLayer):
         features = []
         for i, filter in enumerate(self.filters):
             scope = f"conv2d_{self.index}_{i}"
-            with tf.name_scope(scope):
-                with tf.variable_scope(scope):
-                    # create variables
-                    height, width, output_channels = filter
-                    W = self.get_variable("W", (height, width, input_channels, output_channels),
-                                          initializer=weights_initializer,
-                                          trainable=self.trainable, cpu=True)
-                    b = self.get_variable("b", (output_channels),
-                                          initializer=biases_initializer,
-                                          trainable=self.trainable, cpu=True)
+            with tf.variable_scope(scope):
+                # create variables
+                height, width, output_channels = filter
+                W = self.get_variable("W", (height, width, input_channels, output_channels),
+                                      initializer=weights_initializer,
+                                      trainable=self.trainable, cpu=True)
+                b = self.get_variable("b", (output_channels),
+                                      initializer=biases_initializer,
+                                      trainable=self.trainable, cpu=True)
 
-                    # batch normalization variables
-                    self.prepare_batch_norm(output_channels)
+                # batch normalization variables
+                self.prepare_batch_norm(output_channels)
 
                 # conv2d and biases
                 Z = tf.nn.conv2d(x, W, [1, self.strides, self.strides, 1], self.padding)

@@ -43,7 +43,7 @@ class SequenceDataset(Dataset):
         producer_data = {}
         for mode, raw_data in data.items():
             # sequence producer
-            with tf.name_scope(name, values=[raw_data, batch_size, timesteps]):
+            with tf.variable_scope(name, values=[raw_data, batch_size, timesteps]):
                 # tensor of data
                 tensor_data = tf.convert_to_tensor(raw_data, name="raw_data", dtype=tfdtype)
                 # length of data tensor

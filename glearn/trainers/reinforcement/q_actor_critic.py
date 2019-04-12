@@ -11,4 +11,4 @@ class QActorCriticTrainer(PolicyGradientTrainer):
         self.build_Q(state, action)
 
         td_error = None  # TODO
-        self.optimize_Q(td_error)
+        self.build_Q_optimize(td_error)

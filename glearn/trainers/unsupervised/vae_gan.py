@@ -13,7 +13,7 @@ class VAEGANTrainer(VariationalAutoencoderTrainer, GenerativeAdversarialNetworkT
     def build_trainer(self):
         with tf.variable_scope("VAE_GAN"):
             # get normalized real images and labels
-            with tf.name_scope("normalize_images"):
+            with tf.variable_scope("normalize_images"):
                 x = self.get_feed("X")
                 x = x * 2 - 1  # normalize (-1, 1)
                 y = self.get_feed("Y")
@@ -37,10 +37,10 @@ class VAEGANTrainer(VariationalAutoencoderTrainer, GenerativeAdversarialNetworkT
             self.build_discriminator(x_p, False)
 
             # optimize discriminator with loss
-            gan_loss = self.optimize_discriminator()
+            gan_loss = self.build_discriminator_optimize()
 
             # calculate reconstruction VAE loss
-            with tf.name_scope("VAE_optimize"):
+            with tf.variable_scope("VAE_optimize"):
                 l_prior = self.build_kl_divergence()
                 d_x = self.discriminator_networks[0]
                 d_x_l = d_x.get_layer(-2).references["Z"]
@@ -51,11 +51,11 @@ class VAEGANTrainer(VariationalAutoencoderTrainer, GenerativeAdversarialNetworkT
                 # vae_loss += tf.reduce_mean(vae_loss)
 
             # optimize encoder/decoder
-            with tf.name_scope("encoder_optimize"):
+            with tf.variable_scope("encoder_optimize"):
                 encoder_loss = l_prior + vae_loss
                 self.add_metric("encoder_loss", encoder_loss)
                 self.encoder_network.optimize_loss(encoder_loss, name="encoder_optimize")
-            with tf.name_scope("decoder_optimize"):
+            with tf.variable_scope("decoder_optimize"):
                 decoder_loss = self.gamma * vae_loss - gan_loss
                 self.add_metric("decoder_loss", decoder_loss)
                 decoder_network.optimize_loss(decoder_loss, name="decoder_optimize")

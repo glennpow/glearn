@@ -86,7 +86,7 @@ class NetworkLayer(object):
     def apply_batch_norm(self, Z, axes=[0], override=None):
         # apply batch normalization
         if self.uses_batch_norm(override):
-            with tf.name_scope("batch_norm"):
+            with tf.variable_scope("batch_norm"):
                 mean, var = tf.nn.moments(Z, axes)
                 offset = self.references["batch_norm_offset"]
                 scale = self.references["batch_norm_scale"]
@@ -119,29 +119,27 @@ class NetworkLayer(object):
         dense_index = self.dense_count
         self.dense_count += 1
         scope = f"dense_{self.index}_{dense_index}"
-        with tf.name_scope(scope):
-            # create variables
-            with tf.variable_scope(scope):
-                # weights
-                weights_initializer = self.load_initializer(weights_initializer,
-                                                            tf.contrib.layers.xavier_initializer())
-                W = self.get_variable("W", (x.shape[1], hidden_size), cpu=True,
-                                      initializer=weights_initializer, trainable=self.trainable)
+        with tf.variable_scope(scope):
+            # weights
+            weights_initializer = self.load_initializer(weights_initializer,
+                                                        tf.contrib.layers.xavier_initializer())
+            W = self.get_variable("W", (x.shape[1], hidden_size), cpu=True,
+                                  initializer=weights_initializer, trainable=self.trainable)
 
-                # weight decay loss
-                if weight_decay is not None:
-                    W_loss = tf.multiply(tf.nn.l2_loss(W), weight_decay, name='W_loss')
-                    self.context.add_fetch(f"{scope}_W_loss", W_loss, ["evaluate"])
-                    self.add_loss(W_loss)
+            # weight decay loss
+            if weight_decay is not None:
+                W_loss = tf.multiply(tf.nn.l2_loss(W), weight_decay, name='W_loss')
+                self.context.add_fetch(f"{scope}_W_loss", W_loss, ["evaluate"])
+                self.add_loss(W_loss)
 
-                # biases
-                biases_initializer = self.load_initializer(biases_initializer,
-                                                           tf.constant_initializer(0.0))
-                b = self.get_variable("b", (hidden_size, ), cpu=True,
-                                      initializer=biases_initializer, trainable=self.trainable)
+            # biases
+            biases_initializer = self.load_initializer(biases_initializer,
+                                                       tf.constant_initializer(0.0))
+            b = self.get_variable("b", (hidden_size, ), cpu=True,
+                                  initializer=biases_initializer, trainable=self.trainable)
 
-                # batch normalization variables
-                self.prepare_batch_norm(hidden_size, batch_norm)
+            # batch normalization variables
+            self.prepare_batch_norm(hidden_size, batch_norm)
 
             # weights and biases
             Z = tf.matmul(x, W)

@@ -132,7 +132,7 @@ class Network(Configurable):
     def build_loss(self, targets):
         # build prediction loss
         predict_metrics = {}
-        with tf.name_scope(f"{self.name}_loss"):
+        with tf.variable_scope(f"{self.name}_loss"):
             predict_loss, metrics = self.get_output_layer().build_loss(targets)
             self.add_loss(predict_loss)
             predict_metrics.update(metrics)
@@ -148,6 +148,23 @@ class Network(Configurable):
 
     def optimize_loss(self, loss, name=None):
         return self.context.optimize_loss(loss, networks=[self], name=name)
+
+    def optimize_mse(self, target, name=None):
+        if name is None:
+            name = f"{self.name}_optimize"
+        with tf.variable_scope(name):
+            with tf.variable_scope("loss"):
+                # V-loss is mean squared error
+                target = tf.stop_gradient(target)
+                sqr_error = tf.squared_difference(self.outputs, target)
+                loss = tf.reduce_mean(sqr_error)
+
+            # summaries
+            self.context.add_metric(f"{self.name}_target", tf.reduce_mean(target), query=name)
+            self.context.add_metric(f"{self.name}_loss", loss, query=name)
+
+            # minimize V-loss
+            return self.optimize_loss(loss, name=name), loss
 
     def prepare_default_feeds(self, query, feed_map):
         # add default feed values
@@ -168,7 +185,7 @@ class Network(Configurable):
     def update(self, network, tau=None, name=None, query=None):
         if name is None:
             name = f"{self.name}_update"
-        with tf.name_scope(name):
+        with tf.variable_scope(name):
             # build target network update
             source_vars = network.global_variables()
             target_vars = self.global_variables()

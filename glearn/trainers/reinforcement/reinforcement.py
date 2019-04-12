@@ -27,6 +27,9 @@ class ReinforcementTrainer(Trainer):
 
         self.debug_numerics = self.config.is_debugging("debug_numerics")
 
+        # assert that we have an environment to interact with
+        assert self.has_env
+
     def get_info(self):
         info = super().get_info()
         info.update({
@@ -56,14 +59,10 @@ class ReinforcementTrainer(Trainer):
             self._zero_reward_warning = False
         return 1
 
-    def build_Q(self, state=None, action=None, count=1, name="Q", definition=None, query=None):
+    def build_Q(self, state=None, count=1, name="Q", definition=None, query=None):
         # prepare inputs
         if state is None:
             state = self.get_feed("X")
-        if action is None:
-            action = self.get_feed("Y")
-        # FIXME - would be better to inject actions deeper in Q-network
-        Q_inputs = tf.concat([state, action], 1)
         if definition is None:
             definition = self.Q_definition
 
@@ -71,23 +70,12 @@ class ReinforcementTrainer(Trainer):
         Q_networks = []
         for i in range(count):
             Q_name = f"{name}_{i + 1}" if count > 1 else name
-            Q_network = self.build_network(Q_name, definition, Q_inputs, query=query)
+            Q_network = self.build_network(Q_name, definition, state, query=query)
             Q_networks.append(Q_network)
         if count > 1:
             return Q_networks
         else:
             return Q_networks[0]
-
-    def optimize_Q(self, td_error, name="Q"):
-        query = f"{name}_optimize"
-        with tf.name_scope(query):
-            Q_network = self.networks[name]
-
-            with tf.name_scope("loss"):
-                Q_loss = -td_error * deriv(Q(s, a))  # TODO?
-
-            # minimize Q-loss
-            Q_network.optimize_loss(Q_loss)
 
     def build_V(self, state=None, name="V", definition=None, query=None):
         # prepare inputs
@@ -105,24 +93,6 @@ class ReinforcementTrainer(Trainer):
         # fetch single value estimate for state
         feed_map = {"X": [state]}
         return self.fetch(name, feed_map, squeeze=True)
-
-    def optimize_V(self, V_target, name="V"):
-        query = f"{name}_optimize"
-        with tf.name_scope(query):
-            with tf.name_scope("loss"):
-                # V-loss is mean squared error
-                V = self.get_fetch(name)
-                V_sqr_error = tf.squared_difference(V, V_target)
-                V_loss = tf.reduce_mean(V_sqr_error)
-
-            # summaries
-            self.add_metric(f"{name}_target", tf.reduce_mean(V_target), query=query)
-            self.add_metric(f"{name}_loss", V_loss, query=query)
-
-            # minimize V-loss
-            self.networks[name].optimize_loss(V_loss, name=query)
-
-        return V_loss
 
     def action(self):
         # decaying epsilon-greedy
