@@ -1,6 +1,5 @@
 import time
 import numpy as np
-import tensorflow as tf
 from glearn.trainers.trainer import Trainer
 from glearn.data.transition import Transition
 from glearn.data.episode import Episode, EpisodeBuffer

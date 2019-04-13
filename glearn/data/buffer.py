@@ -98,7 +98,7 @@ class Buffer(object):
         # get storage indexes for samples
         if self.size:
             idxs = self._get_slice(samples_count)
-            if idxs is None or len(idxs) > 0:
+            if len(idxs) > 0:
                 samples_count = len(idxs)
             else:
                 available = self.size - self.sample_count()

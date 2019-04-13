@@ -11,3 +11,12 @@ def nan_to_num(x, inf=1.0e10):
     else:
         x = np.nan_to_num(x)
     return x
+
+
+def huber_loss(x, delta=1.0):
+    # Huber loss (https://en.wikipedia.org/wiki/Huber_loss)
+    return tf.where(
+        tf.abs(x) < delta,
+        tf.square(x) * 0.5,
+        delta * (tf.abs(x) - 0.5 * delta)
+    )

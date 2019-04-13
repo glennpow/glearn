@@ -98,7 +98,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
                     # optimize V-network
                     V_target = self.create_feed("V_target", shape=(None,), query=query)
-                    _, V_loss = V_network.optimize_mse(V_target)
+                    _, V_loss = V_network.optimize_error(V_target)
 
                     if self.V_coef is not None:
                         V_loss *= self.V_coef
@@ -107,13 +107,13 @@ class PolicyGradientTrainer(ReinforcementTrainer):
                     self.policy_network.add_loss(V_loss)
 
                     # summary
-                    self.add_metric("V", tf.reduce_mean(baseline), query=query)
+                    self.add_metric("V", baseline, query=query)
                 elif self.simple_baseline:
                     # Simple baseline  (FIXME - One of Woj's suggestions.  ask him.)
                     baseline = tf.reduce_sum(state)  # TODO - some function of non-params
 
                     # summary
-                    self.add_metric("V", tf.reduce_mean(baseline), query=query)
+                    self.add_metric("V", baseline, query=query)
 
     def calculate_targets(self, episode):
         # gather rollout data

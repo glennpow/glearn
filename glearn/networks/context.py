@@ -163,11 +163,18 @@ class NetworkContext(Configurable):
 
         return fetches
 
+    def has_query(self, query):
+        return len(self.get_fetches(query)) > 0
+
     def add_metric(self, name, value, query=None):
-        # add a metric to log to console and summary
+        # add metric to console log
         if query is None:
             query = "evaluate"
         self.add_fetch(name, value, query=query)
+
+        # add metric to summary (TODO - could allow histograms too)
+        if len(value.shape) > 0:
+            value = tf.reduce_mean(value)
         self.summary.add_scalar(name, value, query=query)
 
     def run(self, query, feed_map):

@@ -187,7 +187,7 @@ class Trainer(NetworkContext):
         # input as feed map
         feed_map = {"X": [inputs]}
 
-        # evaluate single inference
+        # infer single prediction
         return self.run("predict", feed_map)
 
     def get_batch(self, mode="train"):
@@ -196,6 +196,9 @@ class Trainer(NetworkContext):
 
     def is_optimize(self, query):
         return np.any(["optimize" in query_name for query_name in query])
+
+    def is_evaluate(self, query):
+        return "evaluate" in query
 
     def pre_optimize(self, feed_map):
         pass

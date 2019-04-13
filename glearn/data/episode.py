@@ -108,6 +108,10 @@ class EpisodeBuffer(TransitionBuffer):
                 "values": self.samples["step"],
                 "min_color": [0, 0, 1],
                 "max_color": [0, 1, 1],
+                "marker": {
+                    "value": self.samples["done"],
+                    "color": [1, 1, 1],
+                }
             },
         })
 
@@ -138,6 +142,12 @@ class EpisodeBuffer(TransitionBuffer):
         for name, definition in image_definitions.items():
             values = normalize(definition["values"], definition)
             rgb_values = get_colors(values, definition)
+
+            # markers
+            if "marker" in definition:
+                marker_value = definition["marker"]["value"][:, np.newaxis]
+                marker_colors = np.tile(definition["marker"]["color"], (len(rgb_values), 1))
+                rgb_values = np.where(marker_value, marker_colors, rgb_values)
 
             invalid_color = definition.get("invalid_color", [0, 0, 0])
             if image_pad > 0:

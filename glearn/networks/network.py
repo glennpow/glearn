@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops import math_ops
 from glearn.utils.config import Configurable
+from glearn.utils.tf_utils import huber_loss
 from glearn.networks.context import num_variable_parameters
 from glearn.networks.layers.layer import load_layer
 from glearn.networks.layers.distributions.distribution import DistributionLayer
@@ -149,18 +150,32 @@ class Network(Configurable):
     def optimize_loss(self, loss, name=None):
         return self.context.optimize_loss(loss, networks=[self], name=name)
 
-    def optimize_mse(self, target, name=None):
+    def optimize_error(self, target, predict=None, mode="mse", weights=None, name=None):
         if name is None:
             name = f"{self.name}_optimize"
         with tf.variable_scope(name):
             with tf.variable_scope("loss"):
-                # V-loss is mean squared error
-                target = tf.stop_gradient(target)
-                sqr_error = tf.squared_difference(self.outputs, target)
-                loss = tf.reduce_mean(sqr_error)
+                if predict is None:
+                    # default to network outputs
+                    predict = self.outputs
+
+                # mean squared error loss
+                error = predict - tf.stop_gradient(target)
+
+                # calculate appropriate loss
+                if mode == "huber":
+                    error = huber_loss(error)
+                else:  # "mse"
+                    error = tf.square(error)
+
+                # allow weighting
+                if weights is not None:
+                    error *= weights
+
+                loss = tf.reduce_mean(error)
 
             # summaries
-            self.context.add_metric(f"{self.name}_target", tf.reduce_mean(target), query=name)
+            self.context.add_metric(f"{self.name}_target", target, query=name)
             self.context.add_metric(f"{self.name}_loss", loss, query=name)
 
             # minimize V-loss
