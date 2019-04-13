@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops import math_ops
 from glearn.utils.config import Configurable
-from glearn.utils.tf_utils import huber_loss
+from glearn.utils import tf_utils
 from glearn.networks.context import num_variable_parameters
 from glearn.networks.layers.layer import load_layer
 from glearn.networks.layers.distributions.distribution import DistributionLayer
@@ -164,7 +164,7 @@ class Network(Configurable):
 
                 # calculate appropriate loss
                 if mode == "huber":
-                    error = huber_loss(error)
+                    error = tf_utils.huber_loss(error)
                 else:  # "mse"
                     error = tf.square(error)
 

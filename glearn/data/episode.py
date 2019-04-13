@@ -118,12 +118,14 @@ class EpisodeBuffer(TransitionBuffer):
     def _add_image_summaries(self, summary, query, image_definitions):
         # prepare for image summaries
         sample_count = self.sample_count()
-        image_width = int(np.ceil(np.sqrt(sample_count)))
-        image_height = int(np.ceil(sample_count / image_width))
+        size = sample_count if self.size is None else self.size
+        image_width = int(np.ceil(np.sqrt(size)))
+        image_height = int(np.ceil(size / image_width))
         image_size = image_width * image_height
         image_pad = image_size - sample_count
 
         def normalize(values, definition):
+            # normalize values between [0, 1]
             min_value = np.amin(values)
             max_value = np.amax(values)
             span_value = (max_value - min_value)
@@ -140,19 +142,22 @@ class EpisodeBuffer(TransitionBuffer):
 
         # loop through building images from definitions and writing summaries
         for name, definition in image_definitions.items():
-            values = normalize(definition["values"], definition)
+            values = normalize(definition["values"][:sample_count], definition)
             rgb_values = get_colors(values, definition)
 
             # markers
             if "marker" in definition:
-                marker_value = definition["marker"]["value"][:, np.newaxis]
+                marker_value = definition["marker"]["value"][:sample_count, np.newaxis]
                 marker_colors = np.tile(definition["marker"]["color"], (len(rgb_values), 1))
                 rgb_values = np.where(marker_value, marker_colors, rgb_values)
 
+            # pad with invalid color
             invalid_color = definition.get("invalid_color", [0, 0, 0])
             if image_pad > 0:
                 padding = np.tile(invalid_color, (image_pad, 1))
                 rgb_values = np.concatenate([rgb_values, padding])
+
+            # build final summary image
             image = rgb_values.reshape((1, image_height, image_width, -1))
             summary.add_simple_images(name, image, query=query)
 
