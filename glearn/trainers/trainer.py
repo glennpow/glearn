@@ -81,11 +81,8 @@ class Trainer(NetworkContext):
         self.build_inputs()
 
         # build policy model
-        if self.policy_scope is not None:
-            with tf.variable_scope(f"{self.policy_scope}/"):
-                self.build_policy(random=random)
-        else:
-            self.build_policy()
+        with self.variable_scope(self.policy_scope):
+            self.build_policy(random=random)
 
         # build trainer model
         self.build_trainer()
@@ -130,7 +127,7 @@ class Trainer(NetworkContext):
                 # minimize policy loss
                 self.policy.optimize_loss(loss, name=query)
 
-    def build_network(self, name, definition, inputs, query=None, reuse=False):
+    def build_network(self, name, definition, inputs, query=None, reuse=None):
         # build network output and add fetch
         network = load_network(name, self, definition)
         y = network.build_predict(inputs, reuse=reuse)

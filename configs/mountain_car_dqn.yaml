@@ -1,0 +1,29 @@
+--- # Mountain Car
+  import: _base
+
+  env: MountainCar-v0
+  
+  batch_size: 1024
+
+  trainer:
+    name: glearn.trainers:DeepQNetworkTrainer
+    args:
+      epochs: 1000
+      evaluate_interval: 10
+      epsilon: [0.2, 0.001, 300]
+      gamma: 0.999
+      # ent_coef: 2.782559402207126e-05
+      # keep_prob: 0.8
+
+      Q:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [64, 64]
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [0]
+              activation: null
+        optimizer: adam
+        learning_rate: 0.02
+        # max_grad_norm: 5

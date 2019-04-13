@@ -49,6 +49,7 @@ class NetworkContext(Configurable):
 
         self.feeds = {}
         self.fetches = {}
+        self.scopes = {}
 
         self.debug_runs = self.is_debugging("debug_runs")
         self.debug_runs_ignored = self.config.get("debug_runs_ignored", None)
@@ -177,6 +178,9 @@ class NetworkContext(Configurable):
             value = tf.reduce_mean(value)
         self.summary.add_scalar(name, value, query=query)
 
+    def variable_scope(self, name_or_scope, **kwargs):
+        return ContextVariableScope(self, name_or_scope, **kwargs)
+
     def run(self, query, feed_map):
         # get configured fetches
         fetches = self.get_fetches(query)
@@ -284,6 +288,57 @@ class NetworkContext(Configurable):
         return optimize
 
 
+class ContextVariableScope(object):
+    def __init__(self, context, name_or_scope, **kwargs):
+        self.context = context
+        self.name_or_scope = name_or_scope
+        self.kwargs = kwargs
+
+    def __enter__(self):
+        if self.name_or_scope is None:
+            return
+
+        # check for cached scope
+        name_or_scope = self.name_or_scope
+        cache = False
+        if isinstance(name_or_scope, str):
+            original_name_scope = tf.get_variable_scope().original_name_scope
+            scope_path = f"{original_name_scope}{name_or_scope}/"
+            if scope_path in self.context.scopes:
+                name_or_scope = self.context.scopes[scope_path]
+            else:
+                cache = True
+
+        if isinstance(name_or_scope, str):
+            # enter new scope
+            self.variable_scope = tf.variable_scope(name_or_scope, **self.kwargs)
+            variable_scope_object = self.variable_scope.__enter__()
+            self.name_scope = None
+        else:
+            # reenter previous scope
+            self.variable_scope = tf.variable_scope(name_or_scope, auxiliary_name_scope=False,
+                                                    **self.kwargs)
+            variable_scope_object = self.variable_scope.__enter__()
+            self.name_scope = tf.name_scope(variable_scope_object.original_name_scope)
+            self.name_scope.__enter__()
+
+        # cache if not already
+        if cache:
+            scope_path = tf.get_variable_scope().original_name_scope
+            self.context.scopes[scope_path] = variable_scope_object
+
+        return variable_scope_object
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.name_or_scope is None:
+            return
+
+        # exit scopes
+        self.variable_scope.__exit__(exc_type, exc_val, exc_tb)
+        if self.name_scope is not None:
+            self.name_scope.__exit__(exc_type, exc_val, exc_tb)
+
+
 class NetworkContextProxy(Configurable):
     def __init__(self, config, context):
         super().__init__(config)
@@ -322,6 +377,9 @@ class NetworkContextProxy(Configurable):
 
     def add_metric(self, name, value, query=None):
         self.context.add_metric(name, value, query=query)
+
+    def variable_scope(self, name_or_scope, **kwargs):
+        return self.context.variable_scope(name_or_scope, **kwargs)
 
     def run(self, query, feed_map):
         return self.context.run(query, feed_map=feed_map)

@@ -97,6 +97,9 @@ class NetworkLayer(object):
     def add_loss(self, loss):
         self.network.add_loss(loss)
 
+    def variable_scope(self, name_or_scope, **kwargs):
+        return self.context.variable_scope(name_or_scope, **kwargs)
+
     def build(self, inputs):
         # override
         return inputs

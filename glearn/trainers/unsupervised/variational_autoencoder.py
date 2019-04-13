@@ -21,7 +21,7 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
         self.encoder_network = self.build_network("encoder", self.encoder_definition, x)
         return self.encoder_network.outputs
 
-    def build_decoder(self, z, reuse=False):
+    def build_decoder(self, z, reuse=None):
         self.decoder_network = self.build_generator_network("decoder", self.decoder_definition,
                                                             z=z, reuse=reuse)
         return self.decoder_network.outputs

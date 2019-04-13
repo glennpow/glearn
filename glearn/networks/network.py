@@ -11,11 +11,11 @@ from glearn.networks.layers.distributions.distribution import DistributionLayer
 class Network(Configurable):
     def __init__(self, name, context, definition, trainable=True):
         self.name = name
-        self.scope = name
         self.context = context
         self.definition = definition
         self.trainable = trainable
 
+        self.scope = None
         self.layers = []
         self.inputs = None
         self.outputs = None
@@ -63,15 +63,15 @@ class Network(Configurable):
 
     def global_variables(self):
         # get all global variables in network scope
-        return tf.global_variables(scope=self.scope)
+        return tf.global_variables(scope=self.scope.name)
 
     def model_variables(self):
         # get all model variables in network scope
-        return tf.model_variables(scope=self.scope)
+        return tf.model_variables(scope=self.scope.name)
 
     def trainable_variables(self):
         # get all trainable variables in network scope
-        return tf.trainable_variables(scope=self.scope)
+        return tf.trainable_variables(scope=self.scope.name)
 
     def num_global_parameters(self):
         # get total global parameters
@@ -88,10 +88,13 @@ class Network(Configurable):
     def get_scope_name(self):
         return f"{self.name}_network"
 
-    def build_predict(self, inputs, reuse=False):
+    def variable_scope(self, name_or_scope, **kwargs):
+        return self.context.variable_scope(name_or_scope, **kwargs)
+
+    def build_predict(self, inputs, reuse=None):
         # all layers within network scope
-        with tf.variable_scope(self.get_scope_name(), reuse=reuse):
-            self.scope = tf.get_variable_scope().name
+        with self.variable_scope(self.get_scope_name(), reuse=reuse) as scope:
+            self.scope = scope
 
             # create and link network layers
             y = inputs
@@ -133,7 +136,7 @@ class Network(Configurable):
     def build_loss(self, targets):
         # build prediction loss
         predict_metrics = {}
-        with tf.variable_scope(f"{self.name}_loss"):
+        with self.variable_scope(f"{self.name}_loss"):
             predict_loss, metrics = self.get_output_layer().build_loss(targets)
             self.add_loss(predict_loss)
             predict_metrics.update(metrics)
@@ -153,8 +156,8 @@ class Network(Configurable):
     def optimize_error(self, target, predict=None, mode="mse", weights=None, name=None):
         if name is None:
             name = f"{self.name}_optimize"
-        with tf.variable_scope(name):
-            with tf.variable_scope("loss"):
+        with self.variable_scope(name):
+            with self.variable_scope("loss"):
                 if predict is None:
                     # default to network outputs
                     predict = self.outputs
@@ -200,7 +203,7 @@ class Network(Configurable):
     def update(self, network, tau=None, name=None, query=None):
         if name is None:
             name = f"{self.name}_update"
-        with tf.variable_scope(name):
+        with self.variable_scope(name):
             # build target network update
             source_vars = network.global_variables()
             target_vars = self.global_variables()

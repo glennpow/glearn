@@ -25,7 +25,7 @@ class GenerativeTrainer(UnsupervisedTrainer):
         # TODO - investigate: condition_tensor_from_onehot() (https://arxiv.org/abs/1609.03499)
         return tf.concat([inputs, tf.cast(labels, tf.float32)], -1)
 
-    def build_generator_network(self, name, definition, z=None, reuse=False):
+    def build_generator_network(self, name, definition, z=None, reuse=None):
         if z is None:
             # default to latent feed
             z = self.get_or_create_feed("Z", shape=(self.batch_size, self.latent_size))

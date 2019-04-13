@@ -1,0 +1,29 @@
+--- # CartPole
+  import: _base
+
+  env: CartPole-v0
+
+  batch_size: 32
+  episode_buffer:
+    size: 100000
+
+  trainer:
+    name: glearn.trainers:DeepQNetworkTrainer
+    args:
+      epochs: 10000
+      evaluate_interval: 10
+      epsilon: [0.2, 0.001, 300]
+      gamma: 0.999
+
+      Q:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [32, 32]
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [0]
+              activation: null
+        optimizer: adam
+        learning_rate: 0.001
+        # max_grad_norm: 5

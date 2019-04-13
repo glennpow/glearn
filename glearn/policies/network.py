@@ -22,7 +22,7 @@ class NetworkPolicy(Policy):
 
         # scale and clip output
         if self.config.output.continuous:
-            with tf.variable_scope(f"{self.network.scope}/"):
+            with self.variable_scope(self.network.scope):
                 output_space = self.config.output.space
                 low = output_space.low
                 high = output_space.high

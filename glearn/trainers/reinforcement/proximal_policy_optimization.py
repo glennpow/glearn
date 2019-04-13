@@ -29,7 +29,7 @@ class ProximalPolicyOptimizationTrainer(AdvantageActorCriticTrainer):
             self.target_policy_network.update(self.policy_network)
 
         # summaries
-        with tf.variable_scope(f"{query}/"):
+        with tf.variable_scope(query):
             self.summary.add_scalar("kl_divergence", tf.reduce_mean(kl_divergence), query=query)
 
         return optimize
