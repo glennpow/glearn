@@ -153,7 +153,7 @@ class Network(Configurable):
     def optimize_loss(self, loss, name=None):
         return self.context.optimize_loss(loss, networks=[self], name=name)
 
-    def optimize_error(self, target, predict=None, mode="mse", weights=None, name=None):
+    def optimize_error(self, target, predict=None, mode=None, weights=None, name=None):
         if name is None:
             name = f"{self.name}_optimize"
         with self.variable_scope(name):

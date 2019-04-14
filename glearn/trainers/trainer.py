@@ -81,8 +81,7 @@ class Trainer(NetworkContext):
         self.build_inputs()
 
         # build policy model
-        with self.variable_scope(self.policy_scope):
-            self.build_policy(random=random)
+        self.build_policy(random=random)
 
         # build trainer model
         self.build_trainer()
@@ -109,12 +108,13 @@ class Trainer(NetworkContext):
     def build_policy(self, random=False):
         # build policy, if defined
         if self.config.has("policy"):
-            if random:
-                self.policy = RandomPolicy(self.config, self)
-            else:
-                self.policy = load_policy(self.config, self)
+            with self.variable_scope(self.policy_scope):
+                if random:
+                    self.policy = RandomPolicy(self.config, self)
+                else:
+                    self.policy = load_policy(self.config, self)
 
-            self.policy.build_predict(self.get_feed("X"))
+                self.policy.build_predict(self.get_feed("X"))
 
     def build_trainer(self):
         # build default policy optimize, if defined

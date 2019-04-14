@@ -109,8 +109,10 @@ class ReinforcementTrainer(Trainer):
         else:
             # choose optimal policy action
             results = self.predict(self.state)
+
+            # extract predicted action and other results
             action = results.pop("predict")[0]
-            predict_info = results
+            predict_info = {k: np.squeeze(v[0]) for k, v in results.items()}
         return action, predict_info
 
     def sanitize_action(self, action):
