@@ -178,7 +178,7 @@ class Network(Configurable):
                 loss = tf.reduce_mean(error)
 
             # summaries
-            self.context.add_metric(f"{self.name}_target", target, query=name)
+            self.context.add_metric(f"{self.name}_target", target, histogram=True, query=name)
             self.context.add_metric(f"{self.name}_loss", loss, query=name)
 
             # minimize V-loss

@@ -3,10 +3,10 @@ from glearn.networks.context import NetworkContextProxy
 
 
 class Policy(NetworkContextProxy):
-    def __init__(self, config, context, name="policy"):
+    def __init__(self, config, context, name=None):
         super().__init__(config, context=context)
 
-        self.name = name
+        self.name = name or "policy"
         self.multithreaded = config.get("multithreaded", False)  # TODO get this from dataset
         self.threads = None
 

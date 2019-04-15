@@ -79,9 +79,6 @@ class NormalDistributionLayer(DistributionLayer):
         # sample from distribution
         y = self.sample()
 
-        # log prediction distribution
-        self.summary.add_histogram("predict", y)
-
         return y
 
     def build_loss(self, targets):

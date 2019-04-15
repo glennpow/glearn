@@ -166,6 +166,8 @@ class PolicyGradientTrainer(ReinforcementTrainer):
             else:
                 advantage = targets
                 V_target = advantage + V
+        else:
+            advantage = targets
 
         # normalize advantage
         mean = np.mean(advantage)
@@ -176,7 +178,8 @@ class PolicyGradientTrainer(ReinforcementTrainer):
 
         # calculate advantage
         episode["advantage"] = advantage
-        episode["V_target"] = V_target
+        if has_V:
+            episode["V_target"] = V_target
 
     def process_episode(self, episode):
         if not super().process_episode(episode):
@@ -193,7 +196,8 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         if self.is_optimize(query):
             # feed discounted rewards
             feed_map["advantage"] = self.batch["advantage"]
-            feed_map["V_target"] = self.batch["V_target"]
+            if "V_target" in self.batch:
+                feed_map["V_target"] = self.batch["V_target"]
 
     def get_optimize_query(self, batch):
         query = super().get_optimize_query(batch)

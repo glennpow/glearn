@@ -6,7 +6,7 @@ from glearn.networks import load_network
 class NetworkPolicy(Policy):
     def __init__(self, config, context, network, scale_output=False, **kwargs):
         self.network_definition = network
-        self.scale_output = scale_output  # HACK - figure out way to avoid this
+        self.scale_output = scale_output  # HACK - figure out way to avoid needing this
 
         super().__init__(config, context, **kwargs)
 
@@ -20,9 +20,12 @@ class NetworkPolicy(Policy):
         self.network = load_network(self.name, self.context, self.network_definition)
         predict = self.network.build_predict(inputs)
 
-        # scale and clip output
-        if self.config.output.continuous:
-            with self.variable_scope(self.network.scope):
+        self.prepare_predict(inputs, predict)
+
+    def prepare_predict(self, inputs, predict):
+        with self.variable_scope(self.network.scope):
+            # scale and clip predict
+            if self.config.output.continuous:
                 output_space = self.config.output.space
                 low = output_space.low
                 high = output_space.high
@@ -33,9 +36,12 @@ class NetworkPolicy(Policy):
 
                 self.network.outputs = predict
 
+            # add fetch for predict
+            self.add_metric("predict", predict, histogram=True, query=["predict", "evaluate"])
+
+        # remember values
         self.inputs = inputs
         self.predict = predict
-        self.add_fetch("predict", predict, ["predict", "evaluate"])
 
     def build_loss(self, targets):
         # build policy network loss

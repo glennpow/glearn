@@ -258,8 +258,8 @@ class ReinforcementTrainer(Trainer):
                         # stats update
                         print_update(["Simulating", f"Global Step: {self.current_global_step}",
                                       f"Episode: {self.episode_count}",
-                                      f"Last Duration: {episode_time:.02}",
-                                      f"Last Reward: {self.episode.reward:.02}",
+                                      f"Last Duration: {episode_time:.02f}",
+                                      f"Last Reward: {self.episode.reward:.02f}",
                                       f"Buffer: {self.buffer.get_info()}"])
 
                         break
@@ -279,10 +279,10 @@ class ReinforcementTrainer(Trainer):
                         self.evaluate_and_report()
 
                     # episode summary values
-                    self.summary.add_simple_value("average_episode_time", average_times.value)
-                    self.summary.add_simple_value("average_episode_steps", average_steps.value)
-                    self.summary.add_simple_value("average_episode_reward", average_rewards.value)
-                    self.summary.add_simple_value("max_episode_reward", max_episode_reward)
+                    self.summary.add_simple_value("episode_time_avg", average_times.value)
+                    self.summary.add_simple_value("episode_steps_avg", average_steps.value)
+                    self.summary.add_simple_value("episode_reward_avg", average_rewards.value)
+                    self.summary.add_simple_value("episode_reward_max", max_episode_reward)
 
                     # prepare buffer for next epoch
                     self.buffer.update()

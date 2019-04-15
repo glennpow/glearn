@@ -33,7 +33,8 @@ class ReinforcementTestEnv(gym.Env):
         self.undesired_steps = 0
         self.desired_index = 0
         self.state = np.zeros(self.obs_shape, self.obs_dtype)
-        self.state[0] = self.desired[self.desired_index]
+        if isinstance(self.desired, list):
+            self.state[0] = self.desired[self.desired_index]
         return np.copy(self.state)
 
     def step(self, action):

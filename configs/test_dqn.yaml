@@ -1,12 +1,19 @@
---- # CartPole
+--- # Test Deep Q Network
   import: _base
 
-  env: CartPole-v0
-  # seeds: [809142917, 3412706144, 1757722874]
+  env:
+    name: glearn.envs.reinforcement_test:ReinforcementTestEnv
+    args:
+      action_size: 8
+      desired: [1, 2, 3]
+      desired_sequence: true
+      discrete: true
+      max_undesired_steps: 100
+      sparse_reward: false
 
-  batch_size: 32
+  batch_size: 20
   episode_buffer:
-    size: 100000
+    size: 1000
 
   policy:
     name: glearn.policies:QNetworkPolicy
@@ -15,22 +22,17 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [32, 32]
+              hidden_sizes: [16]
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [0]
               activation: null
         optimizer: adam
         learning_rate: 0.001
-        # max_grad_norm: 5
 
   trainer:
     name: glearn.trainers:DeepQNetworkTrainer
     args:
-      epochs: 1600
-      evaluate_interval: 10
-      epsilon: [1, 0.01, 450]
-      gamma: 0.999
-
-  # sweeps:
-  #   learning_rate: [1.0e-4, 1.0e-3, 1.0e-2]
+      gamma: 0.99
+      evaluate_interval: 100
+      max_episode_time: 0.1

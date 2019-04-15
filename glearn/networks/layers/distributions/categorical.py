@@ -20,14 +20,6 @@ class CategoricalDistributionLayer(DistributionLayer):
 
         return y
 
-    def build_predict(self, y):
-        y = super().build_predict(y)
-
-        # log prediction distribution
-        self.summary.add_histogram("category", self.references["category"])
-
-        return y
-
     @property
     def probs(self):
         return self.distribution.probs

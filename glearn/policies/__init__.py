@@ -1,6 +1,7 @@
 from glearn.utils.reflection import get_class
 
 from .network import NetworkPolicy  # noqa
+from .q_network import QNetworkPolicy  # noqa
 from .random import RandomPolicy  # noqa
 
 

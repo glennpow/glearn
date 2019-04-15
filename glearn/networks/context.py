@@ -167,16 +167,25 @@ class NetworkContext(Configurable):
     def has_query(self, query):
         return len(self.get_fetches(query)) > 0
 
-    def add_metric(self, name, value, query=None):
+    def add_metric(self, name, value, histogram=False, query=None):
         # add metric to console log
         if query is None:
             query = "evaluate"
         self.add_fetch(name, value, query=query)
 
-        # add metric to summary (TODO - could allow histograms too)
-        if len(value.shape) > 0:
-            value = tf.reduce_mean(value)
-        self.summary.add_scalar(name, value, query=query)
+        # add metric to summary
+        summary_query = query
+        if isinstance(summary_query, list):
+            if "evaluate" in summary_query:
+                summary_query = "evaluate"
+            else:
+                summary_query = query[0]
+        if histogram:
+            self.summary.add_histogram(name, value, query=summary_query)
+        else:
+            if len(value.shape) > 0:
+                value = tf.reduce_mean(value)
+            self.summary.add_scalar(name, value, query=summary_query)
 
     def variable_scope(self, name_or_scope, **kwargs):
         return ContextVariableScope(self, name_or_scope, **kwargs)
@@ -375,8 +384,8 @@ class NetworkContextProxy(Configurable):
     def get_fetches(self, query):
         return self.context.get_fetches(query)
 
-    def add_metric(self, name, value, query=None):
-        self.context.add_metric(name, value, query=query)
+    def add_metric(self, name, value, histogram=False, query=None):
+        self.context.add_metric(name, value, histogram=histogram, query=query)
 
     def variable_scope(self, name_or_scope, **kwargs):
         return self.context.variable_scope(name_or_scope, **kwargs)
