@@ -34,6 +34,7 @@ class EpisodeBuffer(TransitionBuffer):
         self._total_transitions = 0
         self._current_episodes = 0
         self._start_time = None
+        self._batches = np.array([], dtype=np.int32)
 
     def get_info(self):
         if self.batch_episodes:
@@ -57,6 +58,7 @@ class EpisodeBuffer(TransitionBuffer):
         super().clear()
 
         self._current_episodes = 0
+        self._batches = np.array([], dtype=np.int32)
 
     def is_ready(self):
         if self.batch_episodes:
@@ -113,6 +115,11 @@ class EpisodeBuffer(TransitionBuffer):
                     "color": [1, 1, 1],
                 }
             },
+            "transition_batches": {
+                "values": self._batches,
+                "min_color": [1, 1, 0],
+                "max_color": [1, 0, 1],
+            },
         })
 
     def _add_image_summaries(self, summary, query, image_definitions):
@@ -122,7 +129,6 @@ class EpisodeBuffer(TransitionBuffer):
         image_width = int(np.ceil(np.sqrt(size)))
         image_height = int(np.ceil(size / image_width))
         image_size = image_width * image_height
-        image_pad = image_size - sample_count
 
         def normalize(values, definition):
             # normalize values between [0, 1]
@@ -142,7 +148,10 @@ class EpisodeBuffer(TransitionBuffer):
 
         # loop through building images from definitions and writing summaries
         for name, definition in image_definitions.items():
-            values = normalize(definition["values"][:sample_count], definition)
+            values = definition["values"]
+            if values is None or len(values) == 0:
+                continue
+            values = normalize(values[:sample_count], definition)
             rgb_values = get_colors(values, definition)
 
             # markers
@@ -153,6 +162,7 @@ class EpisodeBuffer(TransitionBuffer):
 
             # pad with invalid color
             invalid_color = definition.get("invalid_color", [0, 0, 0])
+            image_pad = image_size - len(values)
             if image_pad > 0:
                 padding = np.tile(invalid_color, (image_pad, 1))
                 rgb_values = np.concatenate([rgb_values, padding])
@@ -171,6 +181,10 @@ class EpisodeBuffer(TransitionBuffer):
         #     idxs = np.array(list(range(self.batch_size)))
         else:
             idxs = np.random.choice(self.sample_count(), self.batch_size, replace=False)
+
+        # remember when samples were used in batches
+        self._batches.resize((self.sample_count(),))
+        self._batches[idxs] = self.trainer.current_global_step
 
         # slice out these batches
         batch_samples = {key: np.copy(values[idxs]) for key, values in self.samples.items()}
