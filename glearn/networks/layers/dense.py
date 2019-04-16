@@ -4,7 +4,7 @@ from .layer import NetworkLayer
 
 
 class DenseLayer(NetworkLayer):
-    def __init__(self, network, index, batch_norm=None, hidden_sizes=[128], activation=tf.nn.relu,
+    def __init__(self, network, index, batch_norm=None, hidden_sizes=[0], activation=tf.nn.relu,
                  weights_initializer=None, biases_initializer=None, weight_decay=None):
         super().__init__(network, index, batch_norm=batch_norm)
 

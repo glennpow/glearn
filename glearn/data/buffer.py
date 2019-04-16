@@ -32,6 +32,9 @@ class Buffer(object):
     def __len__(self):
         return self.sample_count()
 
+    def keys(self):
+        return self.samples.keys()
+
     def sample_count(self):
         if self.size is not None:
             return min(self._count, self.size)

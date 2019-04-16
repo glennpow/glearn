@@ -331,7 +331,7 @@ class ContextVariableScope(object):
 
     def __enter__(self):
         if self.name_or_scope is None:
-            return
+            return None
 
         # check for cached scope
         name_or_scope = self.name_or_scope
