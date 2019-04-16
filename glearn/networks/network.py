@@ -168,7 +168,7 @@ class Network(Configurable):
                 # calculate appropriate loss
                 if mode == "huber":
                     error = tf_utils.huber_loss(error)
-                else:  # "mean_square_error"
+                else:  # default "mean_square_error"
                     error = tf.square(error)
 
                 # allow weighting

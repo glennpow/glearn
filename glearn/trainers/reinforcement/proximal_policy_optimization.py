@@ -15,7 +15,7 @@ class ProximalPolicyOptimizationTrainer(AdvantageActorCriticTrainer):
         query = "policy_optimize"
 
         # build duplicate target policy network and update operation
-        self.target_policy_network = self.policy_network.clone("target_policy")
+        self.target_policy_network = self.clone_network(self.policy_network, "target_policy")
         target_policy_distribution = self.target_policy_network.get_distribution_layer()
 
         # build KL divergence before updating distribution

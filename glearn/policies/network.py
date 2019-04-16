@@ -1,6 +1,5 @@
 import tensorflow as tf
 from glearn.policies.policy import Policy
-from glearn.networks import load_network
 
 
 class NetworkPolicy(Policy):
@@ -17,10 +16,9 @@ class NetworkPolicy(Policy):
 
     def build_predict(self, inputs):
         # build predict network
-        self.network = load_network(self.name, self.context, self.network_definition)
-        predict = self.network.build_predict(inputs)
+        self.network = self.context.build_network(self.name, self.network_definition, inputs)
 
-        self.prepare_predict(inputs, predict)
+        self.prepare_predict(inputs, self.network.outputs)
 
     def prepare_predict(self, inputs, predict):
         with self.variable_scope(self.network.scope):

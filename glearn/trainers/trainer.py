@@ -8,7 +8,6 @@ import pyglet
 from glearn.networks.context import num_global_parameters, num_trainable_parameters, NetworkContext
 from glearn.policies import load_policy
 from glearn.policies.random import RandomPolicy
-from glearn.networks import load_network
 from glearn.utils.printing import print_update, print_tabular, getch
 from glearn.utils.profile import run_profile, open_profile
 from glearn.utils.memory import print_virtual_memory, print_gpu_memory
@@ -31,7 +30,6 @@ class Trainer(NetworkContext):
 
         self.epoch = 0
         self.batch = None
-        self.networks = {}
 
     def __str__(self):
         properties = [
@@ -126,21 +124,6 @@ class Trainer(NetworkContext):
 
                 # minimize policy loss
                 self.policy.optimize_loss(loss, name=query)
-
-    def build_network(self, name, definition, inputs, query=None, reuse=None):
-        # build network output and add fetch
-        network = load_network(name, self, definition)
-        y = network.build_predict(inputs, reuse=reuse)
-        self.add_fetch(name, y, query=query)
-
-        # keep track of all networks
-        if not reuse:
-            self.networks[name] = network
-
-        return network
-
-    def get_network(self, name):
-        return self.networks.get(name)
 
     def prepare_feeds(self, query, feed_map):
         if self.policy:

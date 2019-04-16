@@ -27,35 +27,35 @@ class DeepQNetworkTrainer(ReinforcementTrainer):
         Q = self.policy.Q
 
         # build Target-Q-Network
-        target_Q_network = Q_network.clone("target_Q", inputs=next_state)
+        target_Q_network = self.clone_network(Q_network, "target_Q", inputs=next_state)
         target_Q = target_Q_network.outputs
 
         query = "Q_optimize"
         with self.variable_scope(query):
-            # the prediction by the primary Q network for the actual actions.
-            with self.variable_scope("Q_acted"):
-                action_one_hot = tf.one_hot(action, self.output.size, 1.0, 0.0, name='action_ones')
-                Q_acted = tf.reduce_sum(Q * action_one_hot, reduction_indices=-1, name='Q_acted')
+            # the prediction by the primary Q-network for the actual actions.
+            with self.variable_scope("predict"):
+                action_one_hot = tf.one_hot(action, self.output.size, name="action_one_hot")
+                Q_predict = tf.reduce_sum(Q * action_one_hot, axis=-1, name="action_Q")
 
             # the optimization target defined by the Bellman equation and the target network.
-            with self.variable_scope("TD_target"):
+            with self.variable_scope("target"):
                 target_Q_predict = tf.reduce_max(target_Q, axis=-1)
                 Q_target = reward + (1 - done) * self.gamma * target_Q_predict
 
         # minimize mean square error
         mode = "huber"  # TODO "mse"?
         weight = None  # TODO - priority weighting
-        Q_optimize, Q_loss = Q_network.optimize_error(Q_target, Q_acted, mode=mode, weights=weight)
+        Q_optimize, _ = Q_network.optimize_error(Q_target, Q_predict, mode=mode, weights=weight)
 
         # build target network update
         with tf.control_dependencies([Q_optimize]):
             target_Q_network.update(Q_network, tau=self.tau)
 
         # summaries
-        with self.variable_scope("Q_optimize"):
+        with self.variable_scope(query):
             self.summary.add_histogram("action", action, query=query)
             self.add_metric("target_Q", target_Q, histogram=True, query=query)
-            self.add_metric("Q", Q_acted, histogram=True, query=query)
+            self.add_metric("Q", Q_predict, histogram=True, query=query)
 
         return Q_optimize
 

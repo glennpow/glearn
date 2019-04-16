@@ -50,7 +50,7 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
         self.add_fetch("V", V)
 
         # build target V-network
-        self.target_V_network = self.V_network.clone("target_V")
+        self.target_V_network = self.clone_network(self.V_network, "target_V")
         self.add_fetch("target_V", self.target_V_network.outputs)
 
     def build_critic(self):

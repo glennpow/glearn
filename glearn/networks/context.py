@@ -50,6 +50,7 @@ class NetworkContext(Configurable):
         self.feeds = {}
         self.fetches = {}
         self.scopes = {}
+        self.networks = {}
 
         self.debug_runs = self.is_debugging("debug_runs")
         self.debug_runs_ignored = self.config.get("debug_runs_ignored", None)
@@ -189,6 +190,31 @@ class NetworkContext(Configurable):
 
     def variable_scope(self, name_or_scope, **kwargs):
         return ContextVariableScope(self, name_or_scope, **kwargs)
+
+    def get_network(self, name):
+        return self.networks.get(name)
+
+    def build_network(self, name, definition, inputs, query=None, reuse=None):
+        # build network output and add fetch
+        from glearn.networks import load_network
+        network = load_network(name, self, definition)
+        y = network.build_predict(inputs, reuse=reuse)
+        self.add_fetch(name, y, query=query)
+
+        # keep track of network
+        if not reuse:
+            self.networks[name] = network
+
+        return network
+
+    def clone_network(self, network, name, inputs=None, trainable=False):
+        # clone desired network
+        cloned_network = network.clone(name, inputs=inputs, trainable=trainable)
+
+        # keep track of network
+        self.networks[name] = cloned_network
+
+        return cloned_network
 
     def run(self, query, feed_map):
         # get configured fetches
