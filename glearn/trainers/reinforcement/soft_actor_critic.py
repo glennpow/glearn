@@ -54,13 +54,13 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
         self.add_fetch("target_V", self.target_V_network.outputs)
 
     def build_critic(self):
-        with tf.variable_scope("critic"):
+        with self.variable_scope("critic"):
             # build Q- and V-networks
             self.build_Q()
             self.build_V()
 
             # build Q-target
-            with tf.variable_scope("Q_target"):
+            with self.variable_scope("Q_target"):
                 reward = self.get_or_create_feed("reward", shape=(None,))
                 done = self.get_or_create_feed("done", shape=(None,))
                 target_V = self.get_or_create_feed("target_V", shape=(None,))
@@ -71,9 +71,9 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
             Q_optimizes = []
             for i in range(self.Q_count):
                 query = f"Q_{i + 1}_optimize"
-                with tf.variable_scope(query):
+                with self.variable_scope(query):
                     # build Q-loss
-                    with tf.variable_scope("loss"):
+                    with self.variable_scope("loss"):
                         Q_i_network = self.Q_networks[i]
                         Q_i = Q_i_network.outputs
                         Q_loss = tf.reduce_mean(tf.squared_difference(Q_i, Q_target))
@@ -90,13 +90,13 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
 
             # build V-loss and optimize
             query = "V_optimize"
-            with tf.variable_scope(query):
-                with tf.variable_scope("loss"):
+            with self.variable_scope(query):
+                with self.variable_scope("loss"):
                     action = self.get_feed("Y")
                     policy_distribution = self.policy.network.get_distribution_layer()
 
                     # TODO...
-                    # with tf.variable_scope('training_alpha'):
+                    # with self.variable_scope('training_alpha'):
                     #     if self.auto_adjusted_alpha:
                     #         loss_alpha = - tf.reduce_mean(self.log_alpha * tf.stop_gradient(
                     #             self.mu_logp + self._entropy_threshold))
@@ -133,11 +133,11 @@ class SoftActorCriticTrainer(ReinforcementTrainer):
             self.add_fetch("V_update", tf.group([V_optimize, target_V_update], name="V_update"))
 
     def build_actor(self):
-        with tf.variable_scope("actor"):
+        with self.variable_scope("actor"):
             # build policy optimization
             query = "policy_optimize"
-            with tf.variable_scope(query):
-                with tf.variable_scope("loss"):
+            with self.variable_scope(query):
+                with self.variable_scope("loss"):
                     # # policy loss
                     Q_1 = tf.stop_gradient(self.Q_networks[0].outputs)
                     policy_loss = -tf.reduce_mean(Q_1 + self.entropy_factor)

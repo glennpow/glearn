@@ -40,8 +40,8 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
         return kl_divergence
 
     def build_vae_optimize(self, x, decoded, loss_name="VAE_loss"):
-        with tf.variable_scope("VAE_optimize"):
-            with tf.variable_scope("loss"):
+        with self.variable_scope("VAE_optimize"):
+            with self.variable_scope("loss"):
                 # losses
                 y = decoded
                 y = tf.clip_by_value(y, self.EPSILON, 1 - self.EPSILON)
@@ -66,7 +66,7 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
     def build_trainer(self):
         super().build_trainer()
 
-        with tf.variable_scope("VAE"):
+        with self.variable_scope("VAE"):
             # real images and labels
             x = self.get_feed("X")
             y = self.get_feed("Y")

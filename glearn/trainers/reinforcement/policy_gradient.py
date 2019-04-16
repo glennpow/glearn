@@ -36,9 +36,9 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         # build optional baseline
         self.build_baseline(state)
 
-        with tf.variable_scope(query):
+        with self.variable_scope(query):
             # build policy loss
-            with tf.variable_scope("loss"):
+            with self.variable_scope("loss"):
                 policy_distribution = self.policy.network.get_distribution_layer()
 
                 # # build policy loss
@@ -90,7 +90,7 @@ class PolicyGradientTrainer(ReinforcementTrainer):
         has_baseline = self.V_definition or self.simple_baseline
         if has_baseline:
             query = "predict"
-            with tf.variable_scope(self.get_baseline_scope()):
+            with self.variable_scope(self.get_baseline_scope()):
                 if self.V_definition:
                     # build V-network baseline
                     V_network = self.build_V(state, query=query)

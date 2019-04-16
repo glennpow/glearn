@@ -85,7 +85,7 @@ class Trainer(NetworkContext):
         self.build_trainer()
 
     def build_inputs(self):
-        with tf.variable_scope('feeds'):
+        with tf.variable_scope('feeds/'):
             if self.has_dataset:
                 inputs = self.dataset.get_inputs(self)
                 outputs = self.dataset.get_outputs(self)
@@ -118,7 +118,7 @@ class Trainer(NetworkContext):
         # build default policy optimize, if defined
         if self.policy:
             query = "policy_optimize"
-            with tf.variable_scope(query):
+            with self.variable_scope(query):
                 # build policy loss
                 loss = self.policy.build_loss(self.get_feed("Y"))
 

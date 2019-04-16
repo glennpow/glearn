@@ -49,7 +49,7 @@ class GenerativeTrainer(UnsupervisedTrainer):
 
     def build_summary_images(self, name, images, labels=None):
         # image summaries
-        with tf.variable_scope("summary_images"):
+        with self.variable_scope("summary_images"):
             images = tf.reshape(images, tf.shape(self.get_feed("X")))
 
             if labels is not None and self.has_labeled_dataset:

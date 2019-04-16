@@ -327,7 +327,7 @@ class Config(object):
         self.sess = DebuggableSession(self)
 
         # get global step
-        with tf.variable_scope("global_step"):
+        with tf.variable_scope("global_step/"):
             self.global_step = tf.train.get_or_create_global_step()
             self.global_step_update = tf.assign(self.global_step, self.global_step + 1)
 
@@ -368,7 +368,7 @@ class Config(object):
     def write_sweep_summary(self):
         # write any sweep info to tensorboard
         if self.current_sweep is not None:
-            with tf.variable_scope("sweep"):
+            with tf.variable_scope("sweep/"):
                 tensor = tf.stack([tf.convert_to_tensor([k, str(v)])
                                    for k, v in self.current_sweep.items()])
                 self.summary.write_text("hyperparameters", tensor)
@@ -388,7 +388,7 @@ class Config(object):
             model_variables = tf.get_collection_ref(tf.GraphKeys.GLOBAL_VARIABLES)
             checkpoint_variables = tf.train.list_variables(load_checkpoint)
             model_var_names = set()
-            var_list = set()
+            # var_list = set()
             compatible_var_names = set()
             for model_variable in model_variables:
                 model_var_name = model_variable.name.split(":")[0]
@@ -397,18 +397,21 @@ class Config(object):
                 for checkpoint_var_name, checkpoint_var_shape in checkpoint_variables:
                     if model_var_name == checkpoint_var_name:
                         if model_var_shape == checkpoint_var_shape:
-                            var_list.add(model_variable)
+                            # var_list.add(model_variable)
                             compatible_var_names.add(model_var_name)
                             break
             missing_var_names = model_var_names.difference(compatible_var_names)
             checkpoint_var_names = set([name for name, _ in checkpoint_variables])
             unused_variables = checkpoint_var_names.difference(compatible_var_names)
-            if len(missing_var_names) > 0:
-                var_str = "\n * ".join(missing_var_names)
-                log_warning(f"\nMissing model variables from checkpoint:\n * {var_str}")
-            if len(unused_variables) > 0:
-                var_str = "\n * ".join(unused_variables)
-                log_warning(f"\nUnused checkpoint variables by model:\n * {var_str}")
+            if len(missing_var_names) > 0 or len(unused_variables) > 0:
+                log_warning(f"\nIncompatible checkpoint file detected: {load_checkpoint}")
+                load_checkpoint = None
+                if len(missing_var_names) > 0:
+                    var_str = "\n * ".join(missing_var_names)
+                    log_warning(f"\nMissing model variables from checkpoint:\n * {var_str}")
+                if len(unused_variables) > 0:
+                    var_str = "\n * ".join(unused_variables)
+                    log_warning(f"\nUnused checkpoint variables by model:\n * {var_str}")
 
         # TODO - Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2, ...)
         self.saver = tf.train.Saver(var_list=var_list)
