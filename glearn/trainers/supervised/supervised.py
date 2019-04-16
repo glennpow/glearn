@@ -55,12 +55,12 @@ class SupervisedTrainer(Trainer):
             self.batch = self.get_batch()
             self.optimize_and_report(self.batch)
 
+            if self.experiment_yield(True):
+                return
+
             # evaluate if time to do so
             if self.should_evaluate():
                 self.evaluate_and_report()
-
-            if self.experiment_yield(True):
-                return
 
     def evaluate_epoch(self):
         # current epoch summary
@@ -69,5 +69,3 @@ class SupervisedTrainer(Trainer):
 
         # evaluate single epoch
         self.evaluate_and_report()
-
-        self.experiment_yield(True)
