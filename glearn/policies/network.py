@@ -15,6 +15,9 @@ class NetworkPolicy(Policy):
         return info
 
     def build_predict(self, inputs):
+        # prepare inputs  (TODO - one hots?)
+        inputs = tf.cast(inputs, tf.float32)
+
         # build predict network
         self.network = self.context.build_network(self.name, self.network_definition, inputs)
 

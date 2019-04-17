@@ -1,6 +1,6 @@
-import numpy as np
 import tensorflow as tf
 from .layer import NetworkLayer
+from glearn.utils import tf_utils
 
 
 class DenseLayer(NetworkLayer):
@@ -19,8 +19,7 @@ class DenseLayer(NetworkLayer):
         self.dropout = self.context.get_or_create_feed("dropout")
 
         # prepare input
-        input_size = np.prod(inputs.shape[1:])
-        y = tf.reshape(tf.cast(inputs, tf.float32), (-1, input_size))
+        x = tf_utils.flatten(inputs, axis=1)
 
         # create fully connected layers
         layers = []
@@ -29,14 +28,14 @@ class DenseLayer(NetworkLayer):
             if hidden_size == 0:
                 hidden_size = self.context.output.size
 
-            y = self.dense(y, hidden_size, self.dropout, self.activation,
+            x = self.dense(x, hidden_size, self.dropout, self.activation,
                            weights_initializer=self.weights_initializer,
                            biases_initializer=self.biases_initializer,
                            weight_decay=self.weight_decay)
-            layers.append(y)
+            layers.append(x)
         self.references["layers"] = layers
 
-        return y
+        return x
 
     def build_loss(self, targets):
         # evaluate continuous loss (MSE)

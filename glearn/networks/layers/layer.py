@@ -123,6 +123,10 @@ class NetworkLayer(object):
         self.dense_count += 1
         scope = f"dense_{self.index}_{dense_index}"
         with tf.variable_scope(scope):
+            # prepare inputs
+            if len(x.shape) == 1:
+                x = tf.expand_dims(x, axis=-1)
+
             # weights
             weights_initializer = self.load_initializer(weights_initializer,
                                                         tf.contrib.layers.xavier_initializer())

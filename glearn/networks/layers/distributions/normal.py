@@ -1,7 +1,7 @@
-import numpy as np
 import tensorflow as tf
 # import tensorflow.contrib.distributions as tfd
 from .distribution import DistributionLayer
+from glearn.utils import tf_utils
 
 
 EPSILON = 1e-6
@@ -29,8 +29,7 @@ class NormalDistributionLayer(DistributionLayer):
         dropout = self.context.get_or_create_feed("dropout")
 
         # create dense layer for mu
-        input_size = np.prod(inputs.shape[1:])
-        x = tf.reshape(inputs, (-1, input_size))
+        x = tf_utils.flatten(inputs, axis=1)
         self.mu = self.dense(x, self.size, dropout, self.mu_activation,
                              weights_initializer=self.weights_initializer,
                              biases_initializer=self.biases_initializer)

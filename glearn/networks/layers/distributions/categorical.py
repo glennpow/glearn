@@ -1,7 +1,7 @@
-import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.distributions as tfd
 from .distribution import DistributionLayer
+from glearn.utils import tf_utils
 
 
 class CategoricalDistributionLayer(DistributionLayer):
@@ -44,8 +44,7 @@ class CategoricalDistributionLayer(DistributionLayer):
         dropout = self.context.get_or_create_feed("dropout")
 
         # create dense layer for logits
-        input_size = np.prod(inputs.shape[1:])
-        x = tf.reshape(inputs, (-1, input_size))
+        x = tf_utils.flatten(inputs, axis=1)
         if not isinstance(self.categories, int):
             self.categories = self.context.output.size
         logits = self.dense(x, self.categories, dropout, None,

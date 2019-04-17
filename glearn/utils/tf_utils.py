@@ -13,6 +13,16 @@ def nan_to_num(x, inf=1.0e10):
     return x
 
 
+def flatten(x, axis=None):
+    if len(x.shape) <= 1:
+        return x
+    elif axis is None:
+        return tf.reshape(x, (-1))
+    else:
+        size = np.prod(x.shape[axis:])
+        return tf.reshape(x, (-1, size))
+
+
 def huber_loss(x, delta=1.0):
     # Huber loss (https://en.wikipedia.org/wiki/Huber_loss)
     with tf.variable_scope("huber_loss"):
