@@ -11,6 +11,6 @@ class QNetworkPolicy(NetworkPolicy):
 
         # build action prediction from Q-values given by network
         with self.variable_scope(self.network.scope):
-            predict = tf.expand_dims(tf.argmax(self.Q, axis=-1), axis=-1)
+            predict = tf.argmax(self.Q, axis=-1)
 
         super().prepare_predict(inputs, predict)

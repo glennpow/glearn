@@ -7,7 +7,7 @@ class Interface(object):
     def __init__(self, space, deterministic=True):
         # get shape and discreteness for interface
         if isinstance(space, Discrete):
-            self.shape, self.size, self.discrete = (1, ), space.n, True
+            self.shape, self.size, self.discrete = space.shape, space.n, True
             self.dtype = np.dtype(np.int32)
         elif isinstance(space, Space):
             self.shape, self.size, self.discrete = space.shape, np.prod(space.shape), False

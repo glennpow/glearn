@@ -57,7 +57,7 @@ def _load_data(filename):
     images = _convert_images(data[b'data'])
 
     # Get the class-labels for each image.
-    labels = np.array(data[b'labels']).reshape((-1, 1))
+    labels = np.array(data[b'labels'])
 
     return images, labels
 

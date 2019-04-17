@@ -105,7 +105,7 @@ def _load_data(images_file, labels_file, config):
     images = np.reshape(images, [-1, 28, 28, 1])
     labels = _load_data_file(labels_file, 1, max_count=max_count, header_bytes=8,
                              mapping=decode_label)
-    labels = np.reshape(labels, [-1, 1])
+    labels = np.reshape(labels, [-1])
     return images, labels
 
 

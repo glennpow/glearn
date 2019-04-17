@@ -54,7 +54,7 @@ class GenerativeTrainer(UnsupervisedTrainer):
 
             if labels is not None and self.has_labeled_dataset:
                 label_count = len(self.dataset.label_names)
-                indexes = [tf.where(tf.equal(labels, l))[:, 0] for l in range(label_count)]
+                indexes = [tf.where(tf.equal(labels, l)) for l in range(label_count)]
                 for i in range(label_count):
                     label_name = self.dataset.label_names[i]
                     index = tf.squeeze(indexes[i])[0]

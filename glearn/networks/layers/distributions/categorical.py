@@ -24,21 +24,6 @@ class CategoricalDistributionLayer(DistributionLayer):
     def probs(self):
         return self.distribution.probs
 
-    def reshaped_targets(self, targets):
-        return tf.squeeze(targets, axis=-1, name="reshape_targets")
-
-    def prob(self, targets, name=None, **kwargs):
-        with self.variable_scope(name):
-            return self.distribution.prob(self.reshaped_targets(targets), **kwargs)
-
-    def log_prob(self, targets, name=None, **kwargs):
-        with self.variable_scope(name):
-            return self.distribution.log_prob(self.reshaped_targets(targets), **kwargs)
-
-    def neg_log_prob(self, targets, name=None, **kwargs):
-        with self.variable_scope(name):
-            return -self.distribution.log_prob(self.reshaped_targets(targets), **kwargs)
-
     def build_loss(self, targets):
         # evaluate discrete loss
         loss = tf.reduce_mean(self.neg_log_prob(targets))
@@ -77,7 +62,6 @@ class CategoricalDistributionLayer(DistributionLayer):
             y = tf.argmax(distribution.probs, -1, name="sample", output_type=tf.int32)
         else:
             y = self.sample(name="sample")
-        y = tf.expand_dims(y, -1)
         self.references["category"] = y
 
         return distribution
@@ -105,7 +89,7 @@ class DiscretizedDistributionLayer(CategoricalDistributionLayer):
         self.references["distribution"] = distribution
 
         # sample from distribution
-        y = tf.expand_dims(tf.cast(distribution.sample(), tf.float32), -1)
+        y = tf.cast(distribution.sample(), tf.float32)
 
         return y
 

@@ -89,8 +89,8 @@ class CNNViewerMode(ViewerMode):
                 y = row * height
                 image[y:y + height, x:x + width] = input_image
 
-                expected = outputs[index][0]
-                predicted = predict[index][0]
+                expected = outputs[index]
+                predicted = predict[index]
                 correct = predicted == expected
                 predict_s = f"{predicted}"
                 color = (0, 255, 0, 255) if correct else (255, 0, 0, 255)

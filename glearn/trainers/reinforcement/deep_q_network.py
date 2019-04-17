@@ -34,8 +34,7 @@ class DeepQNetworkTrainer(ReinforcementTrainer):
         with self.variable_scope(query):
             # the prediction by the primary Q-network for the actual actions.
             with self.variable_scope("predict"):
-                flat_action = tf.squeeze(action, axis=-1)
-                action_one_hot = tf.one_hot(flat_action, self.output.size, name="action_one_hot")
+                action_one_hot = tf.one_hot(action, self.output.size, name="action_one_hot")
                 Q_predict = tf.reduce_sum(Q * action_one_hot, axis=-1, name="action_Q")
 
             # the optimization target defined by the Bellman equation and the target network.

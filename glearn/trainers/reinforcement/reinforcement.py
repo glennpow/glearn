@@ -104,7 +104,7 @@ class ReinforcementTrainer(Trainer):
         # get action
         if epsilon > 0 and np.random.random() < epsilon:
             # choose epsilon-greedy random action
-            action = [self.output.sample()]
+            action = self.output.sample()
             predict_info = {}
         else:
             # choose optimal policy action
@@ -121,9 +121,6 @@ class ReinforcementTrainer(Trainer):
             if not np.any(np.isfinite(action)):
                 self.warning(f"Detected invalid action values: {action}", once=True)
             action = np.nan_to_num(action)
-        if self.output.discrete:
-            # HACK? - this is probably not the case for multi-var envs?
-            action = action[0]
         return action
 
     def rollout(self):

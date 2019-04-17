@@ -22,8 +22,8 @@ class NetworkPolicy(Policy):
 
     def prepare_predict(self, inputs, predict):
         with self.variable_scope(self.network.scope):
-            # scale and clip predict
             if self.config.output.continuous:
+                # scale and clip predict
                 output_space = self.config.output.space
                 low = output_space.low
                 high = output_space.high
@@ -31,7 +31,6 @@ class NetworkPolicy(Policy):
                     # this only works with sigmoid activation in last layer
                     predict = predict * (high - low) + low
                 predict = tf.clip_by_value(predict, low, high)
-
                 self.network.outputs = predict
 
             # add fetch for predict
