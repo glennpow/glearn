@@ -18,7 +18,8 @@ class DeepQNetworkTrainer(ReinforcementTrainer):
     def build_trainer(self):
         # get the inputs
         action = self.get_feed("Y")
-        next_state = self.get_or_create_feed("next_state", (None,) + self.input.shape)
+        next_state = self.get_or_create_feed("next_state", (None,) + self.input.shape,
+                                             dtype=self.input.dtype)
         reward = self.get_or_create_feed("reward", shape=(None,))
         done = self.get_or_create_feed("done", (None,))
 

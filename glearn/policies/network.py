@@ -14,16 +14,14 @@ class NetworkPolicy(Policy):
         info.update(self.network.get_info())
         return info
 
-    def build_predict(self, inputs):
-        # prepare inputs  (TODO - one hots?)
-        inputs = tf.cast(inputs, tf.float32)
-
+    def build_predict(self, inputs, query=None):
         # build predict network
-        self.network = self.context.build_network(self.name, self.network_definition, inputs)
+        self.network = self.context.build_network(self.name, self.network_definition, inputs,
+                                                  query=query, prepare_inputs=True)
 
-        self.prepare_predict(inputs, self.network.outputs)
+        self.handle_predict(inputs, self.network.outputs)
 
-    def prepare_predict(self, inputs, predict):
+    def handle_predict(self, inputs, predict):
         with self.variable_scope(self.network.scope):
             if self.config.output.continuous:
                 # scale and clip predict
