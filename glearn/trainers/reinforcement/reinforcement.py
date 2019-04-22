@@ -158,12 +158,12 @@ class ReinforcementTrainer(Trainer):
         pass
 
     def process_episode(self, episode):
-        # ignore zero-reward episodes
-        if np.count_nonzero(episode["reward"]) == 0:
-            if not self._zero_reward_warning:
-                self.warning("Ignoring episode(s) with zero rewards!")
-                self._zero_reward_warning = True
-            return False
+        # ignore zero-reward episodes  (FIXME - why did I have this?  div by zero somewhere)
+        # if np.count_nonzero(episode["reward"]) == 0:
+        #     if not self._zero_reward_warning:
+        #         self.warning("Ignoring episode(s) with zero rewards!")
+        #         self._zero_reward_warning = True
+        #     return False
         return True
 
     def get_batch(self, mode="train"):
@@ -294,6 +294,9 @@ class ReinforcementTrainer(Trainer):
                     break
 
     def render(self, mode="human"):
-        self.env.render(mode=mode)
+        render_mode = self.config.get("render_mode", mode)
+        result = self.env.render(mode=render_mode)
 
         super().render(mode=mode)
+
+        return result

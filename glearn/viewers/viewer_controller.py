@@ -26,7 +26,8 @@ class ViewerController(Configurable):
         if self._viewer is not None:
             return self._viewer
         if self.env is not None:
-            return self.env.unwrapped.viewer
+            if hasattr(self.env.unwrapped, "viewer"):
+                return self.env.unwrapped.viewer
         return None
 
     def init_viewer(self):

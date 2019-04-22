@@ -1,0 +1,43 @@
+--- # FrozenLake
+  import: _base
+
+  env:
+    name: FrozenLake-v0
+    args:
+      is_slippery: false
+  render_mode: ansi
+
+  batch_size: 32
+  episode_buffer:
+    size: 100000
+
+  policy:
+    name: glearn.policies:QNetworkPolicy
+    args:
+      network:
+        layers:
+          - name: glearn.networks:DenseLayer
+            args:
+              hidden_sizes: [32]
+          - name: glearn.networks:DenseLayer
+            args:
+              activation: null
+        optimizer: adam
+        learning_rate: 0.001
+        # max_grad_norm: 5
+
+  trainer:
+    name: glearn.trainers:DeepQNetworkTrainer
+    args:
+      epochs: 1600
+      evaluate_interval: 10
+      epsilon: [1, 0.01, 450]
+      gamma: 0.9
+      target_update_steps: 10
+
+  viewer:
+    name: glearn.viewers.advanced_viewer:AdvancedViewer
+    args:
+      zoom: 2
+      width: 600
+      height: 400

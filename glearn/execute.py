@@ -1,4 +1,3 @@
-import time
 import traceback
 import bdb
 from glearn.trainers import load_trainer
@@ -33,5 +32,8 @@ def execute(config_path, training, version=None, render=False, debug=False, prof
 
     # allow local runs to keep tensorboard alive
     if config.local and not error:
-        log("Experiment complete.  Press any key to terminate...")
+        if config.get("tensorboard", False):
+            log("Experiment complete, Tensorboard still alive.  Press any key to terminate...")
+        else:
+            log("Experiment complete.  Press any key to terminate...")
         getch()
