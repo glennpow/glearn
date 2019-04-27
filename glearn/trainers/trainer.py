@@ -210,7 +210,11 @@ class Trainer(NetworkContext):
         return results
 
     def should_evaluate(self):
-        return not self.training or (self.current_global_step + 1) % self.evaluate_interval == 0
+        # return not self.training or (self.current_global_step + 1) % self.evaluate_interval == 0
+        if not self.training:
+            return True
+        if (self.current_global_step - (self.last_eval_step or 0)) >= self.evaluate_interval:
+            return True
 
     def extra_evaluate_stats(self):
         # override

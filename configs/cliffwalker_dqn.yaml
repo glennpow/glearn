@@ -2,10 +2,8 @@
   import: _base
 
   env:
-    name: FrozenLake-v0
-    args:
-      is_slippery: false
-  render_mode: ansi
+    name: CliffWalking-v0
+  render_mode: null  # ansi
 
   batch_size: 32
   episode_buffer:
@@ -23,6 +21,7 @@
             args:
               activation: null
         optimizer: adam
+        # learning_rate: 0.002
         learning_rate: 0.001
         # max_grad_norm: 5
 
@@ -30,8 +29,10 @@
     name: glearn.trainers:DeepQNetworkTrainer
     args:
       epochs: 1600
-      evaluate_interval: 10
+      optimize_iterations: 10
+      evaluate_interval: 100
       epsilon: [1, 0.01, 450]
+      max_episode_steps: 500
       gamma: 0.9
       target_update_steps: 10
 
@@ -39,6 +40,6 @@
     name: glearn.viewers.discrete_env_viewer:DiscreteEnvViewer
     args:
       fps: 4
-      zoom: 2
-      width: 600
-      height: 400
+      zoom: 1
+      width: 1200
+      height: 800

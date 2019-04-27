@@ -30,5 +30,6 @@
       evaluate_interval: 10
       epsilon: [0.2, 0.001, 300]
       gamma: 0.999
+      frame_skip: 4
       # ent_coef: 2.782559402207126e-05
       # keep_prob: 0.8

@@ -1,3 +1,4 @@
+import time
 import sys
 import numpy as np
 from glearn.utils.config import Configurable
@@ -5,7 +6,8 @@ from glearn.utils.reflection import get_class
 
 
 class AdvancedViewer(Configurable):
-    def __init__(self, config, display=None, width=None, height=None, zoom=1, modes=None):
+    def __init__(self, config, display=None, width=None, height=None, zoom=1, modes=None,
+                 fps=None):
         super().__init__(config)
 
         import pyglet
@@ -23,11 +25,13 @@ class AdvancedViewer(Configurable):
         self.width = width
         self.height = height
         self.zoom = zoom
+        self.fps = fps
 
         self.window = pyglet.window.Window(width=width * zoom, height=height * zoom, visible=False,
                                            display=self.display, vsync=False, resizable=True)
         self.window.push_handlers(self)
         self.isopen = True
+        self.last_frame = 0
 
         self.modes = []
         if modes is not None:
@@ -66,6 +70,8 @@ class AdvancedViewer(Configurable):
         # gl.glViewport(0, 0, width, height)
 
     def prepare(self, trainer):
+        self.trainer = trainer
+
         for mode in self.modes:
             mode.prepare(trainer)
 
@@ -82,6 +88,9 @@ class AdvancedViewer(Configurable):
 
         self.window.set_size(self.width * self.zoom, self.height * self.zoom)
         pass
+
+    def get_size(self):
+        return (int(self.width), int(self.height))
 
     def set_size(self, width, height):
         self.width = width
@@ -154,6 +163,9 @@ class AdvancedViewer(Configurable):
         self.labels = {name: label for name, label in self.labels.items()
                        if not name.startswith(prefix)}
 
+    def prepare_render(self):
+        pass
+
     def render(self):
         if len(self.images) + len(self.labels) == 0:
             return
@@ -162,9 +174,20 @@ class AdvancedViewer(Configurable):
             self.window.set_visible(True)
             self.window.activate()
 
+        # only render at desired framerate
+        if self.fps is not None:
+            t = time.time()
+            interval = t - self.last_frame
+            if interval >= 1 / self.fps:
+                self.last_frame = t
+            else:
+                return
+
         self.window.clear()
         self.window.switch_to()
         self.window.dispatch_events()
+
+        self.prepare_render()
 
         # TODO - HANDLE ZOOM
         # # Initialize Projection matrix

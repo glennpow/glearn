@@ -4,13 +4,17 @@ from .reinforcement import ReinforcementTrainer
 
 class DeepQNetworkTrainer(ReinforcementTrainer):
     def __init__(self, config, gamma=0.95, Q_count=1, target_update_steps=10, tau=None,
-                 **kwargs):
+                 frame_skip=None, **kwargs):
         self.gamma = gamma
         self.Q_count = Q_count
         self.target_update_steps = target_update_steps
         self.tau = tau
+        self.frame_skip = frame_skip
 
         super().__init__(config, **kwargs)
+
+        self._last_action = None
+        self._last_predict_info = None
 
     def on_policy(self):
         return False
@@ -66,6 +70,12 @@ class DeepQNetworkTrainer(ReinforcementTrainer):
             feed_map["next_state"] = self.batch["next_state"]
             feed_map["reward"] = self.batch["reward"]
             feed_map["done"] = self.batch["done"]
+
+    def action(self):
+        if self._last_action is None or \
+           self.frame_skip is None or self.episode_step % self.frame_skip == 0:
+            self._last_action, self._last_predict_info = super().action()
+        return self._last_action, self._last_predict_info
 
     def get_optimize_query(self, batch):
         query = ["Q_optimize"]

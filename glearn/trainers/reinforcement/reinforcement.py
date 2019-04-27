@@ -8,14 +8,17 @@ from glearn.utils.printing import print_update
 
 
 class ReinforcementTrainer(Trainer):
-    def __init__(self, config, epochs=None, max_episode_time=None, min_episode_reward=None,
-                 epsilon=0, averaged_episodes=50, **kwargs):
+    def __init__(self, config, epochs=None, optimize_iterations=1, epsilon=0,
+                 max_episode_time=None, max_episode_steps=None, min_episode_reward=None,
+                 averaged_episodes=50, **kwargs):
         super().__init__(config, **kwargs)
 
         self.epochs = epochs
-        self.max_episode_time = max_episode_time
-        self.min_episode_reward = min_episode_reward
+        self.optimize_iterations = optimize_iterations
         self.epsilon = epsilon
+        self.max_episode_time = max_episode_time
+        self.max_episode_steps = max_episode_steps
+        self.min_episode_reward = min_episode_reward
         self.averaged_episodes = averaged_episodes
 
         self.state = None
@@ -23,6 +26,7 @@ class ReinforcementTrainer(Trainer):
         self.buffer = EpisodeBuffer(config, self)
 
         self._zero_reward_warning = False
+        self.env_render_results = None
 
         self.debug_numerics = self.config.is_debugging("debug_numerics")
 
@@ -35,6 +39,7 @@ class ReinforcementTrainer(Trainer):
             "Strategy": "on-policy" if self.on_policy() else "off-policy",
             "Epochs": self.epochs,
             "Max Episode Time": self.max_episode_time,
+            "Max Episode Steps": self.max_episode_steps,
             "Min Episode Reward": self.min_episode_reward,
         })
         return info
@@ -230,6 +235,9 @@ class ReinforcementTrainer(Trainer):
                     if self.max_episode_time is not None:
                         if episode_time > self.max_episode_time:
                             done = True
+                    if self.max_episode_steps is not None:
+                        if self.episode_step >= self.max_episode_steps:
+                            done = True
 
                     # check episode performance
                     if self.min_episode_reward is not None:
@@ -261,20 +269,24 @@ class ReinforcementTrainer(Trainer):
 
                         break
 
-                # optimize and evaluate when enough transitions have been gathered
+                # optimize when enough transitions have been gathered
                 optimizing = self.should_optimize()
-                evaluating = self.should_evaluate()
-                if optimizing or evaluating:
-                    if optimizing:
+                if optimizing:
+                    for _ in range(self.optimize_iterations):
                         self.batch = self.get_batch()
                         self.optimize_and_report(self.batch)
 
                         self.epoch_step += 1
 
-                    # evaluate if time to do so
-                    if evaluating:
-                        self.evaluate_and_report()
+                        if self.experiment_yield(True):
+                            return
 
+                # evaluate if time to do so
+                evaluating = self.should_evaluate()
+                if evaluating:
+                    self.evaluate_and_report()
+
+                if optimizing or evaluating:
                     # episode summary values
                     self.summary.add_simple_value("episode_time_avg", average_times.value)
                     self.summary.add_simple_value("episode_steps_avg", average_steps.value)
@@ -295,8 +307,7 @@ class ReinforcementTrainer(Trainer):
 
     def render(self, mode="human"):
         render_mode = self.config.get("render_mode", mode)
-        result = self.env.render(mode=render_mode)
+        if render_mode is not None:
+            self.env_render_results = self.env.render(mode=render_mode)
 
         super().render(mode=mode)
-
-        return result
