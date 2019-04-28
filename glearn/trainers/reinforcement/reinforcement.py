@@ -101,9 +101,13 @@ class ReinforcementTrainer(Trainer):
         # decaying epsilon-greedy
         epsilon = self.epsilon if self.training else 0
         if isinstance(epsilon, list):
-            epsilon = max(epsilon[1], epsilon[0] * epsilon[2] ** self.current_global_step)
-            # t = min(1, self.current_global_step / epsilon[2])
-            # epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
+            if epsilon[2] < 1:
+                # exponential decay
+                epsilon = max(epsilon[1], epsilon[0] * epsilon[2] ** self.current_global_step)
+            else:
+                # linear decay
+                t = min(1, self.current_global_step / epsilon[2])
+                epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
             self.summary.set_simple_value("epsilon", epsilon)
 
         # get action
