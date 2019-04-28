@@ -3,12 +3,11 @@ from .reinforcement import ReinforcementTrainer
 
 
 class DeepQNetworkTrainer(ReinforcementTrainer):
-    def __init__(self, config, gamma=0.95, Q_count=1, target_update_steps=None, tau=None,
+    def __init__(self, config, gamma=0.95, Q_count=1, target_update=None,
                  frame_skip=None, loss_type=None, **kwargs):
         self.gamma = gamma
         self.Q_count = Q_count
-        self.target_update_steps = target_update_steps
-        self.tau = tau
+        self.target_update = target_update
         self.frame_skip = frame_skip
         self.loss_type = loss_type
 
@@ -19,6 +18,9 @@ class DeepQNetworkTrainer(ReinforcementTrainer):
 
     def on_policy(self):
         return False
+
+    def has_target_network(self):
+        return self.target_update is not None
 
     def build_trainer(self):
         # get the inputs
@@ -33,7 +35,7 @@ class DeepQNetworkTrainer(ReinforcementTrainer):
         Q = self.policy.Q
 
         # build Target-Q-Network
-        if self.target_update_steps is not None:
+        if self.has_target_network():
             target_Q_network = self.clone_network(Q_network, "target_Q", inputs=next_state)
             target_Q = target_Q_network.outputs
 
@@ -46,7 +48,7 @@ class DeepQNetworkTrainer(ReinforcementTrainer):
 
             # the optimization target defined by the Bellman equation and the target network.
             with self.variable_scope("target"):
-                if self.target_update_steps is not None:
+                if self.has_target_network():
                     target_Q_predict = tf.reduce_max(target_Q, axis=-1)
                 else:
                     target_Q_predict = tf.reduce_max(Q, axis=-1)
@@ -58,14 +60,15 @@ class DeepQNetworkTrainer(ReinforcementTrainer):
                                                  weights=weight)
 
         # build target network update
-        if self.target_update_steps is not None:
+        if self.has_target_network():
             with tf.control_dependencies([Q_optimize]):
-                target_Q_network.update(Q_network, tau=self.tau)
+                tau = self.target_update if self.target_update < 1 else None
+                target_Q_network.update(Q_network, tau=tau)
 
         # summaries
         with self.variable_scope(query):
             self.summary.add_histogram("action", action, query=query)
-            if self.target_update_steps is not None:
+            if self.has_target_network():
                 self.add_metric("target_Q", target_Q, histogram=True, query=query)
             self.add_metric("Q", Q_predict, histogram=True, query=query)
 
@@ -89,8 +92,8 @@ class DeepQNetworkTrainer(ReinforcementTrainer):
         query = ["Q_optimize"]
 
         # update target network at desired step interval
-        if self.target_update_steps is not None and \
-           self.current_global_step % self.target_update_steps == 0:
-            query.append("target_Q_update")
+        if self.has_target_network():
+            if self.target_update < 1 or self.current_global_step % self.target_update == 0:
+                query.append("target_Q_update")
 
         return query

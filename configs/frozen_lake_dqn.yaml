@@ -33,7 +33,7 @@
       evaluate_interval: 10
       epsilon: [1, 0.01, 0.995]
       gamma: 0.9
-      target_update_steps: 10
+      target_update: 500
 
   viewer:
     name: glearn.viewers.discrete_env_viewer:DiscreteEnvViewer

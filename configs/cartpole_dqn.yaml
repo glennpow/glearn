@@ -32,7 +32,7 @@
       evaluate_interval: 20
       epsilon: [1, 0.01, 0.99995]
       gamma: 0.95
-      target_update_steps: 40
+      target_update: 40
 
   # sweeps:
   #   learning_rate: [1.0e-4, 1.0e-3, 1.0e-2]
