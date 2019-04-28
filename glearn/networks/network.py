@@ -168,7 +168,7 @@ class Network(Configurable):
     def optimize_loss(self, loss, name=None):
         return self.context.optimize_loss(loss, networks=[self], name=name)
 
-    def optimize_error(self, target, predict=None, mode=None, weights=None, name=None):
+    def optimize_error(self, target, predict=None, loss_type=None, weights=None, name=None):
         if name is None:
             name = f"{self.name}_optimize"
         with self.variable_scope(name):
@@ -181,7 +181,7 @@ class Network(Configurable):
                 error = predict - tf.stop_gradient(target)
 
                 # calculate appropriate loss
-                if mode == "huber":
+                if loss_type == "huber":
                     error = tf_utils.huber_loss(error)
                 else:  # default "mean_square_error"
                     error = tf.square(error)

@@ -8,13 +8,12 @@ from glearn.utils.printing import print_update
 
 
 class ReinforcementTrainer(Trainer):
-    def __init__(self, config, epochs=None, optimize_iterations=1, epsilon=0,
+    def __init__(self, config, epochs=None, epsilon=0,
                  max_episode_time=None, max_episode_steps=None, min_episode_reward=None,
                  averaged_episodes=50, **kwargs):
         super().__init__(config, **kwargs)
 
         self.epochs = epochs
-        self.optimize_iterations = optimize_iterations
         self.epsilon = epsilon
         self.max_episode_time = max_episode_time
         self.max_episode_steps = max_episode_steps
@@ -102,8 +101,9 @@ class ReinforcementTrainer(Trainer):
         # decaying epsilon-greedy
         epsilon = self.epsilon if self.training else 0
         if isinstance(epsilon, list):
-            t = min(1, self.current_global_step / epsilon[2])
-            epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
+            epsilon = max(epsilon[1], epsilon[0] * epsilon[2] ** self.current_global_step)
+            # t = min(1, self.current_global_step / epsilon[2])
+            # epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
             self.summary.set_simple_value("epsilon", epsilon)
 
         # get action
@@ -163,7 +163,7 @@ class ReinforcementTrainer(Trainer):
         pass
 
     def process_episode(self, episode):
-        # ignore zero-reward episodes  (FIXME - why did I have this?  div by zero somewhere)
+        # ignore zero-reward episodes  (FIXME - why did I have this?  div by zero somewhere?)
         # if np.count_nonzero(episode["reward"]) == 0:
         #     if not self._zero_reward_warning:
         #         self.warning("Ignoring episode(s) with zero rewards!")
@@ -175,14 +175,26 @@ class ReinforcementTrainer(Trainer):
         # get env experience replay batch of episodes
         return self.buffer.get_batch(mode=mode)
 
-    def should_optimize(self):
+    def should_optimize(self, done):
         if not super().should_optimize():
             return False
+
+        # on-policy requires full episodes in buffer
+        if self.on_policy() and not done:
+            return False
+
+        # also make sure buffer is ready
         return self.buffer.is_ready()
+
+    def evaluate_counter(self):
+        # evaluate based on epoch count, rather than optimization step
+        return self.epoch
 
     def should_evaluate(self):
         if not super().should_evaluate():
             return False
+
+        # also make sure buffer is ready
         return self.buffer.is_ready()
 
     def evaluate(self):
@@ -203,16 +215,27 @@ class ReinforcementTrainer(Trainer):
         average_times = RunningAverage(window=self.averaged_episodes)
         average_steps = RunningAverage(window=self.averaged_episodes)
 
+        def report_and_yield():
+            # episode summary values
+            self.summary.add_simple_value("episode_time_avg", average_times.value)
+            self.summary.add_simple_value("episode_steps_avg", average_steps.value)
+            self.summary.add_simple_value("episode_reward_avg", average_rewards.value)
+            self.summary.add_simple_value("episode_reward_max", max_episode_reward)
+
+            return self.experiment_yield(True)
+
         while self.epochs is None or self.epoch < self.epochs:
             # start current epoch
             self.epoch_start_time = time.time()
             self.epoch += 1
             self.epoch_step = 0
             self.epoch_episodes = 0
+            optimized = False
 
             self.summary.add_simple_value("epoch", self.epoch)
 
-            while True:
+            # iterate through episodes until an optimization has occurred
+            while not optimized:
                 # start current episode
                 self.episode_start_time = time.time()
                 self.episode_count += 1
@@ -221,7 +244,9 @@ class ReinforcementTrainer(Trainer):
 
                 self.summary.set_simple_value("episode", self.episode_count)
 
-                while self.running:
+                # step through single episode
+                done = False
+                while not done:
                     if self.experiment_yield():
                         return
 
@@ -267,43 +292,30 @@ class ReinforcementTrainer(Trainer):
                                       f"Last Reward: {self.episode.reward:.02f}",
                                       f"Buffer: {self.buffer.get_info()}"])
 
-                        break
-
-                # optimize when enough transitions have been gathered
-                optimizing = self.should_optimize()
-                if optimizing:
-                    for _ in range(self.optimize_iterations):
+                    # optimize when enough transitions have been gathered
+                    if self.should_optimize(done):
                         self.batch = self.get_batch()
                         self.optimize_and_report(self.batch)
 
                         self.epoch_step += 1
+                        optimized = True
 
-                        if self.experiment_yield(True):
+                        if report_and_yield():
                             return
 
-                # evaluate if time to do so
-                evaluating = self.should_evaluate()
-                if evaluating:
-                    self.evaluate_and_report()
-
-                if optimizing or evaluating:
-                    # episode summary values
-                    self.summary.add_simple_value("episode_time_avg", average_times.value)
-                    self.summary.add_simple_value("episode_steps_avg", average_steps.value)
-                    self.summary.add_simple_value("episode_reward_avg", average_rewards.value)
-                    self.summary.add_simple_value("episode_reward_max", max_episode_reward)
-
-                    # prepare buffer for next epoch
-                    self.buffer.update()
-
-                    if self.experiment_yield(True):
+                    if not self.running:
                         return
 
-                if not self.running:
-                    return
+            # evaluate if time to do so
+            if self.should_evaluate():
+                self.evaluate_and_report()
 
-                if optimizing:
-                    break
+                if not self.training:
+                    if report_and_yield():
+                        return
+
+            # prepare buffer for next epoch
+            self.buffer.update()
 
     def render(self, mode="human"):
         render_mode = self.config.get("render_mode", mode)

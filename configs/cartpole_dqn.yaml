@@ -2,11 +2,12 @@
   import: _base
 
   env: CartPole-v0
+  # seeds: 3
   # seeds: [809142917, 3412706144, 1757722874]
 
   batch_size: 32
   episode_buffer:
-    size: 100000
+    size: 2000
 
   policy:
     name: glearn.policies:QNetworkPolicy
@@ -15,7 +16,7 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [32, 32]
+              hidden_sizes: [24, 24]
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [0]
@@ -27,11 +28,11 @@
   trainer:
     name: glearn.trainers:DeepQNetworkTrainer
     args:
-      epochs: 1600
-      evaluate_interval: 10
-      epsilon: [1, 0.01, 450]
-      gamma: 0.999
-      target_update_steps: 10
+      epochs: 5000
+      evaluate_interval: 20
+      epsilon: [1, 0.01, 0.99995]
+      gamma: 0.95
+      target_update_steps: 40
 
   # sweeps:
   #   learning_rate: [1.0e-4, 1.0e-3, 1.0e-2]

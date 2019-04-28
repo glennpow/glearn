@@ -29,9 +29,8 @@
     name: glearn.trainers:DeepQNetworkTrainer
     args:
       epochs: 1600
-      optimize_iterations: 10
-      evaluate_interval: 100
-      epsilon: [1, 0.01, 450]
+      evaluate_interval: 10
+      epsilon: [1, 0.01, 0.9995]
       max_episode_steps: 500
       gamma: 0.9
       target_update_steps: 10

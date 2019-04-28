@@ -49,9 +49,9 @@ class NetworkPolicy(Policy):
     def optimize_loss(self, loss, name=None):
         return self.network.optimize_loss(loss, name=name)
 
-    def optimize_error(self, target, predict=None, mode=None, weights=None, name=None):
-        return self.network.optimize_error(target, predict=predict, mode=mode, weights=weights,
-                                           name=name)
+    def optimize_error(self, target, predict=None, loss_type=None, weights=None, name=None):
+        return self.network.optimize_error(target, predict=predict, loss_type=loss_type,
+                                           weights=weights, name=name)
 
     def prepare_default_feeds(self, query, feed_map):
         feed_map = super().prepare_default_feeds(query, feed_map)

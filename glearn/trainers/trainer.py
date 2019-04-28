@@ -209,12 +209,15 @@ class Trainer(NetworkContext):
         print_update(["Optimizing", f"Epoch: {self.epoch}", f"Global Step: {global_step}"])
         return results
 
+    def evaluate_counter(self):
+        # default to evaluate based on optimization step
+        return self.current_global_step
+
     def should_evaluate(self):
-        # return not self.training or (self.current_global_step + 1) % self.evaluate_interval == 0
         if not self.training:
             return True
-        if (self.current_global_step - (self.last_eval_step or 0)) >= self.evaluate_interval:
-            return True
+
+        return (self.evaluate_counter() - (self.last_eval_counter or 0)) >= self.evaluate_interval
 
     def extra_evaluate_stats(self):
         # override
@@ -268,6 +271,7 @@ class Trainer(NetworkContext):
             steps_per_second = eval_steps / eval_elapsed_time
             self.last_eval_time = current_time
             self.last_eval_step = self.current_global_step
+            self.last_eval_counter = self.evaluate_counter()
             stats = {
                 "global step": self.current_global_step,
                 "training time": train_elapsed_time,
@@ -386,6 +390,7 @@ class Trainer(NetworkContext):
             self.current_global_step = global_step
             self.last_eval_time = None
             self.last_eval_step = self.current_global_step
+            self.last_eval_counter = self.evaluate_counter()
 
             # start listening for terminal input
             self.start_terminal_input()
