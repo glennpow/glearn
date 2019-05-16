@@ -1,15 +1,17 @@
+import numpy as np
 import tensorflow as tf
 from .reinforcement import ReinforcementTrainer
 
 
 class DeepQNetworkTrainer(ReinforcementTrainer):
-    def __init__(self, config, gamma=0.95, Q_count=1, target_update=None,
-                 frame_skip=None, loss_type=None, **kwargs):
+    def __init__(self, config, gamma=0.95, Q_count=1, target_update=None, loss_type=None,
+                 frame_skip=None, epsilon=0, **kwargs):
         self.gamma = gamma
         self.Q_count = Q_count
         self.target_update = target_update
-        self.frame_skip = frame_skip
         self.loss_type = loss_type
+        self.frame_skip = frame_skip
+        self.epsilon = epsilon
 
         super().__init__(config, **kwargs)
 
@@ -83,9 +85,29 @@ class DeepQNetworkTrainer(ReinforcementTrainer):
             feed_map["done"] = self.batch["done"]
 
     def action(self):
+        # check frame skip
         if self._last_action is None or \
            self.frame_skip is None or self.episode_step % self.frame_skip == 0:
-            self._last_action, self._last_predict_info = super().action()
+            # decaying epsilon-greedy
+            epsilon = self.epsilon if self.training else 0
+            if isinstance(epsilon, list):
+                if epsilon[2] < 1:
+                    # exponential epsilon decay
+                    epsilon = max(epsilon[1], epsilon[0] * epsilon[2] ** self.current_global_step)
+                else:
+                    # linear epsilon decay
+                    t = min(1, self.current_global_step / epsilon[2])
+                    epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
+                self.summary.set_simple_value("epsilon", epsilon)
+
+            # get random or predicted action
+            if epsilon > 0 and np.random.random() < epsilon:
+                # choose epsilon-greedy random action
+                self._last_action = self.output.sample()
+                self._last_predict_info = {}
+            else:
+                # get predicted action
+                self._last_action, self._last_predict_info = super().action()
         return self._last_action, self._last_predict_info
 
     def get_optimize_query(self, batch):

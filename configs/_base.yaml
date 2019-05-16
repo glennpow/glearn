@@ -27,7 +27,7 @@
   # debug_memory: true
 
   ## add numerics sanitizers or exceptions (for NaNs, infs, etc.)
-  # debug_numerics: true
+  debug_numerics: true
   # debug_raise_numerics: true
 
 

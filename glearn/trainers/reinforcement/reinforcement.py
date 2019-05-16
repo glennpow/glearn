@@ -8,13 +8,12 @@ from glearn.utils.printing import print_update
 
 
 class ReinforcementTrainer(Trainer):
-    def __init__(self, config, epochs=None, epsilon=0,
+    def __init__(self, config, epochs=None,
                  max_episode_time=None, max_episode_steps=None, min_episode_reward=None,
                  averaged_episodes=50, **kwargs):
         super().__init__(config, **kwargs)
 
         self.epochs = epochs
-        self.epsilon = epsilon
         self.max_episode_time = max_episode_time
         self.max_episode_steps = max_episode_steps
         self.min_episode_reward = min_episode_reward
@@ -98,30 +97,12 @@ class ReinforcementTrainer(Trainer):
         return self.fetch(name, feed_map, squeeze=True)
 
     def action(self):
-        # decaying epsilon-greedy
-        epsilon = self.epsilon if self.training else 0
-        if isinstance(epsilon, list):
-            if epsilon[2] < 1:
-                # exponential decay
-                epsilon = max(epsilon[1], epsilon[0] * epsilon[2] ** self.current_global_step)
-            else:
-                # linear decay
-                t = min(1, self.current_global_step / epsilon[2])
-                epsilon = t * (epsilon[1] - epsilon[0]) + epsilon[0]
-            self.summary.set_simple_value("epsilon", epsilon)
+        # choose optimal policy action
+        results = self.predict(self.state)
 
-        # get action
-        if epsilon > 0 and np.random.random() < epsilon:
-            # choose epsilon-greedy random action
-            action = self.output.sample()
-            predict_info = {}
-        else:
-            # choose optimal policy action
-            results = self.predict(self.state)
-
-            # extract predicted action and other results
-            action = results.pop("predict")[0]
-            predict_info = {k: np.squeeze(v[0]) for k, v in results.items()}
+        # extract predicted action and other results
+        action = results.pop("predict")[0]
+        predict_info = {k: np.squeeze(v[0]) for k, v in results.items()}
         return action, predict_info
 
     def sanitize_action(self, action):

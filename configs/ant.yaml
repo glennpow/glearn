@@ -20,5 +20,4 @@
     args:
       epochs: 500
       keep_prob: 0.8
-      epsilon: [1, 0.1, 10]
       evaluate_interval: 1
