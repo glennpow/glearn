@@ -17,7 +17,7 @@ class NetworkPolicy(Policy):
     def build_predict(self, inputs, query=None):
         # build predict network
         self.network = self.context.build_network(self.name, self.network_definition, inputs,
-                                                  query=query, prepare_inputs=True)
+                                                  query=query)
 
         self.handle_predict(inputs, self.network.outputs)
 

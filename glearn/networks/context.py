@@ -194,14 +194,13 @@ class NetworkContext(Configurable):
     def get_network(self, name):
         return self.networks.get(name)
 
-    def build_network(self, name, definition, inputs, query=None, reuse=None,
-                      prepare_inputs=False):
+    def build_network(self, name, definition, inputs, query=None, reuse=None):
         # load network
         from glearn.networks import load_network
         network = load_network(name, self, definition)
 
         # build network using inputs
-        y = network.build_predict(inputs, reuse=reuse, prepare_inputs=prepare_inputs)
+        y = network.build_predict(inputs, reuse=reuse)
         self.add_fetch(name, y, query=query)
 
         # keep track of network

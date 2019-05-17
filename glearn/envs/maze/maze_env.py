@@ -54,7 +54,7 @@ class MazeEnv(gym.Env):
             # observation contains 4 walls
             low = np.append(low, np.zeros(4, dtype=int))
             high = np.append(high, np.ones(4, dtype=int))
-        self.observation_space = spaces.Box(low, high)
+        self.observation_space = spaces.Box(low, high, dtype=np.int32)
 
         # initial condition
         self.state = None
@@ -109,69 +109,56 @@ class MazeEnv(gym.Env):
     def is_game_over(self):
         return self.viewer.game_over
 
-    def render(self, mode="human", close=False):
-        if close:
-            self.viewer.quit_game()
-
+    def render(self, mode="human"):
         return self.viewer.render(mode)
 
 
 class MazeEnvSample5x5(MazeEnv):
-
     def __init__(self):
         super(MazeEnvSample5x5, self).__init__(maze_file="maze2d_5x5.npy")
 
 
 class MazeEnvRandom5x5(MazeEnv):
-
     def __init__(self):
         super(MazeEnvRandom5x5, self).__init__(maze_size=(5, 5))
 
 
 class MazeEnvSample10x10(MazeEnv):
-
     def __init__(self):
         super(MazeEnvSample10x10, self).__init__(maze_file="maze2d_10x10.npy")
 
 
 class MazeEnvRandom10x10(MazeEnv):
-
     def __init__(self):
         super(MazeEnvRandom10x10, self).__init__(maze_size=(10, 10))
 
 
 class MazeEnvSample3x3(MazeEnv):
-
     def __init__(self):
         super(MazeEnvSample3x3, self).__init__(maze_file="maze2d_3x3.npy")
 
 
 class MazeEnvRandom3x3(MazeEnv):
-
     def __init__(self):
         super(MazeEnvRandom3x3, self).__init__(maze_size=(3, 3))
 
 
 class MazeEnvSample100x100(MazeEnv):
-
     def __init__(self):
         super(MazeEnvSample100x100, self).__init__(maze_file="maze2d_100x100.npy")
 
 
 class MazeEnvRandom100x100(MazeEnv):
-
     def __init__(self):
         super(MazeEnvRandom100x100, self).__init__(maze_size=(100, 100))
 
 
 class MazeEnvRandom10x10Plus(MazeEnv):
-
     def __init__(self):
         super(MazeEnvRandom10x10Plus, self).__init__(maze_size=(10, 10), mode="plus")
 
 
 class MazeEnvRandom20x20Plus(MazeEnv):
-
     def __init__(self):
         super(MazeEnvRandom20x20Plus, self).__init__(maze_size=(20, 20), mode="plus")
 

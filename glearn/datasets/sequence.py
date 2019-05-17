@@ -1,8 +1,9 @@
-from collections import abc
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Box
 from glearn.datasets.dataset import Dataset
+from glearn.utils.log import log_warning
+from glearn.utils.collections import is_collection
 
 
 class Vocabulary(object):
@@ -11,25 +12,25 @@ class Vocabulary(object):
         self.size = len(self.words)
         self.word_to_ids = dict(zip(words, range(len(words))))
 
-    def encipher(self, word):
-        if isinstance(word, str):
-            return self.word_to_ids.get(word, None)
-        elif isinstance(word, abc.Iterable):
+    def encipher(self, value):
+        if is_collection(value):
             # TODO omit Nones...
-            return [self.encipher(w) for w in word]
+            return [self.encipher(subvalue) for subvalue in value]
+        elif isinstance(value, str):
+            return self.word_to_ids.get(value, None)
         else:
-            print(f"Unknown vocabulary word type: {word} ({type(word)})")
+            log_warning(f"Unknown vocabulary word type: {value} ({type(value)})")
             return None
 
-    def decipher(self, id):
-        if isinstance(id, int) or np.isscalar(id):
-            if id < self.size:
-                return self.words[id]
-        elif isinstance(id, abc.Iterable):
+    def decipher(self, value):
+        if is_collection(value):
             # TODO omit Nones...
-            return [self.decipher(i) for i in id]
+            return [self.decipher(subvalue) for subvalue in value]
+        elif isinstance(value, int) or np.isscalar(value):
+            if value < self.size:
+                return self.words[value]
         else:
-            print(f"Unknown vocabulary word ID type: {id} ({type(id)})")
+            log_warning(f"Unknown vocabulary word ID type: {value} ({type(value)})")
             return None
 
 
@@ -84,10 +85,10 @@ class SequenceDataset(Dataset):
         super().__init__(name, producer_data, batch_size, input_space=input_space,
                          output_space=output_space, epoch_size=epoch_size, producer=True)
 
-    def encipher(self, value):
-        label = self.vocabulary.encipher(value)
-        return super().encipher(label)
+    def encipher_element(self, value):
+        result = self.vocabulary.encipher(value)
+        return super().encipher_element(result)
 
-    def decipher(self, value):
-        label = super.decipher(value)
-        return self.vocabulary.decipher(label)
+    def decipher_element(self, value):
+        result = super().decipher_element(value)
+        return self.vocabulary.decipher(result)

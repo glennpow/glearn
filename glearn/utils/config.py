@@ -59,6 +59,23 @@ class Config(object):
         self.loading = not training or version is not None
         self._load_evaluations()
 
+    def print_info(self):
+        # gather info
+        info = {}
+        if self.has_dataset:
+            info["Dataset"] = self.dataset.get_info()
+        elif self.has_env:
+            info["Environment"] = {
+                "Description": self.env.name,
+                "Input": self.input,
+                "Output": self.output,
+            }
+
+        # print a table with all this info
+        print()
+        print_tabular(info, grouped=True, show_type=False, color="white", bold=True)
+        print()
+
     def _load_properties(self, config_path, local=False):
         # load main config file
         properties = None
@@ -274,6 +291,9 @@ class Config(object):
 
         # start summary logging and tensorboard
         self._start_summaries()
+
+        # print evaluation info
+        self.print_info()
 
     def has(self, key):
         return key in self.current_properties

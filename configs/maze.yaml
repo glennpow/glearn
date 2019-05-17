@@ -5,22 +5,32 @@
     name: glearn.envs.maze:MazeEnv
     args:
       maze_size: [10, 10]
+
   batch_size: 128
+  episode_buffer:
+    size: 10000
 
   policy:
-    name: glearn.policies:NetworkPolicy
+    name: glearn.policies:QNetworkPolicy
     args:
       network:
         layers:
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [128, 128]
+          - name: glearn.networks:DenseLayer
+            args:
+              activation: null
         optimizer: adam
         learning_rate: 2.0e-4
+        # max_grad_norm: 5
 
   trainer:
-    name: glearn.trainers:ReinforcementTrainer
+    name: glearn.trainers:DeepQNetworkTrainer
     args:
       epochs: 500
-      keep_prob: 0.8
-      evaluate_interval: 1
+      evaluate_interval: 2
+      epsilon: [1, 0.01, 0.995]
+      max_episode_steps: 500
+      gamma: 0.9
+      target_update: 500

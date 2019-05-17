@@ -1,9 +1,9 @@
 import numpy as np
-import tensorflow as tf
 import gym
 from glearn.data.buffer import Buffer
 from glearn.data.interface import Interface
 from glearn.utils.path import TEMP_DIR
+from glearn.utils.collections import is_collection
 
 
 class DatasetBatch(Buffer):
@@ -17,6 +17,16 @@ class DatasetBatch(Buffer):
             "X": self.samples["X"],
             "Y": self.samples["Y"],
         }
+
+
+class DatasetProducerBatch(DatasetBatch):
+    def __init__(self, dataset, producers=None, **kwargs):
+        super().__init__(dataset, **kwargs)
+
+        self.producers = producers
+
+    def get_feeds(self):
+        return {}
 
 
 class Dataset(object):
@@ -72,7 +82,6 @@ class Dataset(object):
 
     @staticmethod
     def get_data_path(path):
-        # return script_relpath(f"../../data/{path}/")
         return f"{TEMP_DIR}/data/{path}"
 
     def _format_modes(self, modes):
@@ -102,52 +111,65 @@ class Dataset(object):
         return 0
 
     def get_batch(self, mode="train"):
-        if self.producer:
-            # the tensorflow producer will handle batching itself
-            return self, {}
-        else:
-            # return individual batches instead of producer
-            batch = self.build_batch(mode=mode)
-            # dataset = tf.data.Dataset.from_tensor_slices(batch)
-            return batch
-
-    def build_batch(self, mode="train"):
         inputs = self.data[mode][0]
         outputs = self.data[mode][1]
 
-        # get batch head
-        if mode not in self.heads:
-            self.heads[mode] = 0
-        head = self.heads[mode]
+        if self.producer:
+            # the tensorflow producer will handle batching itself
+            producers = {
+                "X": inputs,
+                "Y": outputs,
+            }
+            batch = DatasetProducerBatch(self, mode=mode, producers=producers)
+        else:
+            # get batch head
+            if mode not in self.heads:
+                self.heads[mode] = 0
+            head = self.heads[mode]
 
-        # build batch from slices of data
-        samples = {
-            "X": inputs[head:head + self.batch_size],
-            "Y": outputs[head:head + self.batch_size],
-        }
-        batch = DatasetBatch(self, mode=mode, samples=samples)
+            # build batch from slices of data
+            samples = {
+                "X": inputs[head:head + self.batch_size],
+                "Y": outputs[head:head + self.batch_size],
+            }
+            batch = DatasetBatch(self, mode=mode, samples=samples)
 
-        # move batch head
-        head = (head + self.batch_size) % len(inputs)
-        self.heads[mode] = head
+            # move batch head
+            head = (head + self.batch_size) % len(inputs)
+            self.heads[mode] = head
+
         return batch
 
     def encipher(self, value):
+        if is_collection(value):
+            # TODO omit Nones...
+            return [self.encipher(subvalue) for subvalue in value]
+        else:
+            return self.encipher_element(value)
+
+    def encipher_element(self, value):
         result = value
 
         # handle discrete values
-        if self.output.discrete:
-            discretized = np.zeros(self.output.shape)
-            discretized[value] = 1
-            result = discretized
+        # if self.output.discrete:
+        #     discretized = np.zeros(self.output.shape)
+        #     discretized[value] = 1
+        #     result = discretized
 
         return result
 
     def decipher(self, value):
+        if is_collection(value):
+            # TODO omit Nones...
+            return [self.decipher(subvalue) for subvalue in value]
+        else:
+            return self.decipher_element(value)
+
+    def decipher_element(self, value):
         result = value
 
         # handle discrete values
-        if self.output.discrete:
-            result = np.argmax(value)
+        # if self.output.discrete:
+        #     result = np.argmax(value)
 
         return result

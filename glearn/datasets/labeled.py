@@ -11,10 +11,10 @@ class LabeledDataset(Dataset):
     def label_count(self):
         return len(self.label_names)
 
-    def encipher(self, value):
+    def encipher_element(self, value):
         label = self.label_names.index(value)
-        return super().encipher(label)
+        return super().encipher_element(label)
 
-    def decipher(self, value):
-        label = super().decipher(value)
+    def decipher_element(self, value):
+        label = super().decipher_element(value)
         return self.label_names[label]

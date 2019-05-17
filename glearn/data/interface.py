@@ -5,12 +5,13 @@ from gym.spaces import Discrete
 
 class Interface(object):
     def __init__(self, space, deterministic=True):
-        # get shape and discreteness for interface
+        # get shape, type and discreteness for interface
         if isinstance(space, Discrete):
             self.shape, self.size, self.discrete = space.shape, space.n, True
             self.dtype = np.dtype(np.int32)
         elif isinstance(space, Space):
-            self.shape, self.size, self.discrete = space.shape, np.prod(space.shape), False
+            self.shape, self.size = space.shape, np.prod(space.shape)
+            self.discrete = np.issubdtype(space.dtype, np.integer)
             self.dtype = space.dtype
         else:
             print(f"Invalid interface space: {space}")

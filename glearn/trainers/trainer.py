@@ -50,14 +50,6 @@ class Trainer(NetworkContext):
     def print_info(self):
         # gather info
         info = {}
-        if self.has_dataset:
-            info["Dataset"] = self.dataset.get_info()
-        elif self.has_env:
-            info["Environment"] = {
-                "Description": self.env.name,
-                "Input": self.input,
-                "Output": self.output,
-            }
         info["Trainer"] = self.get_info()
         if self.policy:
             info["Policy"] = self.policy.get_info()
@@ -89,6 +81,10 @@ class Trainer(NetworkContext):
             if self.has_dataset:
                 inputs = self.dataset.get_inputs(self)
                 outputs = self.dataset.get_outputs(self)
+
+                # # add feeds
+                self.add_feed("X", inputs)
+                self.add_feed("Y", outputs)
             else:
                 inputs = self.create_feed("X", shape=(None,) + self.input.shape,
                                           dtype=self.input.dtype)
@@ -99,9 +95,9 @@ class Trainer(NetworkContext):
             inputs.interface = self.input
             outputs.interface = self.output
 
-            # set feeds
-            self.add_feed("X", inputs)
-            self.add_feed("Y", outputs)
+            # add fetches
+            self.add_fetch("X", inputs, query="evaluate")
+            self.add_fetch("Y", outputs, query="evaluate")
 
     def build_policy(self, random=False):
         # build policy, if defined

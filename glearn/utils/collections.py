@@ -1,3 +1,11 @@
+import numpy as np
+import tensorflow as tf
+
+
+def is_collection(value):
+    return isinstance(value, list) or isinstance(value, np.ndarray) or isinstance(value, tf.Tensor)
+
+
 def intersects(l1, l2):
     if not isinstance(l1, list):
         l1 = [l1]

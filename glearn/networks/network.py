@@ -91,16 +91,13 @@ class Network(Configurable):
     def variable_scope(self, name_or_scope, **kwargs):
         return self.context.variable_scope(name_or_scope, **kwargs)
 
-    def build_predict(self, inputs, reuse=None, prepare_inputs=False):
+    def build_predict(self, inputs, reuse=None):
         # all layers within network scope
         with self.variable_scope(self.get_scope_name(), reuse=reuse) as scope:
             self.scope = scope
 
             # prepare inputs
             y = inputs
-            if prepare_inputs:
-                self.prepared_inputs = prepare_inputs
-                y = self.prepare_inputs(y)
 
             # create and link network layers
             layer_definitions = self.definition.get("layers", [])
@@ -121,16 +118,6 @@ class Network(Configurable):
                     layer.activation_summary(query="evaluate")
 
         return predict
-
-    def prepare_inputs(self, inputs):
-        if self.config.input.continuous:
-            # floating point continuous input
-            inputs = tf.cast(inputs, tf.float32)
-        else:
-            # one-hot discrete input
-            inputs = tf.one_hot(inputs, self.config.input.size)
-
-        return inputs
 
     def add_loss(self, loss):
         tf.add_to_collection(f"{self.name}_losses", loss)
@@ -212,7 +199,7 @@ class Network(Configurable):
 
         if inputs is None:
             inputs = self.inputs
-        network.build_predict(inputs, prepare_inputs=self.prepared_inputs)
+        network.build_predict(inputs)
         return network
 
     def update(self, network, tau=None, name=None, query=None):

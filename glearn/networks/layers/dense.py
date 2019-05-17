@@ -18,6 +18,10 @@ class DenseLayer(NetworkLayer):
         # get variables
         self.dropout = self.context.get_or_create_feed("dropout")
 
+        # enforce discrete input as one-hot vector
+        if inputs.dtype.is_integer:
+            inputs = tf.one_hot(inputs, self.config.input.size)
+
         # prepare input
         x = tf_utils.flatten(inputs, axis=1)
 

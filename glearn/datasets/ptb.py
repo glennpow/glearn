@@ -1,8 +1,6 @@
 import collections
-import os
 import tensorflow as tf
 from glearn.datasets.sequence import Vocabulary, SequenceDataset
-from glearn.utils.path import script_relpath
 from glearn.utils.download import ensure_download
 
 

@@ -111,4 +111,8 @@ class LSTMLayer(NetworkLayer):
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         metrics = {"accuracy": accuracy}
 
+        # calculate perplexity  (FIXME)
+        perplexity = tf.exp(loss)
+        self.context.add_metric("perplexity", perplexity, query="evaluate")
+
         return loss, metrics
