@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import argparse
+import subprocess
 from glearn.menu import menu as local_menu
 from glearn.train import train as local_train
 from glearn.evaluate import evaluate as local_evaluate
@@ -17,6 +19,7 @@ except ModuleNotFoundError:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--daemon", action="store_true")
 
     parse_command_args(parser, [menu, train, evaluate, tb, deploy], default="menu")
 
@@ -25,11 +28,27 @@ def get_root_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
 
+def handle_daemon(args):
+    if args.daemon:
+        # start a daemonized version of command and exit
+        cmd = sys.argv
+        cmd.remove("--daemon")
+        log_file_name = "log.txt"
+
+        with open(log_file_name, "w") as log_file:
+            p = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log_file, stderr=log_file,
+                                 start_new_session=True)
+            print(f"Spawned daemon process [{p.id}]: '{' '.join(cmd)}' > '{log_file_name}'")
+        sys.exit(0)
+
+
 def menu(args):
     local_menu()
 
 
 def train(args):
+    handle_daemon(args)
+
     config_path = args.config
     version = args.version
     render = args.render
@@ -51,6 +70,8 @@ train.usage = train_usage
 
 
 def evaluate(args):
+    handle_daemon(args)
+
     config_path = args.config
     version = args.version
     render = not args.no_render
@@ -72,6 +93,8 @@ evaluate.usage = evaluate_usage
 
 
 def tb(args):
+    handle_daemon(args)
+
     config_path = args.config
     version = args.version
 

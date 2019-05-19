@@ -84,7 +84,7 @@ class LSTMLayer(NetworkLayer):
 
         # create output layer and convert to batched sequences
         y = self.dense(y, vocabulary_size, self.dropout, tf.nn.softmax)
-        y = tf.cast(tf.argmax(y, axis=1), tf.int32)
+        y = tf.argmax(y, axis=1, output_type=tf.int32)
         y = tf.reshape(y, [batch_size, timesteps])
 
         return y
@@ -111,7 +111,7 @@ class LSTMLayer(NetworkLayer):
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         metrics = {"accuracy": accuracy}
 
-        # calculate perplexity  (FIXME)
+        # calculate perplexity  (FIXME?)
         perplexity = tf.exp(loss)
         self.context.add_metric("perplexity", perplexity, query="evaluate")
 

@@ -24,7 +24,7 @@
     args:
       epochs: 39
       keep_prob: 0.5
-      evaluate_interval: 10
+      evaluate_interval: 100
 
   viewer:
     name: glearn.viewers.advanced_viewer:AdvancedViewer
