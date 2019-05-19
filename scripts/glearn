@@ -38,7 +38,7 @@ def handle_daemon(args):
         with open(log_file_name, "w") as log_file:
             p = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log_file, stderr=log_file,
                                  start_new_session=True)
-            print(f"Spawned daemon process [{p.id}]: '{' '.join(cmd)}' > '{log_file_name}'")
+            print(f"Spawned daemon process [{p.pid}]: '{' '.join(cmd)}' > '{log_file_name}'")
         sys.exit(0)
 
 

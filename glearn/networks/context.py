@@ -263,10 +263,12 @@ class NetworkContext(Configurable):
 
         # learning rate decay
         if isinstance(learning_rate, list):
+            lr_init = learning_rate[0]
             lr_decay = learning_rate[1]
             lr_decay_intervals = learning_rate[2] if len(learning_rate) >= 3 else 1
+            lr_warmup = learning_rate[3] if len(learning_rate) >= 4 else 0
             decay_steps = int(lr_decay_intervals * self.config.get_epoch_size())
-            learning_rate = tf.train.exponential_decay(learning_rate[0], self.global_step,
+            learning_rate = tf.train.exponential_decay(lr_init, self.global_step - lr_warmup,
                                                        decay_steps, lr_decay, staircase=True)
 
         # create optimizer
