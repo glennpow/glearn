@@ -20,7 +20,7 @@ class ViewerController(Configurable):
                 if self.env is not None:
                     self.env.unwrapped.viewer = self._viewer
             except Exception as e:
-                print(f"Failed to load viewer: {e}")
+                self.error(f"Failed to load viewer: {e}")
 
     def get_viewer(self):
         if self._viewer is not None:
@@ -32,7 +32,8 @@ class ViewerController(Configurable):
 
     def init_viewer(self):
         # register for events from viewer
-        self._viewer.window.push_handlers(self)
+        if self._viewer is not None and self._viewer.window:
+            self._viewer.window.push_handlers(self)
 
     def close(self):
         if self._viewer is not None:

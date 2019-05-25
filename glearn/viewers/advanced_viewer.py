@@ -27,10 +27,16 @@ class AdvancedViewer(Configurable):
         self.zoom = zoom
         self.fps = fps
 
-        self.window = pyglet.window.Window(width=width * zoom, height=height * zoom, visible=False,
-                                           display=self.display, vsync=False, resizable=True)
-        self.window.push_handlers(self)
-        self.isopen = True
+        try:
+            self.window = pyglet.window.Window(width=width * zoom, height=height * zoom,
+                                               visible=False, display=self.display, vsync=False,
+                                               resizable=True)
+            self.window.push_handlers(self)
+            self.isopen = True
+        except Exception as e:
+            self.error(f"Failed to create window: {e}")
+            self.window = None
+
         self.last_frame = 0
 
         self.modes = []
@@ -86,7 +92,8 @@ class AdvancedViewer(Configurable):
     def set_zoom(self, zoom):
         self.zoom = zoom
 
-        self.window.set_size(self.width * self.zoom, self.height * self.zoom)
+        if self.window:
+            self.window.set_size(self.width * self.zoom, self.height * self.zoom)
         pass
 
     def get_size(self):
@@ -96,7 +103,8 @@ class AdvancedViewer(Configurable):
         self.width = width
         self.height = height
 
-        self.window.set_size(self.width * self.zoom, self.height * self.zoom)
+        if self.window:
+            self.window.set_size(self.width * self.zoom, self.height * self.zoom)
 
     def on_resize(self, width, height):
         self.width = width / self.zoom
@@ -167,6 +175,9 @@ class AdvancedViewer(Configurable):
         pass
 
     def render(self):
+        if not self.window:
+            return
+
         if len(self.images) + len(self.labels) == 0:
             return
 

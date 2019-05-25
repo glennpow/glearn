@@ -76,7 +76,8 @@ class SummaryWriter(object):
             self.server = Popen(["tensorboard", "--logdir", path], preexec_fn=ignore_interrupt)
             atexit.register(self.stop_server)
 
-            log(f"Started tensorboard server: http://{self.config.ip}:{port}  ({path})")
+            url = f"http://{self.config.ip}:{port}"
+            log(f"Started tensorboard server: {url}  ({path})", color="white", bold=True)
 
     def stop_server(self):
         # stop tensorboard server

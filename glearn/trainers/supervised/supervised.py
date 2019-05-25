@@ -69,3 +69,5 @@ class SupervisedTrainer(Trainer):
 
         # evaluate single epoch
         self.evaluate_and_report()
+
+        self.experiment_yield(True)

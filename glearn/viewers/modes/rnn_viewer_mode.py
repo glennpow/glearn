@@ -4,8 +4,10 @@ from glearn.viewers.modes.viewer_mode import ViewerMode
 
 
 class RNNViewerMode(ViewerMode):
-    def __init__(self, config, **kwargs):
+    def __init__(self, config, num_sequences=1, **kwargs):
         super().__init__(config, **kwargs)
+
+        self.num_sequences = num_sequences
 
         self.debug_embeddings = config.is_debugging("debug_embeddings")
         self.debug_embedded = config.is_debugging("debug_embedded")
@@ -46,26 +48,15 @@ class RNNViewerMode(ViewerMode):
                 self.viewer.set_main_image(values)
 
             # show labels with targets/predictions
-            num_labels = 1
-            input_batch = self.dataset.decipher(results["X"][:num_labels])
-            target_batch = self.dataset.decipher(results["Y"][:num_labels])
-            predict_batch = self.dataset.decipher(results["predict"][:num_labels])
+            input_batch = self.dataset.decipher(results["X"][:self.num_sequences])
+            target_batch = self.dataset.decipher(results["Y"][:self.num_sequences])
+            predict_batch = self.dataset.decipher(results["predict"][:self.num_sequences])
 
             with tf.variable_scope("sequence/"):
-                for i in range(num_labels):
+                for i in range(self.num_sequences):
                     input_seq = " ".join([str(x) for x in input_batch[i]])
                     target_seq = " ".join([str(x) for x in target_batch[i]])
                     predict_seq = " ".join([str(x) for x in predict_batch[i]])
-
-                    # log in summary
-                    prediction_table = {
-                        "input": input_seq,
-                        "target": target_seq,
-                        "predicted": predict_seq,
-                    }
-                    tensor = tf.stack([tf.convert_to_tensor([k, v])
-                                       for k, v in prediction_table.items()])
-                    self.summary.write_text(f"prediction_{i}", tensor)
 
                     # render in viewer
                     prediction_message = (f"INPUT:  {input_seq}\n"
