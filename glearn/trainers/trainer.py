@@ -285,6 +285,8 @@ class Trainer(NetworkContext):
             # remove None values
             report_results = {k: v for k, v in report_results.items() if v is not None}
 
+            process_evaluate_results(report_results)
+
             # print inputs and results
             table["Feeds"] = report_feed_map
             table["Results"] = report_results
@@ -315,6 +317,10 @@ class Trainer(NetworkContext):
         # finally update global step
         if not self.training:
             self.current_global_step += 1
+
+    def process_evaluate_results(self, results):
+        # override
+        pass
 
     def experiment_loop(self):
         # override

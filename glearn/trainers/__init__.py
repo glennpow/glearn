@@ -1,6 +1,8 @@
 from glearn.utils.reflection import get_class
 
 from .supervised.supervised import SupervisedTrainer  # noqa
+from .supervised.sequence import SequenceTrainer  # noqa
+
 from .reinforcement.policy_gradient import PolicyGradientTrainer  # noqa
 from .reinforcement.advantage_actor_critic import AdvantageActorCriticTrainer  # noqa
 from .reinforcement.soft_actor_critic import SoftActorCriticTrainer  # noqa

@@ -20,7 +20,7 @@
         max_grad_norm: 10
 
   trainer:
-    name: glearn.trainers:SupervisedTrainer
+    name: glearn.trainers:SequenceTrainer
     args:
       epochs: 60
       keep_prob: 0.35
