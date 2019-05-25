@@ -123,6 +123,9 @@ class AdvancedViewer(Configurable):
         self.set_main_image(arr)
 
     def add_image(self, name, values, x=0, y=0, width=None, height=None):
+        if not self.window:
+            return
+
         import pyglet
 
         # get image data
@@ -158,6 +161,9 @@ class AdvancedViewer(Configurable):
 
     def add_label(self, name, message, x=0, y=0, anchor_x='left', anchor_y='bottom',
                   font_name='Times New Roman', font_size=16, **kwargs):
+        if not self.window:
+            return
+
         import pyglet
 
         label = pyglet.text.Label(message, x=x, y=y, anchor_x=anchor_x, anchor_y=anchor_y,

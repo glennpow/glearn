@@ -285,7 +285,7 @@ class Trainer(NetworkContext):
             # remove None values
             report_results = {k: v for k, v in report_results.items() if v is not None}
 
-            process_evaluate_results(report_results)
+            self.process_evaluate_results(report_results)
 
             # print inputs and results
             table["Feeds"] = report_feed_map
