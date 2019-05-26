@@ -25,10 +25,3 @@
       epochs: 60
       keep_prob: 0.35
       evaluate_interval: 100
-
-  viewer:
-    name: glearn.viewers.advanced_viewer:AdvancedViewer
-    args:
-      zoom: 1
-      modes:
-        - name: glearn.viewers.modes:RNNViewerMode
