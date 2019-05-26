@@ -1,10 +1,13 @@
---- # Digit Repeat
+--- # Test RNN
   import: _base
 
   dataset: digit_repeat
   batch_size: 20
   timesteps: 35
   multithreaded: true
+
+  # debug_embeddings: true
+  # debug_embedded: true
 
   policy:
     name: glearn.policies:NetworkPolicy
@@ -20,11 +23,11 @@
         max_grad_norm: 5
 
   trainer:
-    name: glearn.trainers:SupervisedTrainer
+    name: glearn.trainers:SequenceTrainer
     args:
-      epochs: 200
+      epochs: 400
       keep_prob: 0.5
-      evaluate_interval: 20
+      evaluate_interval: 100
 
   viewer:
     name: glearn.viewers.advanced_viewer:AdvancedViewer

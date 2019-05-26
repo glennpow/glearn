@@ -46,7 +46,7 @@ class LSTMLayer(NetworkLayer):
                 # debugging fetches
                 if self.debug_embeddings:
                     self.context.add_fetch("embedding", embedding, "evaluate")
-                elif self.debug_embedded:
+                if self.debug_embedded:
                     self.context.add_fetch("embedded", x, "evaluate")
 
         # first dropout here
