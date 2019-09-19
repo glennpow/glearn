@@ -1,8 +1,9 @@
 import tensorflow as tf
 from .mnist import mnist_dataset
 from .cifar10 import cifar10_dataset
-from .ptb import ptb_dataset
 from .digit_repeat import DigitRepeatDataset as digit_repeat_dataset
+from .ptb import ptb_dataset
+from .nmt import nmt_dataset
 
 
 def load_dataset(config):
@@ -13,8 +14,10 @@ def load_dataset(config):
             return mnist_dataset(config)
         if name == "cifar10":
             return cifar10_dataset(config)
-        if name == "ptb":
-            return ptb_dataset(config)
         if name == "digit_repeat":
             return digit_repeat_dataset(config)
+        if name == "ptb":
+            return ptb_dataset(config)
+        if name == "nmt":
+            return nmt_dataset(config)
         return None

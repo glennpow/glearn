@@ -1,0 +1,27 @@
+--- # NMT en-de
+  import: _base
+
+  dataset: nmt
+  batch_size: 20
+  timesteps: 35
+  multithreaded: true
+
+  policy:
+    name: glearn.policies:NetworkPolicy
+    args:
+      network:
+        layers:
+          - name: glearn.networks:LSTMLayer
+            args:
+              hidden_sizes: [1500, 1500]
+              embedding_lookup: true
+        optimizer: sgd
+        learning_rate: [1.0, 0.8696, 1, 14]
+        max_grad_norm: 10
+
+  trainer:
+    name: glearn.trainers:SequenceTrainer
+    args:
+      epochs: 60
+      keep_prob: 0.35
+      evaluate_interval: 100

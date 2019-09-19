@@ -41,7 +41,7 @@ def _load_data():
     return train_data, valid_data, test_data, vocabulary
 
 
-def ptb_dataset(config, mode="train"):
+def ptb_dataset(config):
     train_data, valid_data, test_data, vocabulary = _load_data()
     data = {
         "train": train_data,
