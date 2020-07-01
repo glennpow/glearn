@@ -6,15 +6,17 @@ from glearn.datasets.labeled import LabeledDataset
 
 class GenerativeTrainer(UnsupervisedTrainer):
     def __init__(self, config, latent_size=100, conditional=False, fixed_evaluate_latent=False,
-                 **kwargs):
+                 summary_images=9, **kwargs):
         self.latent_size = latent_size
         self.conditional = conditional
         self.fixed_evaluate_latent = fixed_evaluate_latent
+        self.summary_images = summary_images
 
         super().__init__(config, **kwargs)
 
         assert(self.has_dataset)
 
+        # TODO - could use partial images as conditions as well...
         self.has_labeled_dataset = isinstance(self.dataset, LabeledDataset)
         self.conditional = self.conditional and self.has_labeled_dataset
 
@@ -22,8 +24,10 @@ class GenerativeTrainer(UnsupervisedTrainer):
         return "unsupervised"
 
     def get_conditioned_inputs(self, inputs, labels):
-        # TODO - investigate: condition_tensor_from_onehot() (https://arxiv.org/abs/1609.03499)
-        return tf.concat([inputs, tf.cast(labels, tf.float32)], -1)
+        return tf.contrib.gan.features.condition_tensor_from_onehot(inputs, labels)
+        # return tf.concat([tf.reshape(inputs, (-1, np.prod(inputs.shape[1:]))),
+        #                   tf.expand_dims(tf.cast(labels, tf.float32), -1)], -1)
+        # return tf.concat([inputs, tf.cast(labels, tf.float32)], -1)
 
     def build_generator_network(self, name, definition, z=None, reuse=None):
         if z is None:
@@ -32,8 +36,8 @@ class GenerativeTrainer(UnsupervisedTrainer):
 
         # conditional inputs
         if self.conditional:
-            # TODO - investigate: condition_tensor_from_onehot() (https://arxiv.org/abs/1609.03499)
-            z = self.get_conditioned_inputs(z, self.get_feed("Y"))
+            with self.variable_scope(f"{name}_network") as _:
+                z = self.get_conditioned_inputs(z, self.get_feed("Y"))
 
         return self.build_network(name, definition, z, reuse=reuse)
 
@@ -54,10 +58,21 @@ class GenerativeTrainer(UnsupervisedTrainer):
 
             if labels is not None and self.has_labeled_dataset:
                 label_count = len(self.dataset.label_names)
-                indexes = [tf.where(tf.equal(labels, l)) for l in range(label_count)]
+                # indexes = [tf.where(tf.equal(labels, lb)) for lb in range(label_count)]
                 for i in range(label_count):
+                    label = self.dataset.labels[i]
                     label_name = self.dataset.label_names[i]
-                    index = tf.squeeze(indexes[i])[0]
+
+                    if self.dataset.one_hot:
+                        # handle one hot labels
+                        # label_one_hot = tf.cast(tf.one_hot(i, label_count), tf.int8)
+                        index = tf.where(tf.reduce_all(tf.equal(labels, label), axis=-1))[0]
+                        index = tf.squeeze(index)
+                    else:
+                        # handle int labels
+                        index = tf.squeeze(tf.where(tf.equal(labels, i)))[0]
+                        # index = tf.squeeze(indexes[i])[0]  # TODO - make sure at least one
+
                     decoded_image = images[index:index + 1]
                     self.summary.add_images(f"{name}_{label_name}", decoded_image)
             else:

@@ -93,7 +93,5 @@ class ProximalPolicyOptimizationTrainer(AdvantageActorCriticTrainer):
         from glearn.utils.printing import print_tabular
         print_tabular(debug_values)
 
-        # import ipdb; ipdb.set_trace()  # HACK DEBUGGING !!!
-
         return results
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!

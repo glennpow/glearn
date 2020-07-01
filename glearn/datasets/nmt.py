@@ -7,7 +7,8 @@ from glearn.utils.download import ensure_download
 TRANSLATIONS = {
     # "en/sp": "http://storage.googleapis.com/download.tensorflow.org/data/spa-eng.zip",
     "en-de": {
-        "url": "https://drive.google.com/open?id=0B_bZck-ksdkpM25jRUN2X2UxMm8",
+        # "url": "https://drive.google.com/open?id=0B_bZck-ksdkpM25jRUN2X2UxMm8",
+        "url": "/Users/glennpowell/data/datasets/nmt/wmt16_en_de.tar.gz",
         "vocab.source": "vocab.bpe.32000",
         "vocab.source": "vocab.bpe.32000",
         "train.source": "train.tok.clean.bpe.32000.en",
@@ -44,7 +45,7 @@ def _load_data(languages):
     translation = TRANSLATIONS[language_map]
 
     zip_data = ensure_download(translation["url"], data_path, extract=True)
-    import ipdb; ipdb.set_trace()  # HACK DEBUGGING !!!
+    # TODO
     return None
 
 

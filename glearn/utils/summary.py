@@ -3,7 +3,7 @@ import atexit
 import signal
 import numpy as np
 import tensorflow as tf
-from subprocess import Popen
+from subprocess import Popen, PIPE
 from glearn.utils.log import log, log_warning
 from glearn.utils.path import remove_empty_dirs
 from glearn.utils import tf_utils
@@ -73,7 +73,8 @@ class SummaryWriter(object):
             # start tensorboard server
             path = self.config.tensorboard_path
             port = 6006
-            self.server = Popen(["tensorboard", "--logdir", path], preexec_fn=ignore_interrupt)
+            self.server = Popen(["tensorboard", "--logdir", path], preexec_fn=ignore_interrupt,
+                                stdout=PIPE, stderr=PIPE)
             atexit.register(self.stop_server)
 
             url = f"http://{self.config.ip}:{port}"

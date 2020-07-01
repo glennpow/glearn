@@ -7,8 +7,6 @@
   trainer:
     name: glearn.trainers:VariationalAutoencoderTrainer
     args:
-      # conditional: true
-
       encoder:  # encoder network
         layers:
           - name: glearn.networks:DenseLayer

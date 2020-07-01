@@ -16,7 +16,8 @@ class VariationalAutoencoderTrainer(GenerativeTrainer):
     def build_encoder(self, x, y):
         # condition input (TODO - inject properly into first dense layer)
         if self.conditional:
-            x = self.get_conditioned_inputs(x, y)
+            with self.variable_scope("encoder_network") as _:
+                x = self.get_conditioned_inputs(x, y)
 
         self.encoder_network = self.build_network("encoder", self.encoder_definition, x)
         return self.encoder_network.outputs

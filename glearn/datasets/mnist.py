@@ -106,6 +106,7 @@ def _load_data(images_file, labels_file, config):
     labels = _load_data_file(labels_file, 1, max_count=max_count, header_bytes=8,
                              mapping=decode_label)
     labels = np.reshape(labels, [-1])
+
     return images, labels
 
 
@@ -115,9 +116,7 @@ def mnist_dataset(config, mode="train"):
     data["test"] = _load_data(f't10k-images-idx3-ubyte', f't10k-labels-idx1-ubyte', config)
 
     batch_size = config.batch_size
-    output_space = gym.spaces.Discrete(10)
-
+    one_hot = config.get("one_hot", False)
     label_names = [str(i) for i in range(10)]
 
-    return LabeledDataset("MNIST", data, batch_size, output_space=output_space,
-                          label_names=label_names)
+    return LabeledDataset("MNIST", data, batch_size, label_names=label_names, one_hot=one_hot)
