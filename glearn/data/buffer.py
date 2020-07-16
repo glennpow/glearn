@@ -115,8 +115,8 @@ class Buffer(object):
             if key not in self.samples:
                 if key not in self._missing_keys:
                     self._missing_keys[key] = True
-                    log_warning(f"Sample key not found in buffer: {key}")
-                    continue
+                    log_warning(f"Sample key not found in buffer: {key} {self._missing_keys}")
+                continue
 
             # add sample values for key
             if self.size is None:

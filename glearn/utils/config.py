@@ -67,8 +67,8 @@ class Config(object):
         elif self.has_env:
             info["Environment"] = {
                 "Description": self.env.name,
-                "Input": self.input,
-                "Output": self.output,
+                "Observation": self.input,
+                "Action": self.output,
             }
 
         # print a table with all this info

@@ -21,6 +21,11 @@ class TransitionBuffer(Buffer):
 
         self.reward = 0
 
+    def clear(self):
+        super().clear()
+
+        self.reward = 0
+
     def add_transition(self, transition):
         # accumulate episode reward
         self.reward += transition.reward

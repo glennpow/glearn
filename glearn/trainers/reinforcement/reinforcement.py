@@ -20,7 +20,7 @@ class ReinforcementTrainer(Trainer):
         self.averaged_episodes = averaged_episodes
 
         self.state = None
-        self.episode = None
+        self.episode = Episode()
         self.buffer = EpisodeBuffer(config, self)
 
         self._zero_reward_warning = False
@@ -56,7 +56,7 @@ class ReinforcementTrainer(Trainer):
         if mode == "train":
             # reset env and episode
             self.state = self.env.reset()
-            self.episode = Episode(episode_count)
+            self.episode.reset(episode_count)
         elif mode == "test":
             self._zero_reward_warning = False
         return 1
@@ -101,7 +101,7 @@ class ReinforcementTrainer(Trainer):
         results = self.predict(self.state)
 
         # extract predicted action and other results
-        action = results.pop("predict")[0]
+        action = results.pop("predict").reshape(self.config.output.shape)
         predict_info = {k: np.squeeze(v[0]) for k, v in results.items()}
         return action, predict_info
 

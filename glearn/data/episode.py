@@ -4,10 +4,10 @@ from .transition import TransitionBuffer
 
 
 class Episode(TransitionBuffer):
-    def __init__(self, id, **kwargs):
-        super().__init__(**kwargs)
-
+    def reset(self, id):
         self.id = id
+
+        self.clear()
 
 
 class EpisodeBuffer(TransitionBuffer):
