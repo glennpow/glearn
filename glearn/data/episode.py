@@ -132,6 +132,7 @@ class EpisodeBuffer(TransitionBuffer):
 
         def normalize(values, definition):
             # normalize values between [0, 1]
+            values = values.astype(np.float32)
             min_value = np.amin(values)
             max_value = np.amax(values)
             span_value = (max_value - min_value)

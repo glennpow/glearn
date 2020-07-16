@@ -6,6 +6,8 @@ from glearn.utils.printing import print_update
 
 
 def ensure_download(url, download_dir, extract=False):
+    # TODO - if is local file, yada yada...
+
     # use the filename from the URL and add it to the download_dir
     filename = url.split('/')[-1]
     file_path = os.path.join(download_dir, filename)

@@ -11,6 +11,7 @@ class Buffer(object):
 
         self._head = 0
         self._count = 0
+        self._missing_keys = {}
 
     def __contains__(self, key):
         if not isinstance(key, str):
@@ -96,7 +97,6 @@ class Buffer(object):
                     # bounded buffers
                     samples_shape = (self.size,) + value_shape
                 self.samples[key] = np.zeros(samples_shape, dtype=value_dtype)
-        assert len(samples) == len(self.samples)
 
         # get storage indexes for samples
         if self.size:
@@ -112,7 +112,11 @@ class Buffer(object):
 
         for key, values in samples.items():
             # make sure samples are compatible with this buffer
-            assert key in self.samples, f"Invalid buffer sample key: {key}"
+            if key not in self.samples:
+                if key not in self._missing_keys:
+                    self._missing_keys[key] = True
+                    log_warning(f"Sample key not found in buffer: {key}")
+                    continue
 
             # add sample values for key
             if self.size is None:
