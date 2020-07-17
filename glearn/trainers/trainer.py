@@ -25,6 +25,8 @@ class Trainer(NetworkContext):
         self.debug_memory = self.is_debugging("debug_memory")
         self.debug_raise_numerics = self.is_debugging("debug_raise_numerics")
 
+        self.debug_metrics = {}
+
         self.evaluate_interval = evaluate_interval
         self.keep_prob = keep_prob  # TODO - refactor
 
@@ -170,6 +172,10 @@ class Trainer(NetworkContext):
         # override
         return None
 
+    def add_debug_metrics(self, queries):
+        if self.debugging:
+            self.debug_metrics.update(queries)
+
     def is_optimize(self, query):
         return np.any(["optimize" in query_name for query_name in query])
 
@@ -186,13 +192,27 @@ class Trainer(NetworkContext):
         return self.training
 
     def get_optimize_query(self, batch):
-        return ["policy_optimize"]
+        query = ["policy_optimize"]
+
+        # debug metrics
+        if self.debug_metrics:
+            query.append("debug_metrics")
+
+        return query
 
     def optimize(self, batch):
         # run default policy optimize query
         feed_map = batch.get_feeds()
         query = self.get_optimize_query(batch)
-        return self.run(query, feed_map)
+        results = self.run(query, feed_map)
+
+        # print any debug metrics
+        if self.debug_metrics:
+            debug_values = results.pop("debug_metrics", None)
+            if debug_values:
+                print_tabular(debug_values)
+
+        return results
 
     def optimize_and_report(self, batch):
         results = self.optimize(batch)
@@ -371,6 +391,10 @@ class Trainer(NetworkContext):
 
             # build models
             self.build_models(random=random)
+
+            # debug metrics
+            if self.debug_metrics:
+                self.add_fetch("debug_metrics", self.debug_metrics)
 
             # check for invalid values in the current graph
             if self.debug_raise_numerics:

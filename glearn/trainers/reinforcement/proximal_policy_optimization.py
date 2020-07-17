@@ -53,9 +53,9 @@ class ProximalPolicyOptimizationTrainer(AdvantageActorCriticTrainer):
         # final policy loss
         loss = -tf.reduce_mean(tf.minimum(unclipped_surr, clipped_surr))
 
-        # !!!!!!!!!! DEBUG !!!!!!!!!!
+        # debug metrics
         prob = policy_distribution.prob(action)
-        debug_values = {
+        debug_queries = {
             "action": action,
             "prob": prob,
             "policy_log_prob": policy_log_prob,
@@ -65,8 +65,7 @@ class ProximalPolicyOptimizationTrainer(AdvantageActorCriticTrainer):
             "clipped_surr": clipped_surr,
             "loss": loss,
         }
-        self.add_fetch("DEBUG", debug_values)
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.add_debug_metrics(debug_queries)
 
         return loss
 
@@ -76,22 +75,4 @@ class ProximalPolicyOptimizationTrainer(AdvantageActorCriticTrainer):
         # update target policy
         query.append("target_policy_update")
 
-        # !!!!!!!!!! DEBUG !!!!!!!!!!
-        query.append("DEBUG")
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!
-
         return query
-
-    # !!!!!!!!!! DEBUG !!!!!!!!!!
-    def optimize(self, batch):
-        results = super().optimize(batch)
-        debug_values = results["DEBUG"]
-        # feed_map = batch.get_feeds()
-        # query = self.get_optimize_query(batch)
-        # query = "DEBUG"
-        # self.run(query, feed_map)
-        from glearn.utils.printing import print_tabular
-        print_tabular(debug_values)
-
-        return results
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!
