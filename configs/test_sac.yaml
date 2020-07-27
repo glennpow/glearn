@@ -20,7 +20,7 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [400]
+              hidden_sizes: [10]
           - name: glearn.networks:NormalDistributionLayer
             args:
               squash: false  # HACK - must be true for SAC
@@ -35,7 +35,7 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [100]
+              hidden_sizes: [10]
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [1]
@@ -47,7 +47,7 @@
         layers:
           - name: glearn.networks:DenseLayer
             args:
-              hidden_sizes: [100]
+              hidden_sizes: [10]
           - name: glearn.networks:DenseLayer
             args:
               hidden_sizes: [1]

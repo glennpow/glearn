@@ -1,10 +1,10 @@
 ## Experiments
 
-### Space Invaders (Policy Gradient)
-./scripts/glearn train space_invaders_pg
+### Space Invaders (VPG)
+./scripts/glearn train space_invaders
 
 ### Space Invaders (CNN)
-./scripts/glearn train space_invaders
+./scripts/glearn train space_invaders_cnn
 
 ### MNIST (CNN)
 ./scripts/glearn train mnist

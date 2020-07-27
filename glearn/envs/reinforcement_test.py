@@ -3,6 +3,9 @@ import gym
 from gym import spaces
 
 
+# DEPRECATE
+
+
 class ReinforcementTestEnv(gym.Env):
     def __init__(self, action_size=4, desired=1, desired_sequence=False, desired_terminates=False,
                  discrete=False, sparse_reward=False, reward_scalar=1, max_undesired_steps=None):
@@ -89,6 +92,7 @@ class ReinforcementTestEnv(gym.Env):
             self.state[0] += action
             reward = -np.abs(self.desired - self.state[0])
 
+        # print(f"{action} => {self.state}, {reward}, {done}")
         return np.copy(self.state), reward, done, {}
 
     def render(self, **kwargs):

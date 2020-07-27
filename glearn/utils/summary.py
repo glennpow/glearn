@@ -98,7 +98,7 @@ class SummaryWriter(object):
 
     def get_summary_results(self, query):
         if query not in self.summary_results:
-            self.summary_results[query] = self.Results(query)
+            self.summary_results[query] = self.Results(query)  # TODO FIXME - what is thiS?!
         return self.summary_results[query]
 
     def add_simple_summary(self, name, query=None, allow_overwrite=False, **kwargs):

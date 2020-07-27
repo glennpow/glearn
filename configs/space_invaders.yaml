@@ -17,7 +17,7 @@
         learning_rate: 2.0e-4
 
   trainer:
-    name: glearn.trainers:ReinforcementTrainer
+    name: glearn.trainers:PolicyGradientTrainer
     args:
       epochs: 500
       keep_prob: 0.8
